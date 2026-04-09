@@ -48,12 +48,12 @@ export interface LeadCaptureRequest {
   first_name: string;
   email: string;
   phone_number: string;
-  country?: string;
-  current_job?: string;
-  income_range?: string;
+  timeline_to_start: string;
+  income_goal: string;
   source_tool: string;
   result_id: string;
   consented: boolean;
+  lead_source?: string;
 }
 
 export interface CareerAssessmentRequest {
@@ -122,7 +122,7 @@ export const adminApi = {
   // ── Pipeline controls (US-01 to US-07) ──────────────────────────
 
   // Manually trigger ingestion per platform
-  triggerIngest: (platform: 'twitter' | 'reddit' | 'youtube') =>
+  triggerIngest: (platform: 'twitter' | 'reddit' | 'youtube' | 'linkedin') =>
     api.post(`/ingest/${platform}`),
 
   // Classify a single signal by ID
@@ -157,6 +157,47 @@ export const adminApi = {
   // Integration status — which env vars are configured on the server
   getIntegrationStatus: () =>
     api.get('/api/admin/integration-status'),
+
+  // ── User management (admin only) ────────────────────────────────
+  getUsers: () =>
+    api.get('/api/admin/users'),
+
+  createUser: (data: { name: string; email: string; password: string; role: 'admin' | 'viewer' }) =>
+    api.post('/api/admin/users', data),
+
+  updateUser: (id: string, data: { name?: string; role?: 'admin' | 'viewer'; is_active?: boolean; password?: string }) =>
+    api.patch(`/api/admin/users/${id}`, data),
+
+  deleteUser: (id: string) =>
+    api.delete(`/api/admin/users/${id}`),
+
+  // ── Outreach (admin only) ───────────────────────────────────────
+  getOutreachQueue: (params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    platform?: string;
+    tool_recommendation?: string;
+  }) =>
+    api.get('/api/admin/outreach', { params }),
+
+  getOutreachStats: () =>
+    api.get('/api/admin/outreach/stats'),
+
+  updateOutreach: (id: string, data: { status: 'approved' | 'sent' | 'skipped'; reply?: string }) =>
+    api.patch(`/api/admin/outreach/${id}`, data),
+
+  triggerOutreachGenerate: () =>
+    api.post('/api/admin/outreach/generate'),
+
+  triggerOutreachSend: () =>
+    api.post('/api/admin/outreach/send-now'),
+
+  retryFailedOutreach: () =>
+    api.post('/api/admin/outreach/retry-failed'),
+
+  bulkApproveOutreach: () =>
+    api.post('/api/admin/outreach/bulk-approve'),
 };
 
 export default api;

@@ -9,34 +9,65 @@ interface LeadCaptureModalProps {
   onSubmit: (data: LeadFormData) => Promise<void>;
   resultId: string;
   sourceTool: string;
+  leadSource?: string;
 }
 
 export interface LeadFormData {
   first_name: string;
   email: string;
   phone_number: string;
-  country: string;
-  current_job: string;
-  income_range: string;
+  timeline_to_start: string;
+  income_goal: string;
   source_tool: string;
   result_id: string;
   consented: boolean;
+  lead_source?: string;
 }
 
-const INCOME_RANGES = [
-  'Under $30,000',
-  '$30,000 - $50,000',
-  '$50,000 - $75,000',
-  '$75,000 - $100,000',
-  '$100,000 - $150,000',
-  '$150,000+',
+const INCOME_GOALS = [
+  'Under $60,000',
+  '$60,000 - $90,000',
+  '$90,000 - $130,000',
+  '$130,000 - $180,000',
+  '$180,000+',
 ];
 
-const COUNTRIES = [
-  'United States', 'United Kingdom', 'Canada', 'Australia', 'Germany',
-  'Nigeria', 'India', 'South Africa', 'Kenya', 'Ghana',
-  'Netherlands', 'France', 'Ireland', 'Singapore', 'UAE',
-  'Brazil', 'Mexico', 'Philippines', 'Japan', 'Other',
+const TIMELINES = [
+  'Immediately — I need a career change now',
+  'Within the next 3 months',
+  'Within the next 3–6 months',
+  'Within the next 6–12 months',
+  'Just exploring for now',
+];
+
+// Common country dialing codes — US + Canada first (primary market), then others.
+// minLen/maxLen are NSN (national significant number) digit counts, excluding country code.
+interface CountryEntry {
+  code: string; dial: string; flag: string; name: string;
+  minLen: number; maxLen: number; example: string;
+}
+const COUNTRY_CODES: CountryEntry[] = [
+  { code: 'US', dial: '+1',   flag: '🇺🇸', name: 'United States',  minLen: 10, maxLen: 10, example: '2025551234' },
+  { code: 'CA', dial: '+1',   flag: '🇨🇦', name: 'Canada',         minLen: 10, maxLen: 10, example: '4165551234' },
+  { code: 'GB', dial: '+44',  flag: '🇬🇧', name: 'United Kingdom', minLen: 10, maxLen: 10, example: '7400123456' },
+  { code: 'AU', dial: '+61',  flag: '🇦🇺', name: 'Australia',      minLen: 9,  maxLen: 9,  example: '412345678'  },
+  { code: 'IE', dial: '+353', flag: '🇮🇪', name: 'Ireland',        minLen: 9,  maxLen: 9,  example: '851234567'  },
+  { code: 'NZ', dial: '+64',  flag: '🇳🇿', name: 'New Zealand',    minLen: 8,  maxLen: 10, example: '211234567'  },
+  { code: 'DE', dial: '+49',  flag: '🇩🇪', name: 'Germany',        minLen: 10, maxLen: 11, example: '15123456789' },
+  { code: 'FR', dial: '+33',  flag: '🇫🇷', name: 'France',         minLen: 9,  maxLen: 9,  example: '612345678'  },
+  { code: 'NL', dial: '+31',  flag: '🇳🇱', name: 'Netherlands',    minLen: 9,  maxLen: 9,  example: '612345678'  },
+  { code: 'ES', dial: '+34',  flag: '🇪🇸', name: 'Spain',          minLen: 9,  maxLen: 9,  example: '612345678'  },
+  { code: 'IT', dial: '+39',  flag: '🇮🇹', name: 'Italy',          minLen: 9,  maxLen: 10, example: '3123456789' },
+  { code: 'IN', dial: '+91',  flag: '🇮🇳', name: 'India',          minLen: 10, maxLen: 10, example: '9123456789' },
+  { code: 'NG', dial: '+234', flag: '🇳🇬', name: 'Nigeria',        minLen: 10, maxLen: 10, example: '8031234567' },
+  { code: 'ZA', dial: '+27',  flag: '🇿🇦', name: 'South Africa',   minLen: 9,  maxLen: 9,  example: '821234567'  },
+  { code: 'KE', dial: '+254', flag: '🇰🇪', name: 'Kenya',          minLen: 9,  maxLen: 9,  example: '712345678'  },
+  { code: 'GH', dial: '+233', flag: '🇬🇭', name: 'Ghana',          minLen: 9,  maxLen: 9,  example: '241234567'  },
+  { code: 'AE', dial: '+971', flag: '🇦🇪', name: 'UAE',            minLen: 9,  maxLen: 9,  example: '501234567'  },
+  { code: 'SG', dial: '+65',  flag: '🇸🇬', name: 'Singapore',      minLen: 8,  maxLen: 8,  example: '81234567'   },
+  { code: 'PH', dial: '+63',  flag: '🇵🇭', name: 'Philippines',    minLen: 10, maxLen: 10, example: '9171234567' },
+  { code: 'BR', dial: '+55',  flag: '🇧🇷', name: 'Brazil',         minLen: 10, maxLen: 11, example: '11912345678' },
+  { code: 'MX', dial: '+52',  flag: '🇲🇽', name: 'Mexico',         minLen: 10, maxLen: 10, example: '5512345678' },
 ];
 
 export default function LeadCaptureModal({
@@ -45,18 +76,23 @@ export default function LeadCaptureModal({
   onSubmit,
   resultId,
   sourceTool,
+  leadSource,
 }: LeadCaptureModalProps) {
   const [formData, setFormData] = useState<LeadFormData>({
     first_name: '',
     email: '',
     phone_number: '',
-    country: '',
-    current_job: '',
-    income_range: '',
+    timeline_to_start: '',
+    income_goal: '',
     source_tool: sourceTool,
     result_id: resultId,
     consented: false,
   });
+  const [countryKey, setCountryKey] = useState('US|+1'); // default US
+  const selectedCountry =
+    COUNTRY_CODES.find((c) => `${c.code}|${c.dial}` === countryKey) || COUNTRY_CODES[0];
+  const dialCode = selectedCountry.dial;
+  const [phoneLocal, setPhoneLocal] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -76,10 +112,28 @@ export default function LeadCaptureModal({
       newErrors.email = 'Please enter a valid email address';
     }
 
-    if (!formData.phone_number.trim()) {
+    const digitsOnly = phoneLocal.replace(/\D/g, '');
+    const { minLen, maxLen, name } = selectedCountry;
+    if (!digitsOnly) {
       newErrors.phone_number = 'Phone number is required';
-    } else if (!/^\+[1-9]\d{1,14}$/.test(formData.phone_number.replace(/\s/g, ''))) {
-      newErrors.phone_number = 'Use E.164 format: +12025551234 (country code + number, no spaces)';
+    } else if (digitsOnly.length < minLen || digitsOnly.length > maxLen) {
+      newErrors.phone_number =
+        minLen === maxLen
+          ? `${name} numbers must be exactly ${minLen} digits`
+          : `${name} numbers must be ${minLen}–${maxLen} digits`;
+    } else {
+      const fullE164 = `${dialCode}${digitsOnly}`;
+      if (!/^\+[1-9]\d{1,14}$/.test(fullE164)) {
+        newErrors.phone_number = 'Invalid phone number format';
+      }
+    }
+
+    if (!formData.timeline_to_start) {
+      newErrors.timeline_to_start = 'Please select your timeline';
+    }
+
+    if (!formData.income_goal) {
+      newErrors.income_goal = 'Please select your income goal';
     }
 
     if (!formData.consented) {
@@ -98,10 +152,13 @@ export default function LeadCaptureModal({
 
     setLoading(true);
     try {
+      const fullPhone = `${dialCode}${phoneLocal.replace(/\D/g, '')}`;
       await onSubmit({
         ...formData,
+        phone_number: fullPhone,
         source_tool: sourceTool,
         result_id: resultId,
+        lead_source: leadSource,
       });
     } catch (err: any) {
       setSubmitError(
@@ -191,61 +248,108 @@ export default function LeadCaptureModal({
             {errors.email && <p className="error-text">{errors.email}</p>}
           </div>
 
-          {/* Phone */}
+          {/* Phone — country code selector + national number */}
           <div>
             <label className="label-text">
               Phone Number <span className="text-brand-danger">*</span>
             </label>
-            <input
-              type="tel"
-              className="input-field"
-              placeholder="+12025551234"
-              value={formData.phone_number}
-              onChange={(e) => handleChange('phone_number', e.target.value)}
-            />
-            {errors.phone_number && <p className="error-text">{errors.phone_number}</p>}
+            <div className="flex gap-2">
+              <select
+                aria-label="Country dialing code"
+                className="select-field !w-auto min-w-[110px] shrink-0 pr-6"
+                value={countryKey}
+                onChange={(e) => {
+                  setCountryKey(e.target.value);
+                  // Trim phone digits if longer than the new country's max
+                  const newCountry =
+                    COUNTRY_CODES.find((c) => `${c.code}|${c.dial}` === e.target.value) ||
+                    COUNTRY_CODES[0];
+                  const digits = phoneLocal.replace(/\D/g, '').slice(0, newCountry.maxLen);
+                  setPhoneLocal(digits);
+                  if (errors.phone_number) {
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.phone_number;
+                      return next;
+                    });
+                  }
+                }}
+              >
+                {COUNTRY_CODES.map((c) => (
+                  <option key={`${c.code}-${c.dial}`} value={`${c.code}|${c.dial}`}>
+                    {c.flag} {c.dial} {c.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="tel"
+                inputMode="numeric"
+                className="input-field flex-1"
+                placeholder={selectedCountry.example}
+                maxLength={selectedCountry.maxLen}
+                value={phoneLocal}
+                onChange={(e) => {
+                  // Strip non-digits and cap at max length for the selected country
+                  const digits = e.target.value
+                    .replace(/\D/g, '')
+                    .slice(0, selectedCountry.maxLen);
+                  setPhoneLocal(digits);
+                  if (errors.phone_number) {
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.phone_number;
+                      return next;
+                    });
+                  }
+                }}
+              />
+            </div>
+            {errors.phone_number ? (
+              <p className="error-text">{errors.phone_number}</p>
+            ) : (
+              <p className="text-xs text-brand-muted mt-1">
+                {selectedCountry.minLen === selectedCountry.maxLen
+                  ? `${selectedCountry.minLen} digits`
+                  : `${selectedCountry.minLen}–${selectedCountry.maxLen} digits`} ·
+                example: {dialCode} {selectedCountry.example}
+              </p>
+            )}
           </div>
 
-          {/* Country (optional) */}
+          {/* Timeline */}
           <div>
-            <label className="label-text">Country</label>
+            <label className="label-text">
+              How soon do you want to get into cybersecurity? <span className="text-brand-danger">*</span>
+            </label>
             <select
               className="select-field"
-              value={formData.country}
-              onChange={(e) => handleChange('country', e.target.value)}
+              value={formData.timeline_to_start}
+              onChange={(e) => handleChange('timeline_to_start', e.target.value)}
             >
-              <option value="">Select country (optional)</option>
-              {COUNTRIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
+              <option value="">Select your timeline</option>
+              {TIMELINES.map((t) => (
+                <option key={t} value={t}>{t}</option>
               ))}
             </select>
+            {errors.timeline_to_start && <p className="error-text">{errors.timeline_to_start}</p>}
           </div>
 
-          {/* Current Job (optional) */}
+          {/* Income Goal */}
           <div>
-            <label className="label-text">Current Job Title</label>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="e.g. IT Support, Student, Manager"
-              value={formData.current_job}
-              onChange={(e) => handleChange('current_job', e.target.value)}
-            />
-          </div>
-
-          {/* Income Range (optional) */}
-          <div>
-            <label className="label-text">Current Income Range</label>
+            <label className="label-text">
+              Salary Expectation / Income Goal <span className="text-brand-danger">*</span>
+            </label>
             <select
               className="select-field"
-              value={formData.income_range}
-              onChange={(e) => handleChange('income_range', e.target.value)}
+              value={formData.income_goal}
+              onChange={(e) => handleChange('income_goal', e.target.value)}
             >
-              <option value="">Select range (optional)</option>
-              {INCOME_RANGES.map((r) => (
+              <option value="">Select your target income</option>
+              {INCOME_GOALS.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
+            {errors.income_goal && <p className="error-text">{errors.income_goal}</p>}
           </div>
 
           {/* Consent */}
@@ -255,7 +359,7 @@ export default function LeadCaptureModal({
                 type="checkbox"
                 checked={formData.consented}
                 onChange={(e) => handleChange('consented', e.target.checked)}
-                className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-brand-accent focus:ring-brand-accent/30 cursor-pointer"
+                className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#0BAAEF] focus:ring-[#0BAAEF]/30 cursor-pointer"
               />
               <span className="text-sm text-brand-muted">
                 I agree to be contacted via email/SMS by ExcelMindCyber about cybersecurity career
@@ -263,7 +367,7 @@ export default function LeadCaptureModal({
                 <Link
                   href="/privacy"
                   target="_blank"
-                  className="text-brand-accent hover:text-brand-accent-dim underline"
+                  className="text-[#0BAAEF] hover:text-[#0BAAEF]-dim underline"
                 >
                   Privacy Policy
                 </Link>

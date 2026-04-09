@@ -8,9 +8,8 @@ interface Lead {
   first_name: string;
   email: string;
   phone_number: string;
-  country: string;
-  current_job: string;
-  income_range: string;
+  timeline_to_start: string;
+  income_goal: string;
   source_tool: string;
   intent_level: string;
   consented: boolean;
@@ -106,7 +105,7 @@ export default function LeadsPage() {
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                 : syncState === 'error'
                 ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                : 'bg-[#00e5a0]/10 border-[#00e5a0]/30 text-[#00e5a0] hover:bg-[#00e5a0]/15'
+                : 'bg-[#0BAAEF]/10 border-[#0BAAEF]/30 text-[#0BAAEF] hover:bg-[#0BAAEF]/15'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {syncState === 'syncing' ? (
@@ -129,7 +128,7 @@ export default function LeadsPage() {
                 </svg>
                 Sync to GoHighLevel
                 {unsyncedCount > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#00e5a0]/20 text-[#00e5a0] text-[10px] font-bold">
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#0BAAEF]/20 text-[#0BAAEF] text-[10px] font-bold">
                     {unsyncedCount}
                   </span>
                 )}
@@ -170,7 +169,7 @@ export default function LeadsPage() {
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <span className="loading-spinner w-8 h-8 border-brand-accent" />
+          <span className="loading-spinner w-8 h-8 border-[#0BAAEF]" />
         </div>
       ) : leads.length === 0 ? (
         <div className="text-center py-20 text-brand-muted">No leads found.</div>
@@ -182,9 +181,8 @@ export default function LeadsPage() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
-                <th>Country</th>
-                <th>Job</th>
-                <th>Income</th>
+                <th>Timeline</th>
+                <th>Income Goal</th>
                 <th>Tool</th>
                 <th>Intent</th>
                 <th>GHL Sync</th>
@@ -198,9 +196,8 @@ export default function LeadsPage() {
                   <td className="font-medium text-white whitespace-nowrap">{lead.first_name}</td>
                   <td className="text-brand-light">{lead.email}</td>
                   <td className="text-brand-muted whitespace-nowrap">{lead.phone_number}</td>
-                  <td className="text-brand-muted">{lead.country || '-'}</td>
-                  <td className="text-brand-muted">{lead.current_job || '-'}</td>
-                  <td className="text-brand-muted text-xs">{lead.income_range || '-'}</td>
+                  <td className="text-brand-muted text-xs">{lead.timeline_to_start || '-'}</td>
+                  <td className="text-brand-muted text-xs">{lead.income_goal || '-'}</td>
                   <td>
                     <span className="badge-blue">{toolLabel(lead.source_tool)}</span>
                   </td>

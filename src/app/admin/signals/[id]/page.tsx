@@ -32,13 +32,13 @@ function IntentBadge({ level }: { level: string | null }) {
 
 function UrgencyBar({ score }: { score: number | null }) {
   if (score === null) return <span className="text-brand-muted">—</span>;
-  const color = score >= 70 ? 'bg-red-500' : score >= 40 ? 'bg-yellow-400' : 'bg-brand-accent';
+  const color = score >= 70 ? 'bg-red-500' : score >= 40 ? 'bg-yellow-400' : 'bg-[#0BAAEF]';
   return (
     <div className="flex items-center gap-3">
       <div className="flex-1 bg-brand-slate rounded-full h-2">
         <div className={`${color} h-2 rounded-full transition-all`} style={{ width: `${score}%` }} />
       </div>
-      <span className={`font-mono font-bold text-sm ${score >= 70 ? 'text-red-400' : score >= 40 ? 'text-yellow-400' : 'text-brand-accent'}`}>
+      <span className={`font-mono font-bold text-sm ${score >= 70 ? 'text-red-400' : score >= 40 ? 'text-yellow-400' : 'text-[#0BAAEF]'}`}>
         {score}/100
       </span>
     </div>
@@ -83,7 +83,7 @@ export default function SignalDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <span className="loading-spinner w-8 h-8 border-brand-accent" />
+        <span className="loading-spinner w-8 h-8 border-[#0BAAEF]" />
       </div>
     );
   }
@@ -149,7 +149,7 @@ export default function SignalDetailPage() {
             href={signal.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 mt-4 text-brand-accent text-sm hover:underline"
+            className="inline-flex items-center gap-1 mt-4 text-[#0BAAEF] text-sm hover:underline"
           >
             View original source ↗
           </a>

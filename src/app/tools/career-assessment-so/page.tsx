@@ -5,9 +5,8 @@ import { toolsApi } from '@/lib/api';
 import LeadCaptureModal, { LeadFormData } from '@/components/LeadCaptureModal';
 import { downloadPdf } from '@/lib/downloadPdf';
 import AnalysisLoader from '@/components/AnalysisLoader';
-import MarkdownBody from '@/components/MarkdownBody';
 
-const LS_KEY = 'emc_career_assessment';
+const LS_KEY = 'emc_career_assessment_so';
 
 const ASSESSMENT_HINTS = [
   'Scoring your answers against GRC role readiness benchmarks…',
@@ -20,9 +19,90 @@ const ASSESSMENT_HINTS = [
   'Personalising your GRC certification roadmap (Security+, CRISC, CISA, ISO 27001)…',
 ];
 
-// Markdown rendering is handled by the shared MarkdownBody component
+function formatInline(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em class="text-[#0BAAEF]/80">$1</em>')
+    .replace(/\*{1,2}/g, '');
+}
 
-// Question IDs and option keys match the backend scoring engine exactly
+function ReportBody({ text }: { text: string }) {
+  const lines = text.split('\n').filter((l) => l.trim() && l.trim() !== '---');
+  return (
+    <div className="space-y-1.5">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+
+        if (/^#\s+/.test(trimmed) && !/^##/.test(trimmed)) {
+          return (
+            <h1 key={i} className="text-white font-bold text-lg mt-6 mb-2 first:mt-0 border-b border-brand-slate/40 pb-1.5">
+              {trimmed.replace(/^#\s+/, '')}
+            </h1>
+          );
+        }
+
+        if (/^##\s+/.test(trimmed) && !/^###/.test(trimmed)) {
+          return (
+            <h2 key={i} className="text-white font-semibold text-base mt-5 mb-2 first:mt-0">
+              {trimmed.replace(/^##\s+/, '')}
+            </h2>
+          );
+        }
+
+        if (/^###\s+/.test(trimmed)) {
+          return (
+            <p key={i} className="text-[#0BAAEF] font-semibold text-xs uppercase tracking-wide mt-4 mb-1">
+              {trimmed.replace(/^###\s+/, '')}
+            </p>
+          );
+        }
+
+        if (/^\s{2,}[-*]/.test(line)) {
+          return (
+            <div key={i} className="flex items-start gap-2 pl-5">
+              <span className="text-[#0BAAEF]/50 mt-1.5 shrink-0 text-[10px]">◦</span>
+              <span className="text-brand-light/80 text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: formatInline(trimmed.replace(/^[-*]\s*/, '')) }} />
+            </div>
+          );
+        }
+
+        if (/^[-*]\s/.test(trimmed)) {
+          return (
+            <div key={i} className="flex items-start gap-2">
+              <span className="text-[#0BAAEF] mt-1.5 shrink-0 text-xs">▸</span>
+              <span className="text-brand-light text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: formatInline(trimmed.replace(/^[-*]\s+/, '')) }} />
+            </div>
+          );
+        }
+
+        if (/^\d+\.\s/.test(trimmed)) {
+          const numMatch = trimmed.match(/^(\d+)\.\s+(.+)/);
+          if (numMatch) {
+            return (
+              <div key={i} className="flex items-start gap-3">
+                <span className="text-[#0BAAEF] font-bold text-xs mt-1 shrink-0 w-4 text-right">{numMatch[1]}.</span>
+                <span className="text-brand-light text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: formatInline(numMatch[2]) }} />
+              </div>
+            );
+          }
+        }
+
+        if (trimmed) {
+          return (
+            <p key={i} className="text-brand-light/80 text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: formatInline(trimmed) }} />
+          );
+        }
+
+        return null;
+      })}
+    </div>
+  );
+}
+
 interface Question {
   id: string;
   text: string;
@@ -112,7 +192,7 @@ const QUESTIONS: Question[] = [
   },
 ];
 
-export default function CareerAssessmentPage() {
+export default function CareerAssessmentSoPage() {
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -122,7 +202,6 @@ export default function CareerAssessmentPage() {
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState('');
 
-  // Restore from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LS_KEY);
@@ -137,7 +216,6 @@ export default function CareerAssessmentPage() {
     } catch {}
   }, []);
 
-  // Persist on change
   useEffect(() => {
     if (previewResult || fullResult || Object.keys(answers).length > 0) {
       localStorage.setItem(LS_KEY, JSON.stringify({ previewResult, fullResult, resultId, answers, currentQ }));
@@ -220,7 +298,6 @@ export default function CareerAssessmentPage() {
         </p>
       </div>
 
-      {/* Loading */}
       {loading && (
         <AnalysisLoader
           title="Analysing Your Assessment"
@@ -235,7 +312,6 @@ export default function CareerAssessmentPage() {
         />
       )}
 
-      {/* Quiz */}
       {!previewResult && !loading && (
         <div className="card max-w-xl mx-auto animate-fade-in">
           {error && (
@@ -244,7 +320,6 @@ export default function CareerAssessmentPage() {
             </div>
           )}
 
-          {/* Progress bar */}
           <div className="mb-6">
             <div className="flex items-center justify-between text-sm text-brand-muted mb-2">
               <span>Question {currentQ + 1} of {QUESTIONS.length}</span>
@@ -258,12 +333,10 @@ export default function CareerAssessmentPage() {
             </div>
           </div>
 
-          {/* Question */}
           <h2 className="text-lg font-semibold text-white mb-5">
             {question.text}
           </h2>
 
-          {/* Options */}
           <div className="space-y-3 mb-8">
             {question.options.map((opt) => (
               <button
@@ -280,7 +353,6 @@ export default function CareerAssessmentPage() {
             ))}
           </div>
 
-          {/* Navigation */}
           <div className="flex items-center justify-between">
             <button
               onClick={handleBack}
@@ -300,14 +372,11 @@ export default function CareerAssessmentPage() {
         </div>
       )}
 
-      {/* Preview */}
       {previewResult && !fullResult && (() => {
-        // Backend returns preview as a plain string — parse it
         const raw: string = typeof previewResult === 'string'
           ? previewResult
           : (previewResult.preview ?? previewResult.summary ?? JSON.stringify(previewResult));
 
-        // Extract score, category, program from the string
         const scoreMatch = raw.match(/Score[:\s]+(\d+)\/100/i);
         const categoryMatch = raw.match(/Category[:\s]+(.+)/i);
         const programMatch = raw.match(/(?:Recommended Program|Program)[:\s]+(.+)/i);
@@ -320,79 +389,76 @@ export default function CareerAssessmentPage() {
           : 'text-[#0BAAEF]';
 
         return (
-        <div className="animate-slide-up">
-          <div className="card max-w-xl mx-auto mb-6 border border-[#0BAAEF]/20">
-            <div className="flex items-center gap-2 mb-5">
-              <span className="w-2 h-2 rounded-full bg-[#0BAAEF] animate-pulse" />
-              <h2 className="text-lg font-bold text-white">Your Assessment Preview</h2>
-            </div>
+          <div className="animate-slide-up">
+            <div className="card max-w-xl mx-auto mb-6 border border-[#0BAAEF]/20">
+              <div className="flex items-center gap-2 mb-5">
+                <span className="w-2 h-2 rounded-full bg-[#0BAAEF] animate-pulse" />
+                <h2 className="text-lg font-bold text-white">Your Assessment Preview</h2>
+              </div>
 
-            {score !== null && (
-              <div className="flex items-center gap-4 p-4 bg-brand-slate/30 rounded-xl mb-4">
-                {/* Circular score */}
-                <div className="relative w-20 h-20 shrink-0">
-                  <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-brand-slate" />
-                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="2.5"
-                      strokeDasharray={`${score} ${100 - score}`} strokeLinecap="round"
-                      className={scoreColor} />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className={`text-lg font-extrabold ${scoreColor}`}>{score}</span>
+              {score !== null && (
+                <div className="flex items-center gap-4 p-4 bg-brand-slate/30 rounded-xl mb-4">
+                  <div className="relative w-20 h-20 shrink-0">
+                    <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-brand-slate" />
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="2.5"
+                        strokeDasharray={`${score} ${100 - score}`} strokeLinecap="round"
+                        className={scoreColor} />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className={`text-lg font-extrabold ${scoreColor}`}>{score}</span>
+                    </div>
+                  </div>
+                  <div>
+                    {category && <p className={`text-xl font-bold ${scoreColor}`}>{category}</p>}
+                    <p className="text-brand-muted text-xs mt-0.5">out of 100 points</p>
                   </div>
                 </div>
-                <div>
-                  {category && <p className={`text-xl font-bold ${scoreColor}`}>{category}</p>}
-                  <p className="text-brand-muted text-xs mt-0.5">out of 100 points</p>
-                </div>
-              </div>
-            )}
+              )}
 
-            {program && (
-              <div className="flex items-start gap-3 p-3 bg-[#0BAAEF]/10 border border-[#0BAAEF]/20 rounded-lg mb-3">
-                <svg className="w-4 h-4 text-[#0BAAEF] mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="text-white/50 text-[10px] uppercase tracking-wide font-semibold mb-0.5">Recommended Program</p>
-                  <p className="text-[#0BAAEF] text-sm font-semibold">{program}</p>
-                </div>
-              </div>
-            )}
-
-            <p className="text-brand-muted text-sm">
-              Your full report with personalized certification path, timeline, and salary projections is ready.
-            </p>
-          </div>
-
-          {/* Gated */}
-          <div className="relative max-w-xl mx-auto">
-            <div className="card opacity-40 blur-sm pointer-events-none select-none">
-              <h3 className="text-lg font-bold text-white mb-3">Full Assessment Report</h3>
-              <p className="text-brand-muted text-sm">Detailed skill gap analysis...</p>
-              <p className="text-brand-muted text-sm">Personalized learning path...</p>
-              <p className="text-brand-muted text-sm">Recommended certifications...</p>
-              <p className="text-brand-muted text-sm">Career timeline projection...</p>
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-[#0BAAEF]/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-[#0BAAEF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              {program && (
+                <div className="flex items-start gap-3 p-3 bg-[#0BAAEF]/10 border border-[#0BAAEF]/20 rounded-lg mb-3">
+                  <svg className="w-4 h-4 text-[#0BAAEF] mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
+                  <div>
+                    <p className="text-white/50 text-[10px] uppercase tracking-wide font-semibold mb-0.5">Recommended Program</p>
+                    <p className="text-[#0BAAEF] text-sm font-semibold">{program}</p>
+                  </div>
                 </div>
-                <p className="text-white font-semibold mb-3">Unlock your full assessment report</p>
-                <button onClick={() => setShowModal(true)} className="btn-primary animate-pulse-glow">
-                  Unlock Full Report
-                </button>
+              )}
+
+              <p className="text-brand-muted text-sm">
+                Your full report with personalized certification path, timeline, and salary projections is ready.
+              </p>
+            </div>
+
+            <div className="relative max-w-xl mx-auto">
+              <div className="card opacity-40 blur-sm pointer-events-none select-none">
+                <h3 className="text-lg font-bold text-white mb-3">Full Assessment Report</h3>
+                <p className="text-brand-muted text-sm">Detailed skill gap analysis...</p>
+                <p className="text-brand-muted text-sm">Personalized learning path...</p>
+                <p className="text-brand-muted text-sm">Recommended certifications...</p>
+                <p className="text-brand-muted text-sm">Career timeline projection...</p>
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-[#0BAAEF]/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-[#0BAAEF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <p className="text-white font-semibold mb-3">Unlock your full assessment report</p>
+                  <button onClick={() => setShowModal(true)} className="btn-primary animate-pulse-glow">
+                    Unlock Full Report
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
         );
       })()}
 
-      {/* Full Result */}
       {fullResult && (
         <div className="card max-w-xl mx-auto animate-slide-up">
           <div className="flex items-center justify-between gap-2 mb-6">
@@ -426,7 +492,6 @@ export default function CareerAssessmentPage() {
 
               return (
                 <>
-                  {/* Score + category header */}
                   {(score !== null || category) && (
                     <div className="flex items-center gap-4 p-4 bg-brand-slate/30 rounded-xl">
                       {score !== null && (
@@ -449,7 +514,6 @@ export default function CareerAssessmentPage() {
                     </div>
                   )}
 
-                  {/* Recommended program */}
                   {program && (
                     <div className="flex items-start gap-3 p-3 bg-[#0BAAEF]/10 border border-[#0BAAEF]/20 rounded-lg">
                       <svg className="w-4 h-4 text-[#0BAAEF] mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -462,14 +526,12 @@ export default function CareerAssessmentPage() {
                     </div>
                   )}
 
-                  {/* Full report text */}
                   {report && (
                     <div className="pt-2">
-                      <MarkdownBody text={report} />
+                      <ReportBody text={report} />
                     </div>
                   )}
 
-                  {/* Fallback */}
                   {!report && !score && !category && (
                     <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(fullResult, null, 2)}</pre>
                   )}
@@ -489,6 +551,7 @@ export default function CareerAssessmentPage() {
         onSubmit={handleLeadSubmit}
         resultId={resultId}
         sourceTool="career-assessment"
+        leadSource="social"
       />
     </div>
   );

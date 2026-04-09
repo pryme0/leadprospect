@@ -49,14 +49,14 @@ function IntentBadge({ level }: { level: string }) {
 function UrgencyBar({ score }: { score: number }) {
   const color =
     score >= 70 ? 'bg-brand-danger' :
-    score >= 40 ? 'bg-yellow-400' : 'bg-brand-accent';
+    score >= 40 ? 'bg-yellow-400' : 'bg-[#0BAAEF]';
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 bg-brand-slate rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
       </div>
       <span className={`text-xs font-mono font-bold w-6 text-right ${
-        score >= 70 ? 'text-brand-danger' : score >= 40 ? 'text-yellow-400' : 'text-brand-accent'
+        score >= 70 ? 'text-brand-danger' : score >= 40 ? 'text-yellow-400' : 'text-[#0BAAEF]'
       }`}>{score}</span>
     </div>
   );
@@ -103,6 +103,17 @@ const PLATFORM_CONFIG = {
       </svg>
     ),
   },
+  linkedin: {
+    label: 'LinkedIn',
+    desc: 'Posts, comments & profiles via Apify scrapers',
+    color: 'text-blue-400',
+    bg: 'bg-blue-400/10 border-blue-400/20',
+    icon: (
+      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+      </svg>
+    ),
+  },
 } as const;
 
 type Platform = keyof typeof PLATFORM_CONFIG;
@@ -114,6 +125,7 @@ export default function PipelinePage() {
     twitter: { running: false, lastCount: null, lastRun: null, error: null },
     reddit: { running: false, lastCount: null, lastRun: null, error: null },
     youtube: { running: false, lastCount: null, lastRun: null, error: null },
+    linkedin: { running: false, lastCount: null, lastRun: null, error: null },
   });
 
   const [classifyStatus, setClassifyStatus] = useState<ClassifyStatus>({
@@ -258,7 +270,7 @@ export default function PipelinePage() {
                       <span className="text-brand-muted">
                         Last run: <span className="text-brand-light">{timeAgo(st.lastRun)}</span>
                         {st.lastCount !== null && (
-                          <span className="ml-2 text-brand-accent font-medium">+{st.lastCount} signals</span>
+                          <span className="ml-2 text-[#0BAAEF] font-medium">+{st.lastCount} signals</span>
                         )}
                       </span>
                     ) : (
@@ -266,7 +278,7 @@ export default function PipelinePage() {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0BAAEF] animate-pulse" />
                     <span className="text-brand-muted">Auto every 10 min</span>
                   </div>
                 </div>
@@ -311,12 +323,12 @@ export default function PipelinePage() {
           Module 2 — AI Classification
         </h2>
 
-        <div className="card border border-brand-accent/20 bg-brand-accent/5">
+        <div className="card border border-[#0BAAEF]/20 bg-[#0BAAEF]/5">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             {/* Status info */}
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-brand-accent/20 flex items-center justify-center text-brand-accent">
+                <div className="w-8 h-8 rounded-lg bg-[#0BAAEF]/20 flex items-center justify-center text-[#0BAAEF]">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
@@ -340,11 +352,11 @@ export default function PipelinePage() {
 
                 {classifyStatus.lastRun && (
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-accent" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0BAAEF]" />
                     <span className="text-brand-muted">Last run:</span>
                     <span className="text-brand-light">{timeAgo(classifyStatus.lastRun)}</span>
                     {classifyStatus.lastCount !== null && (
-                      <span className="text-brand-accent font-medium">· {classifyStatus.lastCount} classified</span>
+                      <span className="text-[#0BAAEF] font-medium">· {classifyStatus.lastCount} classified</span>
                     )}
                   </div>
                 )}
@@ -394,7 +406,7 @@ export default function PipelinePage() {
                 onClick={() => { setSignalFilter(f); setFeedPage(1); }}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   signalFilter === f
-                    ? 'bg-brand-accent text-brand-navy'
+                    ? 'bg-[#0BAAEF] text-brand-navy'
                     : 'bg-brand-slate/50 text-brand-muted hover:text-white'
                 }`}
               >
@@ -413,7 +425,7 @@ export default function PipelinePage() {
 
         {signalsLoading ? (
           <div className="flex items-center justify-center py-16">
-            <span className="loading-spinner w-8 h-8 border-brand-accent" />
+            <span className="loading-spinner w-8 h-8 border-[#0BAAEF]" />
           </div>
         ) : signals.length === 0 ? (
           <div className="text-center py-16 text-brand-muted">
@@ -427,8 +439,8 @@ export default function PipelinePage() {
               <div
                 key={s.id}
                 onClick={() => setSelectedSignal(s)}
-                className={`card cursor-pointer hover:border-brand-accent/40 transition-all ${
-                  selectedSignal?.id === s.id ? 'border-brand-accent/60 bg-brand-accent/5' : ''
+                className={`card cursor-pointer hover:border-[#0BAAEF]/40 transition-all ${
+                  selectedSignal?.id === s.id ? 'border-[#0BAAEF]/60 bg-[#0BAAEF]/5' : ''
                 }`}
               >
                 {/* Header row */}
@@ -438,6 +450,7 @@ export default function PipelinePage() {
                       s.source === 'twitter' ? 'bg-sky-400/15 text-sky-400' :
                       s.source === 'reddit' ? 'bg-orange-400/15 text-orange-400' :
                       s.source === 'youtube' ? 'bg-red-400/15 text-red-400' :
+                      s.source === 'linkedin' ? 'bg-blue-400/15 text-blue-400' :
                       'bg-brand-slate text-brand-muted'
                     }`}>
                       {s.source}
@@ -449,7 +462,7 @@ export default function PipelinePage() {
                     {!s.processed && (
                       <button
                         onClick={(e) => { e.stopPropagation(); classifySingle(s); }}
-                        className="text-xs px-2 py-0.5 bg-brand-accent/10 text-brand-accent border border-brand-accent/20 rounded hover:bg-brand-accent/20 transition-colors"
+                        className="text-xs px-2 py-0.5 bg-[#0BAAEF]/10 text-[#0BAAEF] border border-[#0BAAEF]/20 rounded hover:bg-[#0BAAEF]/20 transition-colors"
                       >
                         Classify
                       </button>
@@ -464,7 +477,7 @@ export default function PipelinePage() {
 
                 {/* Summary (if classified) */}
                 {s.summary && (
-                  <p className="text-brand-accent text-xs italic mb-3">
+                  <p className="text-[#0BAAEF] text-xs italic mb-3">
                     "{s.summary}"
                   </p>
                 )}
@@ -505,7 +518,7 @@ export default function PipelinePage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-brand-accent hover:underline"
+                      className="text-[#0BAAEF] hover:underline"
                     >
                       View source ↗
                     </a>
@@ -566,6 +579,7 @@ export default function PipelinePage() {
                 selectedSignal.source === 'twitter' ? 'bg-sky-400/15 text-sky-400' :
                 selectedSignal.source === 'reddit' ? 'bg-orange-400/15 text-orange-400' :
                 selectedSignal.source === 'youtube' ? 'bg-red-400/15 text-red-400' :
+                selectedSignal.source === 'linkedin' ? 'bg-blue-400/15 text-blue-400' :
                 'bg-brand-slate text-brand-muted'
               }`}>
                 {selectedSignal.source}
@@ -618,7 +632,7 @@ export default function PipelinePage() {
                 {selectedSignal.summary && (
                   <div>
                     <p className="text-xs text-brand-muted mb-1">AI Summary</p>
-                    <p className="text-brand-accent text-sm italic bg-brand-accent/5 border border-brand-accent/20 rounded-lg p-3">
+                    <p className="text-[#0BAAEF] text-sm italic bg-[#0BAAEF]/5 border border-[#0BAAEF]/20 rounded-lg p-3">
                       "{selectedSignal.summary}"
                     </p>
                   </div>
@@ -666,7 +680,7 @@ export default function PipelinePage() {
                 href={selectedSignal.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-brand-accent hover:underline"
+                className="flex items-center gap-2 text-sm text-[#0BAAEF] hover:underline"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />

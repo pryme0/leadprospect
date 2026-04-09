@@ -19,9 +19,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Brand */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 bg-gradient-to-br from-brand-accent to-brand-cyan rounded-lg flex items-center justify-center font-bold text-brand-darker text-sm">
-              EMC
-            </div>
+            <img src="/emclogo.png" alt="EMC Logo" className="w-9 h-9 object-contain shrink-0" />
             <div className="hidden sm:block">
               <span className="text-white font-bold text-lg">ExcelMindCyber</span>
               <span className="hidden md:inline text-brand-muted text-xs ml-2">
@@ -36,7 +34,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="px-4 py-2 text-sm text-brand-muted hover:text-brand-accent transition-colors rounded-lg hover:bg-brand-slate/30"
+                className="px-4 py-2 text-sm text-brand-muted hover:text-[#0BAAEF] transition-colors rounded-lg hover:bg-brand-slate/30"
               >
                 {link.label}
               </Link>
@@ -67,7 +65,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="block px-4 py-3 text-brand-muted hover:text-brand-accent hover:bg-brand-slate/30 rounded-lg transition-colors"
+                className="block px-4 py-3 text-brand-muted hover:text-[#0BAAEF] hover:bg-brand-slate/30 rounded-lg transition-colors"
               >
                 {link.label}
               </Link>

@@ -18,7 +18,7 @@ interface Signal {
 }
 
 const INTENT_LEVELS = ['', 'HIGH_INTENT', 'MEDIUM_INTENT', 'LOW_INTENT'];
-const SOURCES = ['', 'twitter', 'reddit', 'youtube', 'google'];
+const SOURCES = ['', 'twitter', 'reddit', 'youtube', 'linkedin', 'google'];
 
 function IntentBadge({ level }: { level: string | null }) {
   if (!level) return <span className="badge-blue">Unclassified</span>;
@@ -169,7 +169,7 @@ export default function SignalsPage() {
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <span className="loading-spinner w-8 h-8 border-brand-accent" />
+          <span className="loading-spinner w-8 h-8 border-[#0BAAEF]" />
         </div>
       ) : pagedFilteredSignals.length === 0 ? (
         <div className="text-center py-20 text-brand-muted">
@@ -206,7 +206,7 @@ export default function SignalsPage() {
                   <td>
                     <span className={`font-mono font-bold ${
                       s.urgency_score >= 7 ? 'text-brand-danger' :
-                      s.urgency_score >= 4 ? 'text-yellow-400' : 'text-brand-accent'
+                      s.urgency_score >= 4 ? 'text-yellow-400' : 'text-[#0BAAEF]'
                     }`}>
                       {s.urgency_score ?? '-'}
                     </span>

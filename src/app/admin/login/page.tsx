@@ -36,9 +36,7 @@ export default function AdminLoginPage() {
     <div className="min-h-[70vh] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-brand-accent to-brand-cyan rounded-xl flex items-center justify-center font-bold text-brand-darker text-xl mx-auto mb-4">
-            EMC
-          </div>
+          <img src="/emclogo.png" alt="EMC Logo" className="w-14 h-14 object-contain mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white">Admin Login</h1>
           <p className="text-brand-muted text-sm mt-1">EMC Lead Intelligence Engine</p>
         </div>

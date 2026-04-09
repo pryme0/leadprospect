@@ -5,13 +5,13 @@ import Link from 'next/link';
 // ── Terminal lines ────────────────────────────────────────────────────────────
 const TERM_LINES = [
   { text: '$ analyzing profile...', color: '#ffffff60', delay: 0.1 },
-  { text: '✓  Background: Healthcare (Nurse)', color: '#00e5a0', delay: 0.5 },
-  { text: '✓  Location: Nigeria', color: '#00e5a0', delay: 0.9 },
-  { text: '✓  Income Goal: $100k+', color: '#00e5a0', delay: 1.3 },
+  { text: '✓  Background: Healthcare (Nurse)', color: '#0BAAEF', delay: 0.5 },
+  { text: '✓  Location: United States', color: '#0BAAEF', delay: 0.9 },
+  { text: '✓  Income Goal: $100k+', color: '#0BAAEF', delay: 1.3 },
   { text: '> Calculating optimal path...', color: '#ffffff60', delay: 1.8 },
-  { text: '✓  Track: SOC Analyst → Cloud Security', color: '#00d4ff', delay: 2.4 },
-  { text: '✓  Timeline: 90 days to job-ready', color: '#00d4ff', delay: 2.8 },
-  { text: '✓  Cert Path: CompTIA+ → CEH → CISSP', color: '#00d4ff', delay: 3.2 },
+  { text: '✓  Track: GRC Analyst → IT Auditor → Risk Manager', color: '#40C4FF', delay: 2.4 },
+  { text: '✓  Timeline: 90 days to GRC job-ready', color: '#40C4FF', delay: 2.8 },
+  { text: '✓  Cert Path: Security+ → CRISC → CISA', color: '#40C4FF', delay: 3.2 },
   { text: '> Roadmap ready. Unlock your results ↓', color: '#f97316', delay: 3.8 },
 ];
 
@@ -20,11 +20,11 @@ const tools = [
   {
     title: 'Cyber Path Finder',
     description:
-      'Get a personalized 90-day cybersecurity roadmap built around your background, country, and income goal. Discover the fastest route from where you are to where you want to be.',
+      'Get a personalized 90-day GRC (Governance, Risk & Compliance) roadmap built around your background, country, and income goal. Discover the fastest route from where you are to a GRC Analyst, IT Auditor, or Risk Analyst role.',
     href: '/tools/cyber-path-finder',
     badge: 'Most Popular',
-    badgeColor: '#00e5a0',
-    accentColor: '#00e5a0',
+    badgeColor: '#0BAAEF',
+    accentColor: '#0BAAEF',
     size: 'large',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,16 +32,16 @@ const tools = [
           d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
       </svg>
     ),
-    details: ['Personalized 90-day plan', 'Country-specific cert paths', 'Salary benchmarks included'],
+    details: ['Personalized 90-day GRC plan', 'GRC cert paths (CRISC, CISA, ISO 27001)', 'GRC salary benchmarks'],
   },
   {
     title: 'Career Assessment',
     description:
-      'Take our 8-question readiness quiz to uncover your skill gaps and get a tailored learning plan for breaking into cybersecurity from any background.',
+      'Take our 8-question readiness quiz to uncover your skill gaps and get a tailored learning plan for breaking into GRC (Governance, Risk & Compliance) from any background.',
     href: '/tools/career-assessment',
     badge: 'Quick Quiz',
-    badgeColor: '#00d4ff',
-    accentColor: '#00d4ff',
+    badgeColor: '#40C4FF',
+    accentColor: '#40C4FF',
     size: 'small',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,7 +54,7 @@ const tools = [
   {
     title: 'Resume Analyzer',
     description:
-      'Upload your resume and get AI-powered feedback to optimize it for cybersecurity roles — specific improvements that land more interviews.',
+      'Upload your resume and get AI-powered feedback to optimize it for GRC roles (Analyst, Auditor, Risk, Compliance) — specific improvements that land more interviews.',
     href: '/tools/resume-analyzer',
     badge: 'AI Powered',
     badgeColor: '#6366f1',
@@ -75,13 +75,13 @@ const STEPS = [
     num: '01',
     title: 'Choose a Tool',
     desc: 'Pick the tool that matches where you are — career starter, career changer, or resume polisher.',
-    color: '#00e5a0',
+    color: '#0BAAEF',
   },
   {
     num: '02',
     title: 'AI Analyzes Your Profile',
-    desc: 'Claude AI processes your inputs against real cybersecurity hiring data and career trajectories.',
-    color: '#00d4ff',
+    desc: 'AI processes your inputs against real GRC hiring data, frameworks, and career trajectories.',
+    color: '#40C4FF',
   },
   {
     num: '03',
@@ -110,9 +110,9 @@ export default function HomePage() {
       <section className="relative min-h-[92vh] flex items-center" style={{ zIndex: 1 }}>
         {/* Glow blobs */}
         <div className="absolute top-0 left-0 w-[600px] h-[600px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(0,229,160,0.06) 0%, transparent 70%)', transform: 'translate(-30%, -30%)' }} />
+          style={{ background: 'radial-gradient(circle, rgba(11,170,239,0.06) 0%, transparent 70%)', transform: 'translate(-30%, -30%)' }} />
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(0,212,255,0.05) 0%, transparent 70%)', transform: 'translate(20%, 20%)' }} />
+          style={{ background: 'radial-gradient(circle, rgba(64,196,255,0.05) 0%, transparent 70%)', transform: 'translate(20%, 20%)' }} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -121,8 +121,8 @@ export default function HomePage() {
             <div>
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold mb-8"
-                style={{ background: 'rgba(0,229,160,0.08)', borderColor: 'rgba(0,229,160,0.25)', color: '#00e5a0' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00e5a0]"
+                style={{ background: 'rgba(11,170,239,0.08)', borderColor: 'rgba(11,170,239,0.25)', color: '#0BAAEF' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0BAAEF]"
                   style={{ animation: 'blink 1.4s ease-in-out infinite' }} />
                 AI-Powered · Free Forever · No Signup Required
               </div>
@@ -134,7 +134,7 @@ export default function HomePage() {
                   <span className="gradient-text">Starts Here</span>
                   {/* Underline accent */}
                   <span className="absolute -bottom-1 left-0 right-0 h-0.5 rounded-full"
-                    style={{ background: 'linear-gradient(90deg,#00e5a0,#00d4ff)' }} />
+                    style={{ background: 'linear-gradient(90deg,#0BAAEF,#40C4FF)' }} />
                 </span>
               </h1>
 
@@ -164,7 +164,7 @@ export default function HomePage() {
                   <div key={chip.text}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs text-white/40 border border-white/8"
                     style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    <span className="text-[#00e5a0] text-[10px]">{chip.icon}</span>
+                    <span className="text-[#0BAAEF] text-[10px]">{chip.icon}</span>
                     {chip.text}
                   </div>
                 ))}
@@ -175,7 +175,7 @@ export default function HomePage() {
             <div className="relative" style={{ animation: 'floatY 6s ease-in-out infinite' }}>
               {/* Glow behind terminal */}
               <div className="absolute inset-0 rounded-2xl pointer-events-none"
-                style={{ boxShadow: '0 0 80px 20px rgba(0,229,160,0.08)', zIndex: -1 }} />
+                style={{ boxShadow: '0 0 80px 20px rgba(11,170,239,0.08)', zIndex: -1 }} />
 
               <div className="rounded-2xl border border-white/8 overflow-hidden"
                 style={{ background: '#060e18', boxShadow: '0 32px 64px rgba(0,0,0,0.5)' }}>
@@ -194,7 +194,7 @@ export default function HomePage() {
                   {/* Scanline effect */}
                   <div className="absolute inset-x-0 h-12 pointer-events-none"
                     style={{
-                      background: 'linear-gradient(transparent, rgba(0,229,160,0.03), transparent)',
+                      background: 'linear-gradient(transparent, rgba(11,170,239,0.03), transparent)',
                       animation: 'scanline 4s linear infinite',
                       zIndex: 1,
                     }} />
@@ -214,7 +214,7 @@ export default function HomePage() {
                   {/* Cursor */}
                   <div className="flex items-center gap-1 pt-1" style={{ color: '#ffffff40' }}>
                     <span>$</span>
-                    <span className="w-2 h-4 rounded-sm bg-[#00e5a0]"
+                    <span className="w-2 h-4 rounded-sm bg-[#0BAAEF]"
                       style={{ animation: 'blink 1s step-end infinite' }} />
                   </div>
                 </div>
@@ -223,7 +223,7 @@ export default function HomePage() {
                 <div className="px-6 pb-5">
                   <Link href="/tools/cyber-path-finder"
                     className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-[#050d14] transition-opacity hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg,#00e5a0,#00d4ff)' }}>
+                    style={{ background: 'linear-gradient(135deg,#0BAAEF,#40C4FF)' }}>
                     Generate My Roadmap
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -241,8 +241,8 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 md:divide-x md:divide-white/5">
             {[
-              { value: '10,000+', label: 'Career Paths Generated', color: '#00e5a0' },
-              { value: '5,000+',  label: 'Assessments Completed',  color: '#00d4ff' },
+              { value: '10,000+', label: 'Career Paths Generated', color: '#0BAAEF' },
+              { value: '5,000+',  label: 'Assessments Completed',  color: '#40C4FF' },
               { value: '3,000+',  label: 'Resumes Analyzed',       color: '#6366f1' },
               { value: '95%',     label: 'User Satisfaction',      color: '#f97316' },
             ].map((s) => (
@@ -260,7 +260,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           <div className="mb-12">
-            <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#00e5a0' }}>
+            <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#0BAAEF' }}>
               Free Tools
             </div>
             <h2 className="text-4xl font-extrabold text-white tracking-tight">
@@ -274,24 +274,24 @@ export default function HomePage() {
 
             {/* Large card — Cyber Path Finder */}
             <Link href={tools[0].href}
-              className="lg:col-span-2 group relative rounded-2xl border border-white/6 p-8 flex flex-col overflow-hidden transition-all duration-300 hover:border-[#00e5a0]/30"
+              className="lg:col-span-2 group relative rounded-2xl border border-white/6 p-8 flex flex-col overflow-hidden transition-all duration-300 hover:border-[#0BAAEF]/30"
               style={{ background: 'linear-gradient(135deg, #0b1a14 0%, #08121c 100%)' }}>
               {/* Corner glow */}
               <div className="absolute top-0 right-0 w-48 h-48 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, rgba(0,229,160,0.12) 0%, transparent 70%)' }} />
+                style={{ background: 'radial-gradient(circle, rgba(11,170,239,0.12) 0%, transparent 70%)' }} />
 
               <div className="flex items-start justify-between mb-6">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(0,229,160,0.12)', color: '#00e5a0' }}>
+                  style={{ background: 'rgba(11,170,239,0.12)', color: '#0BAAEF' }}>
                   {tools[0].icon}
                 </div>
                 <span className="text-[10px] font-bold px-2.5 py-1 rounded-full"
-                  style={{ background: 'rgba(0,229,160,0.15)', color: '#00e5a0', border: '1px solid rgba(0,229,160,0.3)' }}>
+                  style={{ background: 'rgba(11,170,239,0.15)', color: '#0BAAEF', border: '1px solid rgba(11,170,239,0.3)' }}>
                   {tools[0].badge}
                 </span>
               </div>
 
-              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-[#00e5a0] transition-colors">
+              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-[#0BAAEF] transition-colors">
                 {tools[0].title}
               </h3>
               <p className="text-white/40 text-sm leading-relaxed mb-6 flex-1">
@@ -307,7 +307,7 @@ export default function HomePage() {
                 ))}
               </div>
 
-              <div className="flex items-center gap-2 text-[#00e5a0] text-sm font-semibold">
+              <div className="flex items-center gap-2 text-[#0BAAEF] text-sm font-semibold">
                 Get My Roadmap
                 <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -365,7 +365,7 @@ export default function HomePage() {
       <section className="relative py-20 border-t border-white/5" style={{ zIndex: 1 }}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
-            <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#00d4ff' }}>
+            <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#40C4FF' }}>
               How It Works
             </div>
             <h2 className="text-3xl font-extrabold text-white">
@@ -376,7 +376,7 @@ export default function HomePage() {
           <div className="relative grid md:grid-cols-3 gap-8">
             {/* Connecting line */}
             <div className="hidden md:block absolute top-8 left-[16.5%] right-[16.5%] h-px"
-              style={{ background: 'linear-gradient(90deg, #00e5a040, #00d4ff40, #6366f140)' }} />
+              style={{ background: 'linear-gradient(90deg, #0BAAEF40, #40C4FF40, #6366f140)' }} />
 
             {STEPS.map((step) => (
               <div key={step.num} className="relative flex flex-col items-center text-center">
@@ -397,13 +397,13 @@ export default function HomePage() {
       <section className="relative py-20" style={{ zIndex: 1 }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative rounded-3xl overflow-hidden p-px"
-            style={{ background: 'linear-gradient(135deg, #00e5a040, #00d4ff20, #6366f130)' }}>
+            style={{ background: 'linear-gradient(135deg, #0BAAEF40, #40C4FF20, #6366f130)' }}>
             <div className="rounded-3xl px-10 py-14 text-center relative overflow-hidden"
               style={{ background: 'linear-gradient(135deg, #0a1a14, #08121f)' }}>
               <div className="absolute inset-0 pointer-events-none"
-                style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(0,229,160,0.08) 0%, transparent 60%)' }} />
+                style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(11,170,239,0.08) 0%, transparent 60%)' }} />
               <div className="relative">
-                <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#00e5a0' }}>
+                <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#0BAAEF' }}>
                   Ready to Start?
                 </div>
                 <h2 className="text-4xl font-extrabold text-white mb-4 tracking-tight">
