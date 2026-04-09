@@ -31,14 +31,14 @@ interface DashboardMetrics {
 // ── Palette ──────────────────────────────────────────────────────────────────
 
 const C = {
-  accent:  '#00e5a0',
-  cyan:    '#00d4ff',
+  accent:  '#0BAAEF',
+  cyan:    '#40C4FF',
   blue:    '#6366f1',
   orange:  '#f97316',
   rose:    '#f43f5e',
   grid:    'rgba(255,255,255,0.04)',
   axis:    'rgba(255,255,255,0.25)',
-  tooltip: '#0d1b2a',
+  tooltip: 'var(--a-card)',
 };
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -55,7 +55,7 @@ const TOOL_COLORS = [C.accent, C.cyan, C.blue, C.orange];
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#0d1b2a] border border-white/10 rounded-xl px-4 py-3 text-sm shadow-2xl backdrop-blur-sm">
+    <div className="rounded-xl px-4 py-3 text-sm shadow-2xl backdrop-blur-sm border" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border2)' }}>
       {label && <p className="text-white/50 text-xs mb-2 font-medium">{label}</p>}
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2">
@@ -82,8 +82,8 @@ interface StatCardProps {
 function StatCard({ label, value, sub, icon, accent, trend }: StatCardProps) {
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-white/5 bg-[#0d1b2a] p-5 flex flex-col gap-3"
-      style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.03), inset 0 1px 0 rgba(255,255,255,0.05)` }}
+      className="relative overflow-hidden rounded-2xl border p-5 flex flex-col gap-3"
+      style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', boxShadow: `0 0 0 1px var(--a-border), inset 0 1px 0 var(--a-border)` }}
     >
       {/* Subtle glow */}
       <div
@@ -126,8 +126,8 @@ function ChartCard({
   title: string; subtitle?: string; children: React.ReactNode; className?: string;
 }) {
   return (
-    <div className={`rounded-2xl border border-white/5 bg-[#0d1b2a] p-5 ${className}`}
-      style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.03)` }}
+    <div className={`rounded-2xl border p-5 ${className}`}
+      style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', boxShadow: `0 0 0 1px var(--a-border)` }}
     >
       <div className="mb-5">
         <h3 className="text-white font-semibold text-sm">{title}</h3>
@@ -174,7 +174,7 @@ export default function AdminDashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-2 border-white/10 border-t-[#00e5a0] rounded-full animate-spin mx-auto" />
+          <div className="w-10 h-10 border-2 border-white/10 border-t-[#0BAAEF] rounded-full animate-spin mx-auto" />
           <p className="text-white/30 text-sm">Loading dashboard...</p>
         </div>
       </div>
@@ -196,8 +196,9 @@ export default function AdminDashboardPage() {
   if (!metrics) return null;
 
   const convRate = (metrics.conversion_rate * 100).toFixed(1);
+  const highIntentCount = (metrics as any).high_intent_signals || metrics.high_intent_count || 0;
   const highIntentPct = metrics.total_signals > 0
-    ? Math.round((metrics.high_intent_count / metrics.total_signals) * 100)
+    ? Math.round((highIntentCount / metrics.total_signals) * 100)
     : 0;
 
   // Format platform data with colors
@@ -232,7 +233,7 @@ export default function AdminDashboardPage() {
   }));
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="space-y-6 max-w-[1400px] mx-auto">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
@@ -264,7 +265,7 @@ export default function AdminDashboardPage() {
         />
         <StatCard
           label="High Intent"
-          value={metrics.high_intent_count.toLocaleString()}
+          value={highIntentCount.toLocaleString()}
           sub={`${highIntentPct}% of signals`}
           accent={C.rose}
           trend={metrics.high_intent_wow !== undefined ? { value: metrics.high_intent_wow, label: 'vs last week' } : undefined}
@@ -310,7 +311,7 @@ export default function AdminDashboardPage() {
                 <XAxis dataKey="date" stroke="transparent" tick={{ fill: C.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
                 <YAxis stroke="transparent" tick={{ fill: C.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
                 <Tooltip content={<CustomTooltip />} cursor={{ stroke: C.cyan, strokeWidth: 1, strokeDasharray: '4 2' }} />
-                <Area type="monotone" dataKey="count" name="Signals" stroke={C.cyan} strokeWidth={2} fill="url(#gradSignals)" dot={false} activeDot={{ r: 5, fill: C.cyan, stroke: '#0d1b2a', strokeWidth: 2 }} />
+                <Area type="monotone" dataKey="count" name="Signals" stroke={C.cyan} strokeWidth={2} fill="url(#gradSignals)" dot={false} activeDot={{ r: 5, fill: C.cyan, stroke: 'var(--a-card)', strokeWidth: 2 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -331,7 +332,7 @@ export default function AdminDashboardPage() {
                 <XAxis dataKey="date" stroke="transparent" tick={{ fill: C.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
                 <YAxis stroke="transparent" tick={{ fill: C.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
                 <Tooltip content={<CustomTooltip />} cursor={{ stroke: C.accent, strokeWidth: 1, strokeDasharray: '4 2' }} />
-                <Area type="monotone" dataKey="count" name="Leads" stroke={C.accent} strokeWidth={2} fill="url(#gradLeads)" dot={false} activeDot={{ r: 5, fill: C.accent, stroke: '#0d1b2a', strokeWidth: 2 }} />
+                <Area type="monotone" dataKey="count" name="Leads" stroke={C.accent} strokeWidth={2} fill="url(#gradLeads)" dot={false} activeDot={{ r: 5, fill: C.accent, stroke: 'var(--a-card)', strokeWidth: 2 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -515,7 +516,7 @@ export default function AdminDashboardPage() {
                   setAdSpend(e.target.value);
                   localStorage.setItem('emc_ad_spend', e.target.value);
                 }}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#00e5a0]/40 placeholder:text-white/20"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#0BAAEF]/40 placeholder:text-white/20"
               />
             </div>
             <div className="bg-white/3 rounded-xl p-4 text-center">
@@ -561,7 +562,7 @@ export default function AdminDashboardPage() {
             color: C.accent,
           },
         ].map((item, i) => (
-          <div key={i} className="rounded-xl border border-white/5 bg-[#0d1b2a] px-4 py-3">
+          <div key={i} className="rounded-xl border px-4 py-3" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
             <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">{item.label}</p>
             <p className="font-bold text-lg capitalize" style={{ color: item.color }}>
               {item.value}

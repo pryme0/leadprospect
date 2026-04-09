@@ -38,7 +38,7 @@ function ThankYouContent() {
       <div className="w-full max-w-2xl text-center">
 
         {/* Icon */}
-        <div className="w-20 h-20 bg-gradient-to-br from-brand-accent to-brand-cyan rounded-full flex items-center justify-center mx-auto mb-6">
+        <div className="w-20 h-20 bg-gradient-to-br from-[#0BAAEF] to-[#40C4FF] rounded-full flex items-center justify-center mx-auto mb-6">
           <svg className="w-10 h-10 text-brand-darker" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
@@ -49,7 +49,7 @@ function ThankYouContent() {
           You're In! 🎉
         </h1>
         <p className="text-brand-muted text-lg mb-2">
-          Your <span className="text-brand-accent font-semibold">{toolLabel}</span> results have been unlocked.
+          Your <span className="text-[#0BAAEF] font-semibold">{toolLabel}</span> results have been unlocked.
         </p>
         <p className="text-brand-muted mb-10">
           An EMC advisor will be in touch within 24 hours.
@@ -59,7 +59,7 @@ function ThankYouContent() {
         <div className="grid gap-4 md:grid-cols-3 mb-10 text-left">
           {NEXT_STEPS.map((item) => (
             <div key={item.step} className="card">
-              <div className="w-8 h-8 bg-brand-accent/20 text-brand-accent rounded-lg flex items-center justify-center font-bold text-sm mb-3">
+              <div className="w-8 h-8 bg-[#0BAAEF]/20 text-[#0BAAEF] rounded-lg flex items-center justify-center font-bold text-sm mb-3">
                 {item.step}
               </div>
               <h3 className="text-white font-semibold mb-1">{item.title}</h3>

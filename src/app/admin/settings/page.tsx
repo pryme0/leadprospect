@@ -25,8 +25,8 @@ type Tab = 'profile' | 'integrations' | 'ghl' | 'account';
 
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-white/5 bg-[#0d1b2a] overflow-hidden">
-      <div className="px-6 py-4 border-b border-white/5">
+    <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
+      <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--a-border)' }}>
         <h3 className="text-white font-semibold text-sm">{title}</h3>
         {subtitle && <p className="text-white/30 text-xs mt-0.5">{subtitle}</p>}
       </div>
@@ -37,7 +37,7 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="grid sm:grid-cols-3 gap-4 items-start py-4 border-b border-white/5 last:border-0 last:pb-0">
+    <div className="grid sm:grid-cols-3 gap-4 items-start py-4 border-b last:border-0 last:pb-0" style={{ borderColor: 'var(--a-border)' }}>
       <div className="sm:pt-1">
         <p className="text-white/70 text-sm font-medium">{label}</p>
         {hint && <p className="text-white/30 text-xs mt-0.5">{hint}</p>}
@@ -57,7 +57,8 @@ function Input({ value, onChange, placeholder, type = 'text', disabled = false }
       onChange={(e) => onChange?.(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
-      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#00e5a0]/40 placeholder:text-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#0BAAEF]/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border"
+      style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
     />
   );
 }
@@ -70,7 +71,7 @@ function SaveButton({ onClick, saving, saved }: { onClick: () => void; saving: b
       className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all border ${
         saved
           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-          : 'bg-[#00e5a0]/10 border-[#00e5a0]/30 text-[#00e5a0] hover:bg-[#00e5a0]/15'
+          : 'bg-[#0BAAEF]/10 border-[#0BAAEF]/30 text-[#0BAAEF] hover:bg-[#0BAAEF]/15'
       } disabled:opacity-50`}
     >
       {saving ? (
@@ -135,7 +136,7 @@ export default function SettingsPage() {
   const GHL_WORKFLOWS = [
     { label: 'High Intent Workflow', key: 'GHL_WORKFLOW_HIGH_INTENT', color: 'text-red-400' },
     { label: 'Medium Intent Workflow', key: 'GHL_WORKFLOW_MEDIUM_INTENT', color: 'text-yellow-400' },
-    { label: 'Low Intent Workflow', key: 'GHL_WORKFLOW_LOW_INTENT', color: 'text-[#00e5a0]' },
+    { label: 'Low Intent Workflow', key: 'GHL_WORKFLOW_LOW_INTENT', color: 'text-[#0BAAEF]' },
     { label: 'Default Workflow', key: 'GHL_WORKFLOW_DEFAULT', color: 'text-white/50' },
   ];
 
@@ -200,7 +201,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-white font-bold text-xl">Settings</h1>
@@ -208,16 +209,17 @@ export default function SettingsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-white/3 rounded-xl border border-white/5 w-fit">
+      <div className="flex gap-1 p-1 rounded-xl border w-fit" style={{ background: 'var(--a-hover)', borderColor: 'var(--a-border)' }}>
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
               tab === t.key
-                ? 'bg-[#0d1b2a] text-white border border-white/10 shadow-lg'
-                : 'text-white/40 hover:text-white/70'
+                ? 'shadow-lg'
+                : 'border-transparent text-white/40 hover:text-white/70'
             }`}
+            style={tab === t.key ? { background: 'var(--a-card)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' } : {}}
           >
             <span className="text-base leading-none">{t.icon}</span>
             {t.label}
@@ -256,7 +258,8 @@ export default function SettingsPage() {
               <select
                 value={org.timezone}
                 onChange={(e) => setOrg({ ...org, timezone: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#00e5a0]/40 transition-colors"
+                className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#0BAAEF]/40 transition-colors border"
+                style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
               >
                 {TIMEZONES.map((tz) => (
                   <option key={tz} value={tz} className="bg-[#0d1b2a]">{tz}</option>
@@ -307,7 +310,7 @@ export default function SettingsPage() {
             <Field label="Role" hint="Access level — currently fixed to Admin">
               <div className="flex items-center gap-2">
                 <Input value="Admin" disabled />
-                <span className="text-xs px-2.5 py-1.5 rounded-lg bg-[#00e5a0]/10 text-[#00e5a0] border border-[#00e5a0]/20 whitespace-nowrap">
+                <span className="text-xs px-2.5 py-1.5 rounded-lg bg-[#0BAAEF]/10 text-[#0BAAEF] border border-[#0BAAEF]/20 whitespace-nowrap">
                   Full Access
                 </span>
               </div>
@@ -315,14 +318,14 @@ export default function SettingsPage() {
           </Section>
 
           <Section title="Password" subtitle="Admin password is managed via server environment variables">
-            <div className="flex items-start gap-4 p-4 bg-white/3 rounded-xl border border-white/5">
+            <div className="flex items-start gap-4 p-4 rounded-xl border" style={{ background: 'var(--a-hover)', borderColor: 'var(--a-border)' }}>
               <div className="w-8 h-8 rounded-lg bg-yellow-400/10 flex items-center justify-center shrink-0 text-yellow-400 text-sm">
                 ⚠
               </div>
               <div>
                 <p className="text-white/70 text-sm font-medium">Password changes require server access</p>
                 <p className="text-white/30 text-xs mt-1">
-                  Update <code className="text-[#00e5a0] bg-[#00e5a0]/10 px-1 py-0.5 rounded text-[10px]">ADMIN_PASSWORD</code> in your <code className="text-[#00e5a0] bg-[#00e5a0]/10 px-1 py-0.5 rounded text-[10px]">.env</code> file and restart the backend to change your password.
+                  Update <code className="text-[#0BAAEF] bg-[#0BAAEF]/10 px-1 py-0.5 rounded text-[10px]">ADMIN_PASSWORD</code> in your <code className="text-[#0BAAEF] bg-[#0BAAEF]/10 px-1 py-0.5 rounded text-[10px]">.env</code> file and restart the backend to change your password.
                 </p>
               </div>
             </div>
@@ -417,7 +420,7 @@ export default function SettingsPage() {
             <div>
               <p className="text-yellow-400 text-sm font-medium">Changing API keys requires server restart</p>
               <p className="text-white/40 text-xs mt-1">
-                Edit your <code className="text-[#00e5a0] bg-[#00e5a0]/10 px-1 py-0.5 rounded text-[10px]">.env</code> file on the server and restart with <code className="text-[#00e5a0] bg-[#00e5a0]/10 px-1 py-0.5 rounded text-[10px]">npm run start:dev</code> to apply changes.
+                Edit your <code className="text-[#0BAAEF] bg-[#0BAAEF]/10 px-1 py-0.5 rounded text-[10px]">.env</code> file on the server and restart with <code className="text-[#0BAAEF] bg-[#0BAAEF]/10 px-1 py-0.5 rounded text-[10px]">npm run start:dev</code> to apply changes.
               </p>
             </div>
           </div>
@@ -430,13 +433,13 @@ export default function SettingsPage() {
           <Section title="GoHighLevel Connection" subtitle="CRM integration configuration">
             <Field label="API Version" hint="Using GHL REST API v1 (location JWT)">
               <div className="flex items-center gap-2">
-                <span className="text-xs px-2.5 py-1.5 rounded-lg bg-[#00e5a0]/10 text-[#00e5a0] border border-[#00e5a0]/20 font-mono">
+                <span className="text-xs px-2.5 py-1.5 rounded-lg bg-[#0BAAEF]/10 text-[#0BAAEF] border border-[#0BAAEF]/20 font-mono">
                   rest.gohighlevel.com/v1
                 </span>
               </div>
             </Field>
             <Field label="Location ID" hint="Your GHL sub-account location ID">
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-white/3 border border-white/8 rounded-xl">
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border" style={{ background: 'var(--a-hover)', borderColor: 'var(--a-border2)' }}>
                 <code className="text-white/50 text-sm font-mono tracking-wide">GOurOpNFFOsJjzv6wz0h</code>
                 <button
                   onClick={() => navigator.clipboard.writeText('GOurOpNFFOsJjzv6wz0h')}
@@ -459,7 +462,7 @@ export default function SettingsPage() {
                     <p className="text-white/70 text-sm">{f.label}</p>
                     <code className="text-white/25 text-[10px] font-mono">{f.key}</code>
                   </div>
-                  <span className="text-xs px-2.5 py-1 rounded-lg bg-white/5 text-[#00e5a0] border border-white/8 font-mono">
+                  <span className="text-xs px-2.5 py-1 rounded-lg bg-white/5 text-[#0BAAEF] border border-white/8 font-mono">
                     Configured
                   </span>
                 </div>
@@ -499,7 +502,7 @@ export default function SettingsPage() {
             </div>
           </Section>
 
-          <div className="flex justify-between items-center p-4 rounded-xl border border-white/5 bg-white/2">
+          <div className="flex justify-between items-center p-4 rounded-xl border" style={{ background: 'var(--a-hover)', borderColor: 'var(--a-border)' }}>
             <div>
               <p className="text-white/60 text-sm font-medium">Bull Board Queue Monitor</p>
               <p className="text-white/30 text-xs">View live GHL sync jobs, retries, and failed jobs</p>
@@ -508,7 +511,7 @@ export default function SettingsPage() {
               href="http://localhost:3001/admin/queues"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#00e5a0]/10 border border-[#00e5a0]/30 text-[#00e5a0] hover:bg-[#00e5a0]/15 transition-colors whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#0BAAEF]/10 border border-[#0BAAEF]/30 text-[#0BAAEF] hover:bg-[#0BAAEF]/15 transition-colors whitespace-nowrap"
             >
               Open Queue Monitor ↗
             </a>

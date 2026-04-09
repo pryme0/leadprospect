@@ -5,7 +5,6 @@ import { toolsApi } from '@/lib/api';
 import LeadCaptureModal, { LeadFormData } from '@/components/LeadCaptureModal';
 import { downloadPdf } from '@/lib/downloadPdf';
 import AnalysisLoader from '@/components/AnalysisLoader';
-import MarkdownBody, { formatInline } from '@/components/MarkdownBody';
 
 const RESUME_HINTS = [
   'Scanning your resume for GRC, audit, risk & compliance keywords…',
@@ -18,12 +17,42 @@ const RESUME_HINTS = [
   'Generating your personalised GRC improvement action plan…',
 ];
 
-const LS_KEY = 'emc_resume_analyzer';
+const LS_KEY = 'emc_resume_analyzer_cr';
 
-// Markdown rendering is handled by the shared MarkdownBody component
-// formatInline is imported from MarkdownBody for use in preview items
+function formatInline(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em class="text-[#0BAAEF]/80">$1</em>');
+}
 
-export default function ResumeAnalyzerPage() {
+function ReportBody({ text }: { text: string }) {
+  const lines = text.split('\n').filter((l) => l.trim() && l.trim() !== '---');
+  return (
+    <div className="space-y-1.5">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (/^#\s+/.test(trimmed) && !/^##/.test(trimmed))
+          return <h1 key={i} className="text-white font-bold text-lg mt-6 mb-2 first:mt-0 border-b border-brand-slate/40 pb-1.5">{trimmed.replace(/^#\s+/, '')}</h1>;
+        if (/^##\s+/.test(trimmed) && !/^###/.test(trimmed))
+          return <h2 key={i} className="text-white font-semibold text-base mt-5 mb-2 first:mt-0">{trimmed.replace(/^##\s+/, '')}</h2>;
+        if (/^###\s+/.test(trimmed))
+          return <p key={i} className="text-[#0BAAEF] font-semibold text-xs uppercase tracking-wide mt-4 mb-1">{trimmed.replace(/^###\s+/, '')}</p>;
+        if (/^\s{2,}[-*]/.test(line))
+          return <div key={i} className="flex items-start gap-2 pl-5"><span className="text-[#0BAAEF]/50 mt-1.5 shrink-0 text-[10px]">◦</span><span className="text-brand-light/80 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: formatInline(trimmed.replace(/^[-*]\s*/, '')) }} /></div>;
+        if (/^[-*]\s/.test(trimmed))
+          return <div key={i} className="flex items-start gap-2"><span className="text-[#0BAAEF] mt-1.5 shrink-0 text-xs">▸</span><span className="text-brand-light text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: formatInline(trimmed.replace(/^[-*]\s+/, '')) }} /></div>;
+        if (/^\d+\.\s/.test(trimmed)) {
+          const m = trimmed.match(/^(\d+)\.\s+(.+)/);
+          if (m) return <div key={i} className="flex items-start gap-3"><span className="text-[#0BAAEF] font-bold text-xs mt-1 shrink-0 w-4 text-right">{m[1]}.</span><span className="text-brand-light text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: formatInline(m[2]) }} /></div>;
+        }
+        if (trimmed) return <p key={i} className="text-brand-light/80 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: formatInline(trimmed) }} />;
+        return null;
+      })}
+    </div>
+  );
+}
+
+export default function ResumeAnalyzerCrPage() {
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -34,7 +63,6 @@ export default function ResumeAnalyzerPage() {
   const [showModal, setShowModal] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Restore from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LS_KEY);
@@ -47,14 +75,13 @@ export default function ResumeAnalyzerPage() {
     } catch {}
   }, []);
 
-  // Persist whenever results change
   useEffect(() => {
     if (previewResult || fullResult) {
       localStorage.setItem(LS_KEY, JSON.stringify({ previewResult, fullResult, resultId }));
     }
   }, [previewResult, fullResult, resultId]);
 
-  const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+  const MAX_SIZE = 5 * 1024 * 1024;
 
   const validateFile = (f: File): string | null => {
     if (f.type !== 'application/pdf') return 'Only PDF files are accepted.';
@@ -140,7 +167,6 @@ export default function ResumeAnalyzerPage() {
         </p>
       </div>
 
-      {/* Loading */}
       {loading && (
         <AnalysisLoader
           title="Analysing Your Resume"
@@ -155,7 +181,6 @@ export default function ResumeAnalyzerPage() {
         />
       )}
 
-      {/* Upload area */}
       {!previewResult && !loading && (
         <div className="card max-w-xl mx-auto">
           {error && (
@@ -226,15 +251,12 @@ export default function ResumeAnalyzerPage() {
               disabled={loading}
               className="btn-primary w-full mt-4 flex items-center justify-center gap-2"
             >
-              {loading ? 'Starting Analysis…' : (
-                'Analyse My Resume'
-              )}
+              {loading ? 'Starting Analysis…' : 'Analyse My Resume'}
             </button>
           )}
         </div>
       )}
 
-      {/* Preview */}
       {previewResult && !fullResult && (
         <div className="animate-slide-up">
           <div className="card max-w-xl mx-auto mb-6 border border-[#0BAAEF]/20">
@@ -243,7 +265,6 @@ export default function ResumeAnalyzerPage() {
               <h2 className="text-lg font-bold text-white">Resume Analysis Preview</h2>
             </div>
 
-            {/* Score strip */}
             {previewResult.overall_score != null && previewResult.overall_score > 0 && (
               <div className="flex items-center gap-4 p-3 bg-brand-slate/30 rounded-xl mb-4">
                 <div className="relative w-14 h-14 shrink-0">
@@ -264,7 +285,6 @@ export default function ResumeAnalyzerPage() {
               </div>
             )}
 
-            {/* Improvements */}
             <p className="text-brand-muted text-xs uppercase tracking-wide font-semibold mb-3">
               2 Key Improvements Identified
             </p>
@@ -289,7 +309,6 @@ export default function ResumeAnalyzerPage() {
             </p>
           </div>
 
-          {/* Gated */}
           <div className="relative max-w-xl mx-auto">
             <div className="card opacity-40 blur-sm pointer-events-none select-none">
               <h3 className="text-lg font-bold text-white mb-3">Full Resume Analysis</h3>
@@ -315,7 +334,6 @@ export default function ResumeAnalyzerPage() {
         </div>
       )}
 
-      {/* Full Result */}
       {fullResult && (
         <div className="card max-w-xl mx-auto animate-slide-up">
           <div className="flex items-center justify-between gap-2 mb-6">
@@ -372,7 +390,7 @@ export default function ResumeAnalyzerPage() {
                 )}
                 {fullResult.analysis && (
                   <div className="pt-1">
-                    <MarkdownBody text={fullResult.analysis} />
+                    <ReportBody text={fullResult.analysis} />
                   </div>
                 )}
                 {!fullResult.analysis && (
@@ -393,6 +411,7 @@ export default function ResumeAnalyzerPage() {
         onSubmit={handleLeadSubmit}
         resultId={resultId}
         sourceTool="resume-analyzer"
+        leadSource="crawler"
       />
     </div>
   );

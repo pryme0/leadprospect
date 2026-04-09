@@ -87,7 +87,7 @@ export default function PrivacyPolicyPage() {
           </ul>
           <p className="mt-2">
             To exercise any of these rights, contact us at{' '}
-            <a href="mailto:privacy@excelmindcyber.com" className="text-brand-accent hover:underline">
+            <a href="mailto:privacy@excelmindcyber.com" className="text-[#0BAAEF] hover:underline">
               privacy@excelmindcyber.com
             </a>.
           </p>
@@ -104,7 +104,7 @@ export default function PrivacyPolicyPage() {
           </ul>
           <p className="mt-2">
             To submit a CCPA request, email{' '}
-            <a href="mailto:privacy@excelmindcyber.com" className="text-brand-accent hover:underline">
+            <a href="mailto:privacy@excelmindcyber.com" className="text-[#0BAAEF] hover:underline">
               privacy@excelmindcyber.com
             </a>{' '}
             or call us at the number listed below.
@@ -171,13 +171,13 @@ export default function PrivacyPolicyPage() {
             <p><strong>ExcelMindCyber</strong> (a Thelix Holdings company)</p>
             <p>
               Email:{' '}
-              <a href="mailto:privacy@excelmindcyber.com" className="text-brand-accent hover:underline">
+              <a href="mailto:privacy@excelmindcyber.com" className="text-[#0BAAEF] hover:underline">
                 privacy@excelmindcyber.com
               </a>
             </p>
             <p>
               Website:{' '}
-              <a href="https://excelmindcyber.com" className="text-brand-accent hover:underline">
+              <a href="https://excelmindcyber.com" className="text-[#0BAAEF] hover:underline">
                 excelmindcyber.com
               </a>
             </p>

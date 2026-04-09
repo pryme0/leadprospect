@@ -47,6 +47,27 @@ const sidebarLinks = [
     ),
   },
   {
+    href: '/admin/outreach',
+    label: 'Outreach',
+    badge: 'New',
+    icon: (
+      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/users',
+    label: 'Users',
+    icon: (
+      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    ),
+  },
+  {
     href: '/admin/settings',
     label: 'Settings',
     icon: (
@@ -64,6 +85,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/pipeline': 'Signal Pipeline',
   '/admin/signals': 'Signals',
   '/admin/leads': 'Leads',
+  '/admin/outreach': 'Outreach',
+  '/admin/users': 'Users',
   '/admin/settings': 'Settings',
 };
 
@@ -101,7 +124,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!authed) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-brand-darker">
-        <span className="loading-spinner w-8 h-8 border-brand-accent" />
+        <span className="loading-spinner w-8 h-8 border-[#0BAAEF]" />
       </div>
     );
   }
@@ -118,7 +141,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pageTitle = PAGE_TITLES[pathname] || 'Admin';
 
   return (
-    <div className="flex h-screen bg-[#080f17] overflow-hidden" data-theme={theme}>
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--a-bg)' }} data-theme={theme}>
 
       {/* ── Mobile overlay ── */}
       {sidebarOpen && (
@@ -132,18 +155,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside
         className={`
           fixed lg:static z-50 inset-y-0 left-0 w-60
-          bg-[#0b1520] border-r border-white/5
+          border-r
           flex flex-col
           transition-all duration-300 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
+        style={{ background: 'var(--a-surface)', borderColor: 'var(--a-border)' }}
       >
         {/* Logo / Brand */}
-        <div className="p-5 border-b border-white/5">
+        <div className="p-5 border-b" style={{ borderColor: 'var(--a-border)' }}>
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 bg-gradient-to-br from-brand-accent to-brand-cyan rounded-lg flex items-center justify-center font-bold text-[#080f17] text-xs shrink-0">
-              EMC
-            </div>
+            <img src="/emclogo.png" alt="EMC Logo" className="w-8 h-8 object-contain shrink-0" />
             <div>
               <p className="text-white font-bold text-sm leading-tight">ExcelMindCyber</p>
               <p className="text-white/30 text-[10px] leading-tight">Lead Intelligence Engine</p>
@@ -164,25 +186,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={link.href}
                 href={link.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150
-                  ${active
-                    ? 'bg-brand-accent/10 text-brand-accent font-medium'
-                    : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-                  }
-                `}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150"
+                style={active ? {
+                  background: 'rgba(11,170,239,0.1)',
+                  color: '#0BAAEF',
+                  fontWeight: 500,
+                } : {}}
               >
-                <span className={active ? 'text-brand-accent' : 'text-white/30'}>
+                <span style={{ color: active ? '#0BAAEF' : 'rgba(255,255,255,0.3)' }}>
                   {link.icon}
                 </span>
-                <span className="flex-1">{link.label}</span>
+                <span className={`flex-1 ${!active ? 'text-white/40 hover:text-white/80' : ''}`}>{link.label}</span>
                 {link.badge && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-brand-accent/20 text-brand-accent border border-brand-accent/30">
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border"
+                    style={{ background: 'rgba(11,170,239,0.2)', color: '#0BAAEF', borderColor: 'rgba(11,170,239,0.3)' }}>
                     {link.badge}
                   </span>
                 )}
                 {active && (
-                  <span className="w-1 h-4 rounded-full bg-brand-accent" />
+                  <span className="w-1 h-4 rounded-full" style={{ background: '#0BAAEF' }} />
                 )}
               </Link>
             );
@@ -208,9 +230,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Bottom — user + logout */}
-        <div className="p-3 border-t border-white/5 space-y-1">
+        <div className="p-3 border-t space-y-1" style={{ borderColor: 'var(--a-border)' }}>
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/3">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-accent/40 to-brand-cyan/40 flex items-center justify-center text-brand-accent text-xs font-bold shrink-0">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#0BAAEF]/40 to-[#40C4FF]/40 flex items-center justify-center text-[#0BAAEF] text-xs font-bold shrink-0">
               TH
             </div>
             <div className="min-w-0">
@@ -235,7 +257,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Top bar */}
-        <header className="h-14 bg-[#0b1520]/80 backdrop-blur-sm border-b border-white/5 flex items-center px-6 gap-4 shrink-0">
+        <header className="h-14 backdrop-blur-sm border-b flex items-center px-6 gap-4 shrink-0" style={{ background: 'var(--a-surface)', borderColor: 'var(--a-border)' }}>
           {/* Mobile hamburger */}
           <button
             onClick={() => setSidebarOpen(true)}
@@ -275,18 +297,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
 
             {/* Live indicator */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-accent/10 border border-brand-accent/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse" />
-              <span className="text-brand-accent text-[10px] font-semibold">LIVE</span>
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border"
+              style={{ background: 'rgba(11,170,239,0.1)', borderColor: 'rgba(11,170,239,0.2)' }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#0BAAEF' }} />
+              <span className="text-[10px] font-semibold" style={{ color: '#0BAAEF' }}>LIVE</span>
             </div>
 
             {/* Thelix Holdings branding — right end */}
-            <div className="flex items-center gap-2 pl-3 border-l border-white/10">
+            <div className="flex items-center gap-2 pl-3 border-l" style={{ borderColor: 'var(--a-border2)' }}>
               <div className="text-right hidden sm:block">
                 <p className="text-white/50 text-[10px] leading-tight">Powered by</p>
                 <p className="text-white/70 text-xs font-semibold leading-tight">Thelix Holdings</p>
               </div>
-              <div className="w-7 h-7 bg-gradient-to-br from-brand-accent to-brand-cyan rounded-md flex items-center justify-center text-[#080f17] font-bold text-[10px]">
+              <div className="w-7 h-7 bg-gradient-to-br from-[#0BAAEF] to-[#40C4FF] rounded-md flex items-center justify-center text-[#080f17] font-bold text-[10px]">
                 TH
               </div>
             </div>

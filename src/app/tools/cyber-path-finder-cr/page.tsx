@@ -5,7 +5,6 @@ import { toolsApi } from '@/lib/api';
 import LeadCaptureModal, { LeadFormData } from '@/components/LeadCaptureModal';
 import { downloadPdf } from '@/lib/downloadPdf';
 import AnalysisLoader from '@/components/AnalysisLoader';
-import MarkdownBody, { cleanMarkdown } from '@/components/MarkdownBody';
 
 const CYBER_PATH_HINTS = [
   'Mapping your current skills to in-demand GRC roles (Risk, Audit, Compliance)…',
@@ -19,7 +18,7 @@ const CYBER_PATH_HINTS = [
   'Selecting hands-on control-testing and audit exercises for your level…',
 ];
 
-const LS_KEY = 'emc_cyber_path_finder';
+const LS_KEY = 'emc_cyber_path_finder_cr';
 
 // ── Markdown parser ────────────────────────────────────────────────────────
 
@@ -35,10 +34,7 @@ interface ParsedRoadmap {
   raw: string;
 }
 
-function parseRoadmap(rawText: string): ParsedRoadmap {
-  // Normalise: convert **bold headings** → ### headings so one regex catches everything
-  const text = cleanMarkdown(rawText);
-
+function parseRoadmap(text: string): ParsedRoadmap {
   const profile: Record<string, string> = {};
   const phases: Phase[] = [];
 
@@ -52,12 +48,12 @@ function parseRoadmap(rawText: string): ParsedRoadmap {
     });
   }
 
-  // Split on ### (or ##) phase headers — cleanMarkdown already normalised **bold** to ###
-  const phaseRegex = /(?:^|\n)\s*#{2,4}\s*(?:\d+\.\s*)?(Week\s[\d–\-]+[^:\n]*:?[^\n]*)/gi;
+  // Split on phase headers: ### 1. Week X or ### Week X
+  const phaseRegex = /###\s*(?:\d+\.\s*)?(Week\s[\d–\-]+[^:\n]*:?[^\n]*)/gi;
   const matches = Array.from(text.matchAll(phaseRegex));
 
   matches.forEach((match, idx) => {
-    const titleLine = match[1].trim().replace(/:$/, '').replace(/\*+/g, '');
+    const titleLine = match[1].trim().replace(/:$/, '');
     const colonIdx = titleLine.indexOf(':');
     const weekRange = colonIdx > -1 ? titleLine.slice(0, colonIdx).trim() : titleLine;
     const phaseTitle = colonIdx > -1 ? titleLine.slice(colonIdx + 1).trim() : titleLine;
@@ -72,37 +68,120 @@ function parseRoadmap(rawText: string): ParsedRoadmap {
   return { profileSummary: profile, phases, raw: text };
 }
 
-// RoadmapBody and formatInline are provided by the shared MarkdownBody component
+function formatInline(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em class="text-[#0BAAEF]/80">$1</em>')
+    .replace(/\*{1,2}/g, '');
+}
+
+function RoadmapBody({ text }: { text: string }) {
+  const lines = text.split('\n').filter((l) => l.trim() && l.trim() !== '---');
+
+  return (
+    <div className="space-y-1.5">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+
+        if (/^##\s+/.test(trimmed) && !/^###/.test(trimmed)) {
+          return (
+            <h2 key={i} className="text-white font-bold text-base mt-5 mb-2 first:mt-0">
+              {trimmed.replace(/^##\s+/, '')}
+            </h2>
+          );
+        }
+
+        if (/^###\s+/.test(trimmed) && !/^####/.test(trimmed)) {
+          return (
+            <h3 key={i} className="text-white font-semibold text-sm mt-4 mb-1.5 first:mt-0 border-b border-brand-slate/30 pb-1">
+              {trimmed.replace(/^###\s+/, '')}
+            </h3>
+          );
+        }
+
+        if (/^####\s+/.test(trimmed)) {
+          return (
+            <p key={i} className="text-[#0BAAEF] font-semibold text-xs uppercase tracking-wide mt-3 mb-1">
+              {trimmed.replace(/^####\s+/, '')}
+            </p>
+          );
+        }
+
+        if (/^\s{2,}[-*]/.test(line)) {
+          return (
+            <div key={i} className="flex items-start gap-2 pl-5">
+              <span className="text-[#0BAAEF]/60 mt-1.5 shrink-0 text-[10px]">◦</span>
+              <span className="text-brand-light/80 text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: formatInline(trimmed.replace(/^[-*]\s*/, '')) }}
+              />
+            </div>
+          );
+        }
+
+        if (/^[-*]\s/.test(trimmed)) {
+          return (
+            <div key={i} className="flex items-start gap-2">
+              <span className="text-[#0BAAEF] mt-1.5 shrink-0 text-xs">▸</span>
+              <span className="text-brand-light text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: formatInline(trimmed.replace(/^[-*]\s+/, '')) }}
+              />
+            </div>
+          );
+        }
+
+        const boldHeadingMatch = trimmed.match(/^\*\*(.+?)\*\*\s*$/);
+        if (boldHeadingMatch) {
+          return (
+            <h3 key={i} className="text-white font-semibold text-sm mt-4 mb-1.5 first:mt-0 border-b border-brand-slate/30 pb-1">
+              {boldHeadingMatch[1]}
+            </h3>
+          );
+        }
+
+        if (/^\*\*[^*]+\*\*/.test(trimmed)) {
+          return (
+            <p key={i} className="text-white text-sm leading-relaxed mt-2"
+              dangerouslySetInnerHTML={{ __html: formatInline(trimmed) }}
+            />
+          );
+        }
+
+        if (trimmed) {
+          return (
+            <p key={i} className="text-brand-light/80 text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: formatInline(trimmed) }}
+            />
+          );
+        }
+
+        return null;
+      })}
+    </div>
+  );
+}
 
 const COUNTRIES = [
-  // North America
   'United States', 'Canada', 'Mexico',
-  // Europe
   'United Kingdom', 'Ireland', 'Germany', 'France', 'Netherlands',
   'Spain', 'Italy', 'Portugal', 'Sweden', 'Norway', 'Denmark', 'Finland',
   'Belgium', 'Switzerland', 'Austria', 'Poland', 'Czech Republic', 'Romania',
-  // Africa
   'Nigeria', 'Ghana', 'Kenya', 'South Africa', 'Ethiopia', 'Uganda',
   'Tanzania', 'Rwanda', 'Cameroon', 'Senegal', 'Côte d\'Ivoire', 'Mali',
   'Zambia', 'Zimbabwe', 'Botswana', 'Namibia', 'Mozambique', 'Angola',
   'Sudan', 'Egypt', 'Morocco', 'Tunisia', 'Algeria', 'Libya',
   'Sierra Leone', 'Liberia', 'Gambia', 'Guinea', 'Togo', 'Benin',
   'Malawi', 'Eritrea', 'Somalia', 'DR Congo', 'Republic of Congo',
-  // Latin America & Caribbean
   'Brazil', 'Colombia', 'Argentina', 'Peru', 'Venezuela', 'Chile',
   'Ecuador', 'Bolivia', 'Paraguay', 'Uruguay', 'Guatemala', 'Honduras',
   'El Salvador', 'Nicaragua', 'Costa Rica', 'Panama', 'Cuba',
   'Dominican Republic', 'Haiti', 'Jamaica', 'Trinidad and Tobago',
   'Puerto Rico', 'Barbados', 'Belize', 'Guyana', 'Suriname',
-  // Asia & Pacific
   'India', 'Philippines', 'Singapore', 'Japan', 'South Korea',
   'China', 'Hong Kong', 'Taiwan', 'Vietnam', 'Thailand', 'Malaysia',
   'Indonesia', 'Bangladesh', 'Pakistan', 'Sri Lanka', 'Nepal',
   'Australia', 'New Zealand',
-  // Middle East
   'UAE', 'Saudi Arabia', 'Qatar', 'Kuwait', 'Bahrain', 'Jordan',
   'Lebanon', 'Israel', 'Turkey',
-  // Other
   'Other',
 ];
 
@@ -115,7 +194,7 @@ const INCOME_GOALS = [
   '$200,000+',
 ];
 
-export default function CyberPathFinderPage() {
+export default function CyberPathFinderCrPage() {
   const [formData, setFormData] = useState({
     current_job: '',
     country: '',
@@ -128,10 +207,8 @@ export default function CyberPathFinderPage() {
   const [resultId, setResultId] = useState('');
   const [showModal, setShowModal] = useState(false);
 
-  // Roadmap pagination
   const [activePage, setActivePage] = useState(0);
 
-  // Country search state
   const [countrySearch, setCountrySearch] = useState('');
   const [countryOpen, setCountryOpen] = useState(false);
   const countryRef = useRef<HTMLDivElement>(null);
@@ -140,7 +217,6 @@ export default function CyberPathFinderPage() {
     c.toLowerCase().includes(countrySearch.toLowerCase()),
   );
 
-  // Restore from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LS_KEY);
@@ -154,14 +230,12 @@ export default function CyberPathFinderPage() {
     } catch {}
   }, []);
 
-  // Persist on change
   useEffect(() => {
     if (previewResult || fullResult) {
       localStorage.setItem(LS_KEY, JSON.stringify({ previewResult, fullResult, resultId, formData }));
     }
   }, [previewResult, fullResult, resultId, formData]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (countryRef.current && !countryRef.current.contains(e.target as Node)) {
@@ -206,12 +280,11 @@ export default function CyberPathFinderPage() {
       setShowModal(false);
     } catch (err: any) {
       if (err.response?.status === 404) {
-        // Result expired on backend — clear stale localStorage and reset
         setPreviewResult(null);
         setResultId('');
         localStorage.removeItem(LS_KEY);
       }
-      throw err; // re-throw so modal displays the error message
+      throw err;
     }
   };
 
@@ -230,7 +303,6 @@ export default function CyberPathFinderPage() {
         </p>
       </div>
 
-      {/* Loading state */}
       {loading && (
         <AnalysisLoader
           title="Building Your Roadmap"
@@ -268,7 +340,6 @@ export default function CyberPathFinderPage() {
             <div ref={countryRef} className="relative">
               <label className="label-text">Country</label>
 
-              {/* Trigger button */}
               <button
                 type="button"
                 onClick={() => {
@@ -288,10 +359,8 @@ export default function CyberPathFinderPage() {
                 </svg>
               </button>
 
-              {/* Dropdown */}
               {countryOpen && (
                 <div className="absolute z-50 w-full mt-1 bg-brand-dark border border-brand-slate rounded-lg shadow-xl overflow-hidden">
-                  {/* Search input */}
                   <div className="p-2 border-b border-brand-slate">
                     <div className="relative">
                       <svg
@@ -312,7 +381,6 @@ export default function CyberPathFinderPage() {
                     </div>
                   </div>
 
-                  {/* Country list */}
                   <ul className="max-h-52 overflow-y-auto">
                     {filteredCountries.length === 0 ? (
                       <li className="px-4 py-3 text-sm text-brand-muted text-center">
@@ -371,7 +439,6 @@ export default function CyberPathFinderPage() {
         </div>
       )}
 
-      {/* Preview Result */}
       {previewResult && !fullResult && (
         <div className="animate-slide-up">
           <div className="card max-w-xl mx-auto mb-6 border border-[#0BAAEF]/20">
@@ -383,11 +450,10 @@ export default function CyberPathFinderPage() {
               </span>
             </div>
             <div className="text-brand-light/90 text-sm leading-relaxed">
-              <MarkdownBody text={typeof previewResult === 'string' ? previewResult : previewResult.roadmap || ''} />
+              <RoadmapBody text={typeof previewResult === 'string' ? previewResult : previewResult.roadmap || ''} />
             </div>
           </div>
 
-          {/* Gated content overlay */}
           <div className="relative max-w-xl mx-auto">
             <div className="card opacity-40 blur-sm pointer-events-none select-none">
               <h3 className="text-lg font-bold text-white mb-3">Full Roadmap</h3>
@@ -421,7 +487,6 @@ export default function CyberPathFinderPage() {
         </div>
       )}
 
-      {/* Full Result — Paginated Roadmap */}
       {fullResult && (() => {
         const rawText: string =
           typeof fullResult === 'string'
@@ -443,8 +508,6 @@ export default function CyberPathFinderPage() {
 
         return (
           <div className="max-w-2xl mx-auto animate-slide-up space-y-4">
-
-            {/* Header */}
             <div className="flex items-center gap-3 mb-2">
               <div className="w-8 h-8 rounded-full bg-[#0BAAEF]/20 flex items-center justify-center shrink-0">
                 <svg className="w-4 h-4 text-[#0BAAEF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -457,7 +520,6 @@ export default function CyberPathFinderPage() {
               </div>
             </div>
 
-            {/* Profile summary strip */}
             {Object.keys(profileSummary).length > 0 && (
               <div className="flex flex-wrap gap-3">
                 {Object.entries(profileSummary).map(([k, v]) => (
@@ -469,7 +531,6 @@ export default function CyberPathFinderPage() {
               </div>
             )}
 
-            {/* Phase tab navigation */}
             {hasPhases && (
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                 {phases.map((p, idx) => {
@@ -491,10 +552,8 @@ export default function CyberPathFinderPage() {
               </div>
             )}
 
-            {/* Phase card */}
             {hasPhases && phase ? (
               <div className={`card border ${color.border} ${color.bg}`}>
-                {/* Phase header */}
                 <div className="flex items-start justify-between gap-4 mb-5">
                   <div>
                     <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full mb-2 ${color.badge}`}>
@@ -508,10 +567,8 @@ export default function CyberPathFinderPage() {
                   </div>
                 </div>
 
-                {/* Phase body */}
-                <MarkdownBody text={phase.body} />
+                <RoadmapBody text={phase.body} />
 
-                {/* Navigation */}
                 <div className="flex items-center justify-between mt-6 pt-5 border-t border-brand-slate/30">
                   <button
                     onClick={() => setActivePage((p) => Math.max(0, p - 1))}
@@ -524,7 +581,6 @@ export default function CyberPathFinderPage() {
                     Previous
                   </button>
 
-                  {/* Dot indicators */}
                   <div className="flex gap-1.5">
                     {phases.map((_, idx) => (
                       <button
@@ -560,13 +616,11 @@ export default function CyberPathFinderPage() {
                 </div>
               </div>
             ) : (
-              /* Fallback: no phases parsed — render clean formatted text */
               <div className="card space-y-3">
-                <MarkdownBody text={rawText} />
+                <RoadmapBody text={rawText} />
               </div>
             )}
 
-            {/* Actions */}
             <div className="flex gap-3">
               {fullResult && (
                 <button
@@ -602,6 +656,7 @@ export default function CyberPathFinderPage() {
         onSubmit={handleLeadSubmit}
         resultId={resultId}
         sourceTool="cyber-path-finder"
+        leadSource="crawler"
       />
     </div>
   );
