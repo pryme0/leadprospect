@@ -1,0 +1,255 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@layer base {
+  body {
+    @apply bg-brand-darker text-brand-light antialiased;
+  }
+
+  ::selection {
+    @apply bg-brand-accent/30 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-brand-darker;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-brand-slate rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-brand-muted;
+  }
+}
+
+@keyframes termLine {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+@keyframes scanline {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(400%); }
+}
+@keyframes floatY {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+/* ── Light theme overrides (admin dashboard only) ────────────────────────── */
+/* Applied when data-theme="light" is set on the admin layout wrapper         */
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* Root backgrounds */
+[data-theme="light"] .bg-\[\#080f17\]  { background-color: #f1f5f9 !important; }
+[data-theme="light"] .bg-\[\#0b1520\]  { background-color: #ffffff !important; }
+[data-theme="light"] .bg-\[\#0b1520\]\/80 { background-color: rgba(255,255,255,0.95) !important; }
+[data-theme="light"] .bg-\[\#0d1b2a\]  { background-color: #f8fafc !important; }
+
+/* Brand semantic backgrounds */
+[data-theme="light"] .bg-brand-navy    { background-color: #ffffff !important; }
+[data-theme="light"] .bg-brand-dark    { background-color: #f1f5f9 !important; }
+[data-theme="light"] .bg-brand-darker  { background-color: #e2e8f0 !important; }
+[data-theme="light"] .bg-brand-slate   { background-color: #f1f5f9 !important; }
+[data-theme="light"] .bg-brand-slate\/30 { background-color: rgba(226,232,240,0.6) !important; }
+[data-theme="light"] .bg-brand-slate\/40 { background-color: rgba(226,232,240,0.7) !important; }
+[data-theme="light"] .bg-brand-slate\/50 { background-color: rgba(226,232,240,0.8) !important; }
+
+/* White/opacity subtle backgrounds */
+[data-theme="light"] .bg-white\/2  { background-color: #f8fafc !important; }
+[data-theme="light"] .bg-white\/3  { background-color: #f1f5f9 !important; }
+[data-theme="light"] .bg-white\/5  { background-color: #e2e8f0 !important; }
+[data-theme="light"] .bg-white\/8  { background-color: #e2e8f0 !important; }
+
+/* Text colors */
+[data-theme="light"] .text-white       { color: #0f172a !important; }
+[data-theme="light"] .text-white\/80   { color: #1e293b !important; }
+[data-theme="light"] .text-white\/70   { color: #334155 !important; }
+[data-theme="light"] .text-white\/60   { color: #475569 !important; }
+[data-theme="light"] .text-white\/50   { color: #64748b !important; }
+[data-theme="light"] .text-white\/40   { color: #94a3b8 !important; }
+[data-theme="light"] .text-white\/30   { color: #94a3b8 !important; }
+[data-theme="light"] .text-white\/25   { color: #cbd5e1 !important; }
+[data-theme="light"] .text-white\/20   { color: #e2e8f0 !important; }
+[data-theme="light"] .text-brand-light { color: #1e293b !important; }
+[data-theme="light"] .text-brand-muted { color: #64748b !important; }
+
+/* Borders */
+[data-theme="light"] .border-white\/5  { border-color: #e2e8f0 !important; }
+[data-theme="light"] .border-white\/8  { border-color: #e2e8f0 !important; }
+[data-theme="light"] .border-white\/10 { border-color: #cbd5e1 !important; }
+[data-theme="light"] .border-brand-slate { border-color: #e2e8f0 !important; }
+[data-theme="light"] .border-brand-slate\/30 { border-color: rgba(203,213,225,0.5) !important; }
+[data-theme="light"] .border-brand-slate\/50 { border-color: rgba(203,213,225,0.8) !important; }
+
+/* Table & card overrides */
+[data-theme="light"] .admin-table thead { background-color: #f1f5f9 !important; }
+[data-theme="light"] .admin-table td    { border-color: #e2e8f0 !important; }
+[data-theme="light"] .admin-table tbody tr:hover { background-color: #f1f5f9 !important; }
+[data-theme="light"] .table-container   { border-color: #e2e8f0 !important; }
+[data-theme="light"] .card              { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+
+/* Inputs & selects */
+[data-theme="light"] .input-field  { background-color: #ffffff !important; border-color: #e2e8f0 !important; color: #0f172a !important; }
+[data-theme="light"] .select-field { background-color: #ffffff !important; border-color: #e2e8f0 !important; color: #0f172a !important; }
+
+/* Scrollbar */
+[data-theme="light"] ::-webkit-scrollbar-track { background: #f1f5f9; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+
+/* Recharts chart text */
+[data-theme="light"] .recharts-text tspan { fill: #64748b !important; }
+[data-theme="light"] .recharts-cartesian-grid line { stroke: rgba(0,0,0,0.06) !important; }
+[data-theme="light"] .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 bg-brand-accent text-brand-darker font-semibold rounded-lg
+           hover:bg-brand-accent-dim transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-brand-accent/50
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 border border-brand-accent text-brand-accent font-semibold rounded-lg
+           hover:bg-brand-accent/10 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-brand-accent/50;
+  }
+
+  .btn-danger {
+    @apply px-6 py-3 bg-brand-danger text-white font-semibold rounded-lg
+           hover:bg-brand-danger/80 transition-all duration-200;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-brand-navy border border-brand-slate rounded-lg
+           text-brand-light placeholder-brand-muted
+           focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/30
+           transition-all duration-200;
+  }
+
+  .select-field {
+    @apply w-full px-4 py-3 bg-brand-navy border border-brand-slate rounded-lg
+           text-brand-light appearance-none cursor-pointer
+           focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/30
+           transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-brand-navy border border-brand-slate rounded-xl p-6
+           hover:border-brand-accent/30 transition-all duration-300;
+  }
+
+  .card-glow {
+    @apply card hover:shadow-lg hover:shadow-brand-accent/10;
+  }
+
+  .stat-card {
+    @apply bg-brand-navy border border-brand-slate rounded-xl p-6;
+  }
+
+  .glass {
+    @apply bg-brand-navy/80 backdrop-blur-md border border-brand-slate/50 rounded-xl;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-brand-accent to-brand-cyan bg-clip-text text-transparent;
+  }
+
+  .section-heading {
+    @apply text-2xl md:text-3xl font-bold text-white mb-2;
+  }
+
+  .section-subheading {
+    @apply text-brand-muted text-lg mb-8;
+  }
+
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+  }
+
+  .tool-page-container {
+    @apply max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12;
+  }
+
+  .label-text {
+    @apply block text-sm font-medium text-brand-light mb-2;
+  }
+
+  .error-text {
+    @apply text-brand-danger text-sm mt-1;
+  }
+
+  .loading-spinner {
+    @apply inline-block w-5 h-5 border-2 border-brand-darker border-t-transparent rounded-full animate-spin;
+  }
+
+  .progress-bar {
+    @apply h-2 bg-brand-slate rounded-full overflow-hidden;
+  }
+
+  .progress-bar-fill {
+    @apply h-full bg-gradient-to-r from-brand-accent to-brand-cyan rounded-full transition-all duration-500;
+  }
+
+  .table-container {
+    @apply overflow-x-auto rounded-xl border border-brand-slate;
+  }
+
+  .admin-table {
+    @apply w-full text-sm text-left;
+  }
+
+  .admin-table thead {
+    @apply bg-brand-slate/50 text-brand-muted uppercase text-xs tracking-wider;
+  }
+
+  .admin-table th {
+    @apply px-6 py-4 font-medium;
+  }
+
+  .admin-table td {
+    @apply px-6 py-4 border-t border-brand-slate/50;
+  }
+
+  .admin-table tbody tr {
+    @apply hover:bg-brand-slate/30 transition-colors;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-green {
+    @apply badge bg-brand-accent/20 text-brand-accent;
+  }
+
+  .badge-blue {
+    @apply badge bg-brand-cyan/20 text-brand-cyan;
+  }
+
+  .badge-yellow {
+    @apply badge bg-yellow-500/20 text-yellow-400;
+  }
+
+  .badge-red {
+    @apply badge bg-brand-danger/20 text-brand-danger;
+  }
+}
