@@ -508,7 +508,7 @@ export default function SettingsPage() {
               <p className="text-white/30 text-xs">View live GHL sync jobs, retries, and failed jobs</p>
             </div>
             <a
-              href="http://localhost:3001/admin/queues"
+              href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/admin/queues`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#0BAAEF]/10 border border-[#0BAAEF]/30 text-[#0BAAEF] hover:bg-[#0BAAEF]/15 transition-colors whitespace-nowrap"
