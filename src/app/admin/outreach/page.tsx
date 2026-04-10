@@ -28,11 +28,17 @@ interface Stats {
   sent_today: number;
   approved_today: number;
   pending_total: number;
+  approved_total: number;
   total_sent: number;
+  failed_total: number;
+  failed_today: number;
+  skipped_total: number;
   daily_target: number;
   sent_by_day: { date: string; count: number }[];
   sent_by_platform: { platform: string; count: number }[];
   sent_by_tool: { tool: string; count: number }[];
+  failed_by_platform: { platform: string; count: number }[];
+  top_failure_reasons: { reason: string; count: number }[];
 }
 
 const PLATFORM_ICONS: Record<string, string> = {
@@ -139,22 +145,84 @@ export default function OutreachPage() {
     <div className="space-y-6 max-w-[1400px] mx-auto">
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
           { label: 'Sent Today', value: stats?.sent_today ?? 0, target: `/ ${stats?.daily_target ?? 2000}`, color: '#0BAAEF' },
-          { label: 'Approved (Ready)', value: stats?.approved_today ?? 0, color: '#40C4FF' },
+          { label: 'Approved (Ready)', value: stats?.approved_total ?? 0, color: '#40C4FF' },
           { label: 'Pending Review', value: stats?.pending_total ?? 0, color: '#f59e0b' },
           { label: 'Total Sent', value: stats?.total_sent ?? 0, color: '#10b981' },
-        ].map((s, i) => (
+          {
+            label: 'Failed',
+            value: stats?.failed_total ?? 0,
+            sub: stats?.failed_today ? `${stats.failed_today} today` : undefined,
+            color: '#ef4444',
+          },
+        ].map((s: any, i) => (
           <div key={i} className="rounded-xl border p-4" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
             <p className="text-xs font-medium" style={{ color: 'var(--a-muted)' }}>{s.label}</p>
             <div className="flex items-baseline gap-1.5 mt-1">
               <span className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</span>
               {s.target && <span className="text-xs" style={{ color: 'var(--a-muted)' }}>{s.target}</span>}
             </div>
+            {s.sub && <p className="text-[10px] mt-1" style={{ color: 'var(--a-muted)' }}>{s.sub}</p>}
           </div>
         ))}
       </div>
+
+      {/* Failure breakdown — only shown if there are failures */}
+      {(stats?.failed_total ?? 0) > 0 && (
+        <div className="rounded-xl border p-4" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-red-500" />
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--a-text)' }}>
+              Failed Outreach Breakdown
+            </h3>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* By platform */}
+            <div>
+              <p className="text-xs font-medium mb-2" style={{ color: 'var(--a-muted)' }}>By Platform</p>
+              <div className="space-y-1.5">
+                {(stats?.failed_by_platform ?? []).length === 0 && (
+                  <p className="text-xs" style={{ color: 'var(--a-muted)' }}>No failures</p>
+                )}
+                {(stats?.failed_by_platform ?? []).map((p) => {
+                  const max = Math.max(...(stats?.failed_by_platform ?? []).map((x) => x.count));
+                  const pct = max > 0 ? (p.count / max) * 100 : 0;
+                  return (
+                    <div key={p.platform} className="flex items-center gap-3">
+                      <span className="text-xs capitalize w-16" style={{ color: 'var(--a-text)' }}>{p.platform}</span>
+                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--a-hover)' }}>
+                        <div className="h-full bg-red-500/70 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-xs font-mono w-8 text-right" style={{ color: 'var(--a-text)' }}>{p.count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top failure reasons */}
+            <div>
+              <p className="text-xs font-medium mb-2" style={{ color: 'var(--a-muted)' }}>Top Failure Reasons</p>
+              <div className="space-y-1.5">
+                {(stats?.top_failure_reasons ?? []).length === 0 && (
+                  <p className="text-xs" style={{ color: 'var(--a-muted)' }}>No failure details</p>
+                )}
+                {(stats?.top_failure_reasons ?? []).map((r, idx) => (
+                  <div key={idx} className="flex items-start gap-2">
+                    <span className="text-xs font-bold text-red-400 w-6">{r.count}×</span>
+                    <p className="text-xs flex-1 break-words font-mono" style={{ color: 'var(--a-muted)' }}>
+                      {r.reason}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Daily progress bar */}
       <div className="rounded-xl border p-4" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
