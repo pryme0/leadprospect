@@ -122,7 +122,7 @@ export const adminApi = {
   // ── Pipeline controls (US-01 to US-07) ──────────────────────────
 
   // Manually trigger ingestion per platform
-  triggerIngest: (platform: 'twitter' | 'reddit' | 'youtube' | 'linkedin') =>
+  triggerIngest: (platform: 'twitter' | 'reddit' | 'youtube' | 'linkedin' | 'instagram') =>
     api.post(`/ingest/${platform}`),
 
   // Classify a single signal by ID
@@ -198,6 +198,17 @@ export const adminApi = {
 
   bulkApproveOutreach: () =>
     api.post('/api/admin/outreach/bulk-approve'),
+
+  getManualDmRequired: (params: {
+    page?: number;
+    limit?: number;
+    platform?: string;
+  }) => api.get('/api/admin/outreach/manual-dm-required', { params }),
+
+  // Convert a DM-disabled lead to a public reply so the next batch attempts
+  // a comment instead of another DM. Marks the row approved + outreach_type=reply.
+  convertDmToReply: (id: string) =>
+    api.patch(`/api/admin/outreach/${id}`, { status: 'approved' }),
 };
 
 export default api;

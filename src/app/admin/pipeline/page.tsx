@@ -9,6 +9,9 @@ interface Signal {
   id: string;
   source: string;
   username: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
   content: string;
   url: string;
   timestamp: string;
@@ -20,6 +23,16 @@ interface Signal {
   processed: boolean;
   created_at: string;
   classified_at: string | null;
+  // ── Enrichment (Apollo / Hunter) ──────────────────────────────
+  enriched_name?: string | null;
+  enriched_email?: string | null;
+  enriched_phone?: string | null;
+  enriched_company?: string | null;
+  enriched_title?: string | null;
+  enriched_linkedin_url?: string | null;
+  enriched_via?: string | null;
+  enriched_at?: string | null;
+  ghl_contact_id?: string | null;
 }
 
 interface IngestStatus {
@@ -114,6 +127,17 @@ const PLATFORM_CONFIG = {
       </svg>
     ),
   },
+  instagram: {
+    label: 'Instagram',
+    desc: 'Hashtag posts via Apify — replies sent via Ayrshare',
+    color: 'text-pink-400',
+    bg: 'bg-pink-400/10 border-pink-400/20',
+    icon: (
+      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+      </svg>
+    ),
+  },
 } as const;
 
 type Platform = keyof typeof PLATFORM_CONFIG;
@@ -126,6 +150,7 @@ export default function PipelinePage() {
     reddit: { running: false, lastCount: null, lastRun: null, error: null },
     youtube: { running: false, lastCount: null, lastRun: null, error: null },
     linkedin: { running: false, lastCount: null, lastRun: null, error: null },
+    instagram: { running: false, lastCount: null, lastRun: null, error: null },
   });
 
   const [classifyStatus, setClassifyStatus] = useState<ClassifyStatus>({
@@ -136,6 +161,10 @@ export default function PipelinePage() {
   const [signalsLoading, setSignalsLoading] = useState(true);
   const [selectedSignal, setSelectedSignal] = useState<Signal | null>(null);
   const [signalFilter, setSignalFilter] = useState<'all' | 'unprocessed' | 'high'>('all');
+  const [sourceFilter, setSourceFilter] = useState<
+    'all' | 'twitter' | 'reddit' | 'youtube' | 'linkedin' | 'instagram'
+  >('all');
+  const [signalsError, setSignalsError] = useState<string | null>(null);
   const [unprocessedCount, setUnprocessedCount] = useState<number | null>(null);
   const [feedPage, setFeedPage] = useState(1);
   const [feedTotal, setFeedTotal] = useState(0);
@@ -145,10 +174,12 @@ export default function PipelinePage() {
 
   const fetchSignals = useCallback(async () => {
     setSignalsLoading(true);
+    setSignalsError(null);
     try {
       const params: any = { limit: FEED_PAGE_SIZE, offset: (feedPage - 1) * FEED_PAGE_SIZE };
       if (signalFilter === 'unprocessed') params.processed = 'false';
       if (signalFilter === 'high') params.intent_level = 'HIGH_INTENT';
+      if (sourceFilter !== 'all') params.source = sourceFilter;
       const res = await adminApi.getSignals(params);
       const list: Signal[] = res.data.signals || res.data.data || [];
       setSignals(list);
@@ -159,12 +190,21 @@ export default function PipelinePage() {
       setUnprocessedCount(
         unprocessedRes.data.total || unprocessedRes.data.count || 0,
       );
-    } catch {
-      // silent
+    } catch (err: any) {
+      // Surface errors so invalid filters (e.g. a source the backend doesn't
+      // accept) don't silently fall back to stale data. Previous bug: selecting
+      // "linkedin" produced a 400 but the UI kept showing whatever loaded last.
+      const msg =
+        err?.response?.data?.message?.toString() ||
+        err?.message ||
+        'Failed to load signals';
+      setSignalsError(Array.isArray(msg) ? msg.join('; ') : msg);
+      setSignals([]);
+      setFeedTotal(0);
     } finally {
       setSignalsLoading(false);
     }
-  }, [signalFilter, feedPage]);
+  }, [signalFilter, sourceFilter, feedPage]);
 
   useEffect(() => {
     fetchSignals();
@@ -395,24 +435,54 @@ export default function PipelinePage() {
 
       {/* ── SIGNAL FEED ── */}
       <section>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <h2 className="text-xs font-semibold text-brand-muted uppercase tracking-wider">
             Signal Feed
           </h2>
-          <div className="flex gap-2">
-            {(['all', 'unprocessed', 'high'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => { setSignalFilter(f); setFeedPage(1); }}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  signalFilter === f
-                    ? 'bg-[#0BAAEF] text-brand-navy'
-                    : 'bg-brand-slate/50 text-brand-muted hover:text-white'
-                }`}
-              >
-                {f === 'all' ? 'All' : f === 'unprocessed' ? 'Pending' : 'HIGH INTENT'}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Source filter (platform) */}
+            <div className="flex gap-2">
+              {(
+                [
+                  { v: 'all', label: 'All' },
+                  { v: 'twitter', label: 'Twitter' },
+                  { v: 'reddit', label: 'Reddit' },
+                  { v: 'youtube', label: 'YouTube' },
+                  { v: 'linkedin', label: 'LinkedIn' },
+                  { v: 'instagram', label: 'Instagram' },
+                ] as const
+              ).map((s) => (
+                <button
+                  key={s.v}
+                  onClick={() => { setSourceFilter(s.v as any); setFeedPage(1); }}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    sourceFilter === s.v
+                      ? 'bg-[#0BAAEF] text-brand-navy'
+                      : 'bg-brand-slate/50 text-brand-muted hover:text-white'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            {/* Divider */}
+            <div className="hidden sm:block w-px h-5 bg-brand-slate/60 mx-1" />
+            {/* Intent / processed filter */}
+            <div className="flex gap-2">
+              {(['all', 'unprocessed', 'high'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => { setSignalFilter(f); setFeedPage(1); }}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    signalFilter === f
+                      ? 'bg-[#0BAAEF] text-brand-navy'
+                      : 'bg-brand-slate/50 text-brand-muted hover:text-white'
+                  }`}
+                >
+                  {f === 'all' ? 'All' : f === 'unprocessed' ? 'Pending' : 'HIGH INTENT'}
+                </button>
+              ))}
+            </div>
             <button
               onClick={fetchSignals}
               className="px-3 py-1 rounded-full text-xs font-medium bg-brand-slate/50 text-brand-muted hover:text-white transition-colors"
@@ -422,6 +492,12 @@ export default function PipelinePage() {
             </button>
           </div>
         </div>
+
+        {signalsError && (
+          <div className="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 mb-3 text-sm text-red-300">
+            <span className="font-medium">Request failed:</span> {signalsError}
+          </div>
+        )}
 
         {signalsLoading ? (
           <div className="flex items-center justify-center py-16">
@@ -451,11 +527,12 @@ export default function PipelinePage() {
                       s.source === 'reddit' ? 'bg-orange-400/15 text-orange-400' :
                       s.source === 'youtube' ? 'bg-red-400/15 text-red-400' :
                       s.source === 'linkedin' ? 'bg-blue-400/15 text-blue-400' :
+                      s.source === 'instagram' ? 'bg-pink-400/15 text-pink-400' :
                       'bg-brand-slate text-brand-muted'
                     }`}>
                       {s.source}
                     </span>
-                    <span className="text-brand-muted text-xs truncate">@{s.username}</span>
+                    <span className="text-brand-muted text-xs truncate">{s.name || (!/^ACoAA/i.test(s.username || '') ? `@${s.username}` : 'LinkedIn User')}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <IntentBadge level={s.intent_level} />
@@ -580,6 +657,7 @@ export default function PipelinePage() {
                 selectedSignal.source === 'reddit' ? 'bg-orange-400/15 text-orange-400' :
                 selectedSignal.source === 'youtube' ? 'bg-red-400/15 text-red-400' :
                 selectedSignal.source === 'linkedin' ? 'bg-blue-400/15 text-blue-400' :
+                selectedSignal.source === 'instagram' ? 'bg-pink-400/15 text-pink-400' :
                 'bg-brand-slate text-brand-muted'
               }`}>
                 {selectedSignal.source}
@@ -592,12 +670,151 @@ export default function PipelinePage() {
 
             {/* Author + timestamp */}
             <div className="text-sm text-brand-muted">
-              <span className="font-medium text-brand-light">@{selectedSignal.username}</span>
+              <span className="font-medium text-brand-light">
+                {selectedSignal.name || `@${selectedSignal.username}`}
+              </span>
+              {selectedSignal.name && selectedSignal.username && selectedSignal.username !== selectedSignal.name && !/^ACoAA/i.test(selectedSignal.username) && (
+                <span className="ml-2 text-xs font-mono text-brand-muted truncate">@{selectedSignal.username}</span>
+              )}
               <span className="mx-2">·</span>
               {selectedSignal.timestamp
                 ? new Date(selectedSignal.timestamp).toLocaleString()
                 : new Date(selectedSignal.created_at).toLocaleString()}
             </div>
+
+            {/* Lead profile — merges scraped fields (from ingestion) with
+                enriched fields (from Apollo/Hunter). Enriched values take
+                precedence because they're verified against a real database;
+                scraped values are best-effort regex extraction from bios. */}
+            {(() => {
+              const displayName =
+                selectedSignal.enriched_name || selectedSignal.name;
+              const displayEmail =
+                selectedSignal.enriched_email || selectedSignal.email;
+              const displayPhone =
+                selectedSignal.enriched_phone || selectedSignal.phone;
+              const company = selectedSignal.enriched_company;
+              const title = selectedSignal.enriched_title;
+              const linkedin = selectedSignal.enriched_linkedin_url;
+              const enrichedVia = selectedSignal.enriched_via;
+              const ghlId = selectedSignal.ghl_contact_id;
+              const isEnriched =
+                enrichedVia && enrichedVia !== 'none' && enrichedVia !== null;
+
+              if (
+                !displayName && !displayEmail && !displayPhone &&
+                !company && !title && !linkedin
+              ) return null;
+
+              return (
+                <div className="rounded-lg border border-[#0BAAEF]/20 bg-[#0BAAEF]/5 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] uppercase tracking-wider text-[#0BAAEF] font-semibold">
+                      Lead Profile
+                    </p>
+                    {isEnriched && (
+                      <span
+                        className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-semibold uppercase"
+                        title={`Enriched via ${enrichedVia}`}
+                      >
+                        ✓ Enriched ({enrichedVia})
+                      </span>
+                    )}
+                  </div>
+
+                  {displayName && (
+                    <div className="flex items-start gap-2 text-xs">
+                      <svg className="w-3.5 h-3.5 text-brand-muted mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-brand-muted">Name</p>
+                        <p className="text-brand-light font-medium">{displayName}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {displayEmail && (
+                    <div className="flex items-start gap-2 text-xs">
+                      <svg className="w-3.5 h-3.5 text-brand-muted mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-brand-muted">Email</p>
+                        <a
+                          href={`mailto:${displayEmail}`}
+                          className="text-[#0BAAEF] font-medium hover:underline break-all"
+                        >
+                          {displayEmail}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {displayPhone && (
+                    <div className="flex items-start gap-2 text-xs">
+                      <svg className="w-3.5 h-3.5 text-brand-muted mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-brand-muted">Phone</p>
+                        <a
+                          href={`tel:${displayPhone}`}
+                          className="text-[#0BAAEF] font-medium hover:underline"
+                        >
+                          {displayPhone}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {(company || title) && (
+                    <div className="flex items-start gap-2 text-xs">
+                      <svg className="w-3.5 h-3.5 text-brand-muted mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-brand-muted">Company / Title</p>
+                        <p className="text-brand-light font-medium">
+                          {[title, company].filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {linkedin && (
+                    <div className="flex items-start gap-2 text-xs">
+                      <svg className="w-3.5 h-3.5 text-brand-muted mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-brand-muted">LinkedIn</p>
+                        <a
+                          href={linkedin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#0BAAEF] font-medium hover:underline break-all"
+                        >
+                          {linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\//, 'in/')}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {ghlId && (
+                    <div className="flex items-start gap-2 text-xs pt-1 border-t border-brand-slate/30">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 font-semibold uppercase">
+                        GHL
+                      </span>
+                      <span className="text-brand-muted text-[10px]">
+                        Synced to GoHighLevel:&nbsp;
+                        <span className="font-mono text-brand-light">{ghlId}</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Content */}
             <div className="card bg-brand-dark">

@@ -14,9 +14,35 @@ interface Lead {
   intent_level: string;
   consented: boolean;
   ghl_contact_id: string | null;
+  lead_source: string | null;
   created_at: string;
 }
 
+// Human-readable label + badge colour for the `lead_source` column.
+// Canonical values:
+//   'cr' — Agent Crawler (EnrichmentService — crawled signals → enriched leads)
+//   'so' — Social Media (manually-tagged social-channel acquisition)
+//   null — organic website capture via the tool modals
+// Legacy values kept for back-compat:
+//   'social' / 'crawler' — pre-cr/so taxonomy
+function sourceLabel(s: string | null | undefined): { label: string; cls: string } {
+  switch (s) {
+    case 'cr':
+      return { label: 'Agent Crawler', cls: 'badge-yellow' };
+    case 'so':
+      return { label: 'Social Media', cls: 'badge-blue' };
+    case 'social': // legacy
+      return { label: 'Social Media', cls: 'badge-blue' };
+    case 'crawler': // legacy
+      return { label: 'Agent Crawler', cls: 'badge-yellow' };
+    default:
+      return { label: 'Website', cls: 'badge-green' };
+  }
+}
+
+// `source_tool` is the tool this lead would convert with (content-driven).
+// Tool form submissions set it to the tool the user filled out. Enrichment-
+// sourced leads set it to the tool that best matches the signal's content.
 const TOOLS = ['', 'cyber-path-finder', 'career-assessment', 'resume-analyzer'];
 const INTENT_LEVELS = ['', 'HIGH_INTENT', 'MEDIUM_INTENT', 'LOW_INTENT'];
 
@@ -184,6 +210,7 @@ export default function LeadsPage() {
                 <th>Timeline</th>
                 <th>Income Goal</th>
                 <th>Tool</th>
+                <th>Source</th>
                 <th>Intent</th>
                 <th>GHL Sync</th>
                 <th>Consent</th>
@@ -200,6 +227,12 @@ export default function LeadsPage() {
                   <td className="text-brand-muted text-xs">{lead.income_goal || '-'}</td>
                   <td>
                     <span className="badge-blue">{toolLabel(lead.source_tool)}</span>
+                  </td>
+                  <td>
+                    {(() => {
+                      const { label, cls } = sourceLabel(lead.lead_source);
+                      return <span className={cls}>{label}</span>;
+                    })()}
                   </td>
                   <td>
                     <span

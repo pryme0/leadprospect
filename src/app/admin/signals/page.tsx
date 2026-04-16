@@ -8,6 +8,9 @@ interface Signal {
   id: string;
   source: string;
   username: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
   content: string;
   intent_level: string;
   urgency_score: number;
@@ -18,7 +21,7 @@ interface Signal {
 }
 
 const INTENT_LEVELS = ['', 'HIGH_INTENT', 'MEDIUM_INTENT', 'LOW_INTENT'];
-const SOURCES = ['', 'twitter', 'reddit', 'youtube', 'linkedin', 'google'];
+const SOURCES = ['', 'twitter', 'reddit', 'youtube', 'linkedin', 'instagram', 'google'];
 
 function IntentBadge({ level }: { level: string | null }) {
   if (!level) return <span className="badge-blue">Unclassified</span>;
@@ -42,15 +45,20 @@ export default function SignalsPage() {
     source: '',
     intent_level: '',
     processed: '',
+    enrichment: '',
   });
+
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchSignals = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const params: any = { offset: (page - 1) * 20, limit: 20 };
       if (filters.source) params.source = filters.source;
       if (filters.intent_level) params.intent_level = filters.intent_level;
       if (filters.processed) params.processed = filters.processed;
+      if (filters.enrichment) params.enrichment = filters.enrichment;
 
       const res = await adminApi.getSignals(params);
       setSignals(res.data.signals || res.data.data || []);
@@ -60,8 +68,17 @@ export default function SignalsPage() {
         Math.ceil((res.data.total || 0) / 20) ||
         1
       );
-    } catch {
-      // silent
+    } catch (err: any) {
+      // Surface the error so invalid filter values don't silently fall back
+      // to stale results (the previous bug: selecting "linkedin" appeared to
+      // work but actually 400'd on the DTO validator and kept showing old data).
+      const msg =
+        err?.response?.data?.message?.toString() ||
+        err?.message ||
+        'Failed to load signals';
+      setFetchError(Array.isArray(msg) ? msg.join('; ') : msg);
+      setSignals([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -108,6 +125,12 @@ export default function SignalsPage() {
         <p className="text-brand-muted text-sm">Collected intent signals from social platforms</p>
       </div>
 
+      {fetchError && (
+        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <span className="font-medium">Request failed:</span> {fetchError}
+        </div>
+      )}
+
       {/* Search + Filters */}
       <div className="flex flex-wrap gap-3">
         <input
@@ -148,6 +171,16 @@ export default function SignalsPage() {
           <option value="">All Status</option>
           <option value="true">Processed</option>
           <option value="false">Unprocessed</option>
+        </select>
+
+        <select
+          className="select-field w-auto min-w-[150px]"
+          value={filters.enrichment}
+          onChange={(e) => handleFilterChange('enrichment', e.target.value)}
+        >
+          <option value="">All Enrichment</option>
+          <option value="enriched">Enriched only</option>
+          <option value="with_email">With email</option>
         </select>
 
         {search && (
@@ -198,7 +231,14 @@ export default function SignalsPage() {
                   className="cursor-pointer hover:bg-white/5 transition-colors"
                 >
                   <td className="capitalize font-medium text-white">{s.source}</td>
-                  <td className="text-brand-light">{s.username || '-'}</td>
+                  <td className="text-brand-light">
+                    <div className="font-medium text-white">{s.name || s.username || '-'}</div>
+                    {s.name && s.username && s.username !== s.name && !/^ACoAA/i.test(s.username) && (
+                      <div className="text-xs text-brand-muted font-mono truncate max-w-[180px]" title={s.username}>
+                        @{s.username}
+                      </div>
+                    )}
+                  </td>
                   <td className="max-w-xs truncate text-brand-muted" title={s.content}>
                     {s.content?.slice(0, 80)}{s.content?.length > 80 ? '...' : ''}
                   </td>

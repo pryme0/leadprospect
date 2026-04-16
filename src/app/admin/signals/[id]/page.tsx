@@ -8,6 +8,9 @@ interface Signal {
   id: string;
   source: string;
   username: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
   content: string;
   url: string;
   timestamp: string;
@@ -20,6 +23,16 @@ interface Signal {
   content_hash: string;
   created_at: string;
   classified_at: string | null;
+  // Enrichment fields (Apollo / Hunter)
+  enriched_name?: string | null;
+  enriched_email?: string | null;
+  enriched_phone?: string | null;
+  enriched_company?: string | null;
+  enriched_title?: string | null;
+  enriched_linkedin_url?: string | null;
+  enriched_via?: string | null;
+  enriched_at?: string | null;
+  ghl_contact_id?: string | null;
 }
 
 function IntentBadge({ level }: { level: string | null }) {
@@ -108,8 +121,15 @@ export default function SignalDetailPage() {
           >
             ← Back to Signals
           </button>
-          <h1 className="text-2xl font-bold text-white">Signal Detail</h1>
-          <p className="text-brand-muted text-xs font-mono mt-1">{signal.id}</p>
+          <h1 className="text-2xl font-bold text-white">
+            {signal.name || signal.enriched_name || 'LinkedIn User'}
+          </h1>
+          {signal.username && !/^ACoAA/i.test(signal.username) && (
+            <p className="text-brand-muted text-xs mt-1 font-mono truncate max-w-xl" title={signal.username}>
+              @{signal.username}
+            </p>
+          )}
+          <p className="text-brand-muted text-[10px] font-mono mt-1 opacity-60">{signal.id}</p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <IntentBadge level={signal.intent_level} />
@@ -129,7 +149,7 @@ export default function SignalDetailPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'Source', value: signal.source.charAt(0).toUpperCase() + signal.source.slice(1) },
-          { label: 'Author', value: signal.username || '—' },
+          { label: 'Author', value: signal.name || (signal.username && !/^ACoAA/i.test(signal.username) ? `@${signal.username}` : 'LinkedIn User') },
           { label: 'Status', value: signal.processed ? 'Processed' : 'Pending' },
           { label: 'Collected', value: new Date(signal.created_at).toLocaleString() },
         ].map(({ label, value }) => (
@@ -139,6 +159,106 @@ export default function SignalDetailPage() {
           </div>
         ))}
       </div>
+
+      {/* Lead Profile — merges scraped + enriched contact data.
+          Enriched values (Apollo/Hunter) take precedence over scraped. */}
+      {(() => {
+        const displayName = signal.enriched_name || signal.name;
+        const displayEmail = signal.enriched_email || signal.email;
+        const displayPhone = signal.enriched_phone || signal.phone;
+        const company = signal.enriched_company;
+        const title = signal.enriched_title;
+        const linkedin = signal.enriched_linkedin_url;
+        const enrichedVia = signal.enriched_via;
+        const ghlId = signal.ghl_contact_id;
+        const isEnriched =
+          enrichedVia && enrichedVia !== 'none' && enrichedVia !== null;
+
+        if (
+          !displayName && !displayEmail && !displayPhone &&
+          !company && !title && !linkedin
+        ) return null;
+
+        return (
+          <div className="bg-brand-slate rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-brand-muted text-xs uppercase tracking-wider">
+                Lead Profile
+              </p>
+              {isEnriched && (
+                <span
+                  className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-semibold uppercase"
+                  title={`Enriched via ${enrichedVia}`}
+                >
+                  ✓ Enriched ({enrichedVia})
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {displayName && (
+                <div>
+                  <p className="text-[10px] text-brand-muted uppercase tracking-wider">Name</p>
+                  <p className="text-white font-medium">{displayName}</p>
+                </div>
+              )}
+              {displayEmail && (
+                <div>
+                  <p className="text-[10px] text-brand-muted uppercase tracking-wider">Email</p>
+                  <a
+                    href={`mailto:${displayEmail}`}
+                    className="text-[#0BAAEF] font-medium hover:underline break-all"
+                  >
+                    {displayEmail}
+                  </a>
+                </div>
+              )}
+              {displayPhone && (
+                <div>
+                  <p className="text-[10px] text-brand-muted uppercase tracking-wider">Phone</p>
+                  <a
+                    href={`tel:${displayPhone}`}
+                    className="text-[#0BAAEF] font-medium hover:underline"
+                  >
+                    {displayPhone}
+                  </a>
+                </div>
+              )}
+              {(company || title) && (
+                <div>
+                  <p className="text-[10px] text-brand-muted uppercase tracking-wider">Company / Title</p>
+                  <p className="text-white font-medium">
+                    {[title, company].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              )}
+              {linkedin && (
+                <div className="sm:col-span-2">
+                  <p className="text-[10px] text-brand-muted uppercase tracking-wider">LinkedIn</p>
+                  <a
+                    href={linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#0BAAEF] font-medium hover:underline break-all"
+                  >
+                    {linkedin}
+                  </a>
+                </div>
+              )}
+              {ghlId && (
+                <div className="sm:col-span-2 pt-2 border-t border-brand-navy/40">
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 font-semibold uppercase mr-2">
+                    GHL
+                  </span>
+                  <span className="text-brand-muted text-xs">
+                    Contact ID:&nbsp;
+                    <span className="font-mono text-brand-light">{ghlId}</span>
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Content */}
       <div className="bg-brand-slate rounded-xl p-5">

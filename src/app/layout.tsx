@@ -2,6 +2,11 @@ import type { Metadata } from 'next';
 import './globals.css';
 import ConditionalNavbar from '@/components/ConditionalNav';
 import ConditionalFooter from '@/components/ConditionalFooter';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
+import {
+  GoogleTagManagerHead,
+  GoogleTagManagerNoscript,
+} from '@/components/GoogleTagManager';
 
 const SITE_URL = 'https://emci.lie.thelixholdings.com';
 
@@ -69,7 +74,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        {/* GTM container loader — fires as soon as the page is interactive */}
+        <GoogleTagManagerHead />
+      </head>
       <body className="min-h-screen flex flex-col">
+        {/* GTM noscript fallback must be the FIRST child of <body> */}
+        <GoogleTagManagerNoscript />
+        <GoogleAnalytics />
         <ConditionalNavbar />
         <main className="flex-1">{children}</main>
         <ConditionalFooter />

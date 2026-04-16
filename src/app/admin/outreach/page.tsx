@@ -8,6 +8,7 @@ interface OutreachMessage {
   signal_id: string;
   platform: string;
   username: string;
+  name?: string | null;
   original_content: string;
   original_url: string;
   tool_recommendation: string;
@@ -16,6 +17,7 @@ interface OutreachMessage {
   status: string; // pending | approved | sent | skipped | failed
   auto_approved: boolean;
   send_error: string | null;
+  sent_url: string | null;
   intent_level: string;
   urgency_score: number;
   intent_category: string;
@@ -37,6 +39,7 @@ interface Stats {
   sent_by_day: { date: string; count: number }[];
   sent_by_platform: { platform: string; count: number }[];
   sent_by_tool: { tool: string; count: number }[];
+  approved_by_tool: { tool: string; count: number }[];
   failed_by_platform: { platform: string; count: number }[];
   top_failure_reasons: { reason: string; count: number }[];
 }
@@ -46,6 +49,7 @@ const PLATFORM_ICONS: Record<string, string> = {
   reddit: 'R',
   youtube: 'YT',
   linkedin: 'in',
+  instagram: 'IG',
 };
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -53,6 +57,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   reddit: '#FF4500',
   youtube: '#FF0000',
   linkedin: '#0A66C2',
+  instagram: '#E1306C',
 };
 
 const TOOL_LABELS: Record<string, string> = {
@@ -67,6 +72,79 @@ const INTENT_COLORS: Record<string, string> = {
   LOW_INTENT: '#94a3b8',
 };
 
+/**
+ * Convert raw API error JSON into a human-readable title + actionable hint.
+ * Never shows raw JSON on screen.
+ */
+function friendlyError(raw: string): { title: string; hint: string } {
+  const text = raw || '';
+
+  if (text.includes('CreditsDepleted')) {
+    return {
+      title: 'Twitter free tier monthly quota exhausted',
+      hint: 'Upgrade to Twitter API Basic ($200/mo) or wait for the quota to reset.',
+    };
+  }
+  if (text.includes('oauth1 app permission') || text.includes('not configured with the appropriate')) {
+    return {
+      title: 'Twitter app is read-only',
+      hint: 'Enable "Read + Write + DM" in the Twitter developer portal and regenerate access tokens.',
+    };
+  }
+  if (text.includes('"status":401') || text.includes('Unauthorized')) {
+    return {
+      title: 'Twitter authentication failed',
+      hint: 'Access tokens may be expired or have wrong scope. Regenerate in the developer portal.',
+    };
+  }
+  if (text.includes('"status":403') || text.includes('Forbidden')) {
+    return {
+      title: 'Twitter rejected the request (403)',
+      hint: 'Check app permissions and verify the account is not suspended.',
+    };
+  }
+  if (text.includes('li_at') || text.includes('csrf-token') || text.includes('voyager')) {
+    return {
+      title: 'LinkedIn session cookie expired',
+      hint: 'Log in fresh to LinkedIn and update LINKEDIN_SESSION_COOKIE in .env.',
+    };
+  }
+  if (text.includes('RATELIMIT') || text.includes('TOO_FAST')) {
+    return {
+      title: 'Reddit rate limit hit',
+      hint: 'Too many requests — Reddit will release the limit shortly.',
+    };
+  }
+  if (text.includes('reddit') && text.includes('401')) {
+    return {
+      title: 'Reddit authentication failed',
+      hint: 'Check REDDIT_USERNAME, PASSWORD, CLIENT_ID, CLIENT_SECRET in .env.',
+    };
+  }
+  if (text.includes('quotaExceeded') || (text.includes('youtube') && text.includes('403'))) {
+    return {
+      title: 'YouTube daily API quota exceeded',
+      hint: 'Resets at midnight Pacific Time. Reduce YOUTUBE_DAILY_QUOTA in .env.',
+    };
+  }
+  if (text.includes('402')) {
+    return {
+      title: 'Payment required — plan upgrade needed',
+      hint: 'The platform API tier is exhausted. Upgrade or wait for the quota to reset.',
+    };
+  }
+  if (text.includes('ETIMEDOUT') || text.includes('ECONNREFUSED') || text.includes('socket hang up')) {
+    return {
+      title: 'Network error reaching platform',
+      hint: 'Transient issue — will retry on next cron cycle.',
+    };
+  }
+  return {
+    title: 'Platform API error',
+    hint: 'Check the failed outreach tab to see the affected message and error details.',
+  };
+}
+
 export default function OutreachPage() {
   const [messages, setMessages] = useState<OutreachMessage[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -74,8 +152,15 @@ export default function OutreachPage() {
   const [generating, setGenerating] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [platformFilter, setPlatformFilter] = useState('');
+  const [toolFilter, setToolFilter] = useState('');
+  // viewMode toggles between the standard outreach queue and the
+  // "manual DM required" queue (rows the agent flagged DM-disabled)
+  const [viewMode, setViewMode] = useState<'queue' | 'manual_dm'>('queue');
+  const [manualDmTotal, setManualDmTotal] = useState<number>(0);
+  const [manualDmByPlatform, setManualDmByPlatform] = useState<{ platform: string; count: number }[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [queueTotal, setQueueTotal] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
@@ -83,24 +168,47 @@ export default function OutreachPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [queueRes, statsRes] = await Promise.all([
-        adminApi.getOutreachQueue({
-          page,
-          limit: 15,
-          status: statusFilter || undefined,
-          platform: platformFilter || undefined,
-        }),
-        adminApi.getOutreachStats(),
-      ]);
-      setMessages(queueRes.data.data);
-      setTotalPages(queueRes.data.pagination.total_pages);
-      setStats(statsRes.data);
+      if (viewMode === 'manual_dm') {
+        const [mdmRes, statsRes] = await Promise.all([
+          adminApi.getManualDmRequired({
+            page,
+            limit: 15,
+            platform: platformFilter || undefined,
+          }),
+          adminApi.getOutreachStats(),
+        ]);
+        setMessages(mdmRes.data.data);
+        setTotalPages(mdmRes.data.pagination.total_pages);
+        setManualDmTotal(mdmRes.data.pagination.total);
+        setManualDmByPlatform(mdmRes.data.by_platform || []);
+        setStats(statsRes.data);
+      } else {
+        const [queueRes, statsRes, mdmCountRes] = await Promise.all([
+          adminApi.getOutreachQueue({
+            page,
+            limit: 15,
+            status: statusFilter || undefined,
+            platform: platformFilter || undefined,
+            tool_recommendation: toolFilter || undefined,
+          }),
+          adminApi.getOutreachStats(),
+          // Always fetch the manual-dm count even on the queue tab so the
+          // badge stays in sync without a second click
+          adminApi.getManualDmRequired({ page: 1, limit: 1 }),
+        ]);
+        setMessages(queueRes.data.data);
+        setTotalPages(queueRes.data.pagination.total_pages);
+        setQueueTotal(queueRes.data.pagination.total);
+        setStats(statsRes.data);
+        setManualDmTotal(mdmCountRes.data.pagination.total);
+        setManualDmByPlatform(mdmCountRes.data.by_platform || []);
+      }
     } catch (err) {
       console.error('Failed to load outreach data:', err);
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, platformFilter]);
+  }, [page, statusFilter, platformFilter, toolFilter, viewMode]);
 
   useEffect(() => {
     loadData();
@@ -169,57 +277,45 @@ export default function OutreachPage() {
         ))}
       </div>
 
-      {/* Failure breakdown — only shown if there are failures */}
-      {(stats?.failed_total ?? 0) > 0 && (
+      {/* Classification breakdown — approved outreach by tool recommendation */}
+      {(stats?.approved_by_tool ?? []).length > 0 && (
         <div className="rounded-xl border p-4" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--a-text)' }}>
-              Failed Outreach Breakdown
-            </h3>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-cyan-500" />
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--a-text)' }}>
+                Classification — Approved by Tool
+              </h3>
+            </div>
+            <span className="text-[10px]" style={{ color: 'var(--a-muted)' }}>
+              click a tool to filter the list below
+            </span>
           </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* By platform */}
-            <div>
-              <p className="text-xs font-medium mb-2" style={{ color: 'var(--a-muted)' }}>By Platform</p>
-              <div className="space-y-1.5">
-                {(stats?.failed_by_platform ?? []).length === 0 && (
-                  <p className="text-xs" style={{ color: 'var(--a-muted)' }}>No failures</p>
-                )}
-                {(stats?.failed_by_platform ?? []).map((p) => {
-                  const max = Math.max(...(stats?.failed_by_platform ?? []).map((x) => x.count));
-                  const pct = max > 0 ? (p.count / max) * 100 : 0;
-                  return (
-                    <div key={p.platform} className="flex items-center gap-3">
-                      <span className="text-xs capitalize w-16" style={{ color: 'var(--a-text)' }}>{p.platform}</span>
-                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--a-hover)' }}>
-                        <div className="h-full bg-red-500/70 rounded-full" style={{ width: `${pct}%` }} />
-                      </div>
-                      <span className="text-xs font-mono w-8 text-right" style={{ color: 'var(--a-text)' }}>{p.count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Top failure reasons */}
-            <div>
-              <p className="text-xs font-medium mb-2" style={{ color: 'var(--a-muted)' }}>Top Failure Reasons</p>
-              <div className="space-y-1.5">
-                {(stats?.top_failure_reasons ?? []).length === 0 && (
-                  <p className="text-xs" style={{ color: 'var(--a-muted)' }}>No failure details</p>
-                )}
-                {(stats?.top_failure_reasons ?? []).map((r, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <span className="text-xs font-bold text-red-400 w-6">{r.count}×</span>
-                    <p className="text-xs flex-1 break-words font-mono" style={{ color: 'var(--a-muted)' }}>
-                      {r.reason}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {(stats?.approved_by_tool ?? []).map((t) => {
+              const isActive = toolFilter === t.tool;
+              return (
+                <button
+                  key={t.tool}
+                  onClick={() => { setToolFilter(isActive ? '' : t.tool); setPage(1); }}
+                  className="rounded-lg border p-3 text-left transition-all hover:border-cyan-500/50"
+                  style={{
+                    background: isActive ? 'rgba(11, 170, 239, 0.08)' : 'var(--a-hover)',
+                    borderColor: isActive ? '#0BAAEF' : 'var(--a-border)',
+                  }}
+                >
+                  <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--a-muted)' }}>
+                    {TOOL_LABELS[t.tool] || t.tool}
+                  </p>
+                  <p className="text-2xl font-bold" style={{ color: isActive ? '#0BAAEF' : 'var(--a-text)' }}>
+                    {t.count}
+                  </p>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--a-muted)' }}>
+                    leads ready for outreach
+                  </p>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -241,20 +337,81 @@ export default function OutreachPage() {
         </p>
       </div>
 
+      {/* View toggle: standard outreach queue vs Manual DM Required */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => { setViewMode('queue'); setPage(1); }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+          style={
+            viewMode === 'queue'
+              ? { background: '#0BAAEF', color: '#080e1c' }
+              : { background: 'var(--a-card)', color: 'var(--a-muted)', border: '1px solid var(--a-border)' }
+          }
+        >
+          Outreach Queue
+        </button>
+        <button
+          onClick={() => { setViewMode('manual_dm'); setPage(1); }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+          style={
+            viewMode === 'manual_dm'
+              ? { background: '#f59e0b', color: '#000' }
+              : { background: 'var(--a-card)', color: 'var(--a-muted)', border: '1px solid var(--a-border)' }
+          }
+        >
+          Manual DM Required
+          {manualDmTotal > 0 && (
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+              style={{
+                background: viewMode === 'manual_dm' ? '#000' : '#f59e0b',
+                color: viewMode === 'manual_dm' ? '#f59e0b' : '#000',
+              }}
+            >
+              {manualDmTotal}
+            </span>
+          )}
+        </button>
+        {viewMode === 'manual_dm' && manualDmByPlatform.length > 0 && (
+          <div className="ml-2 flex items-center gap-2 text-[10px]" style={{ color: 'var(--a-muted)' }}>
+            <span>by platform:</span>
+            {manualDmByPlatform.map((p) => (
+              <span
+                key={p.platform}
+                className="px-2 py-0.5 rounded-full font-medium"
+                style={{ background: 'var(--a-hover)', color: 'var(--a-text)' }}
+              >
+                {p.platform} {p.count}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--a-hover)' }}>
-          {['pending', 'approved', 'sent', 'failed', 'skipped', ''].map((s) => (
-            <button
-              key={s}
-              onClick={() => { setStatusFilter(s); setPage(1); }}
-              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
-              style={statusFilter === s ? { background: 'var(--a-card)', color: '#0BAAEF' } : { color: 'var(--a-muted)' }}
-            >
-              {s || 'All'}
-            </button>
-          ))}
-        </div>
+        {viewMode === 'queue' && (
+          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--a-hover)' }}>
+            {['pending', 'approved', 'sent', 'failed', 'skipped', ''].map((s) => (
+              <button
+                key={s}
+                onClick={() => { setStatusFilter(s); setPage(1); }}
+                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+                style={statusFilter === s ? { background: 'var(--a-card)', color: '#0BAAEF' } : { color: 'var(--a-muted)' }}
+              >
+                {s || 'All'}
+                {statusFilter === s && queueTotal > 0 && (
+                  <span className="ml-1.5 opacity-70">({queueTotal})</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        {viewMode === 'manual_dm' && (
+          <div className="text-xs px-3 py-2 rounded-lg" style={{ background: 'var(--a-hover)', color: 'var(--a-text)' }}>
+            Showing leads where the agent detected DMs are disabled — click <strong>Open</strong> to DM them manually on the original platform.
+          </div>
+        )}
 
         <select
           className="text-xs rounded-lg border px-3 py-2"
@@ -267,6 +424,19 @@ export default function OutreachPage() {
           <option value="reddit">Reddit</option>
           <option value="youtube">YouTube</option>
           <option value="linkedin">LinkedIn</option>
+          <option value="instagram">Instagram</option>
+        </select>
+
+        <select
+          className="text-xs rounded-lg border px-3 py-2"
+          style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', color: 'var(--a-text)' }}
+          value={toolFilter}
+          onChange={(e) => { setToolFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All Tools</option>
+          <option value="cyber-path-finder">Cyber Path Finder</option>
+          <option value="career-assessment">Career Assessment</option>
+          <option value="resume-analyzer">Resume Analyzer</option>
         </select>
 
         <div className="ml-auto flex items-center gap-2">
@@ -347,8 +517,13 @@ export default function OutreachPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold truncate" style={{ color: 'var(--a-text)' }}>
-                      @{msg.username}
+                      {msg.name || `@${msg.username}`}
                     </span>
+                    {msg.name && msg.username && msg.username !== msg.name && !/^ACoAA/i.test(msg.username) && (
+                      <span className="text-[10px] font-mono truncate max-w-[140px]" style={{ color: 'var(--a-muted)' }}>
+                        @{msg.username}
+                      </span>
+                    )}
                     <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                       style={{ background: `${INTENT_COLORS[msg.intent_level] || '#666'}20`, color: INTENT_COLORS[msg.intent_level] || '#666' }}>
                       {msg.intent_level?.replace('_', ' ')}
@@ -434,7 +609,47 @@ export default function OutreachPage() {
 
               {/* Actions */}
               <div className="flex items-center gap-2 px-4 py-3 border-t" style={{ borderColor: 'var(--a-border)', background: 'var(--a-hover)' }}>
-                {msg.status === 'pending' && (
+                {viewMode === 'manual_dm' && (
+                  <>
+                    <span className="text-[10px] px-2 py-1 rounded font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
+                      DM disabled — manual outreach
+                    </span>
+                    {msg.original_url && (
+                      <a
+                        href={msg.original_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                        style={{ background: '#f59e0b', color: '#000' }}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Open original post
+                      </a>
+                    )}
+                    <button
+                      onClick={() => copyToClipboard(msg.suggested_reply, msg.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                      style={{ background: 'var(--a-card)', color: 'var(--a-text)', border: '1px solid var(--a-border2)' }}
+                    >
+                      {copied === msg.id ? '✓ Copied' : 'Copy reply text'}
+                    </button>
+                    {msg.outreach_type === 'dm' && (
+                      <button
+                        onClick={async () => {
+                          await adminApi.convertDmToReply(msg.id);
+                          await loadData();
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                        style={{ background: 'rgba(11,170,239,0.15)', color: '#0BAAEF' }}
+                      >
+                        Requeue as Reply
+                      </button>
+                    )}
+                  </>
+                )}
+                {viewMode === 'queue' && msg.status === 'pending' && (
                   <>
                     <button
                       onClick={() => handleAction(msg.id, 'approved')}
@@ -484,7 +699,7 @@ export default function OutreachPage() {
                   </>
                 )}
 
-                {msg.status === 'failed' && (
+                {viewMode === 'queue' && msg.status === 'failed' && (
                   <>
                     {msg.send_error && (
                       <span className="text-[10px] text-red-400 truncate max-w-[200px]" title={msg.send_error}>
@@ -507,7 +722,7 @@ export default function OutreachPage() {
                   </>
                 )}
 
-                {(msg.status === 'approved' || msg.status === 'sent') && (
+                {viewMode === 'queue' && (msg.status === 'approved' || msg.status === 'sent') && (
                   <>
                     <button
                       onClick={() => copyToClipboard(msg.suggested_reply, msg.id)}
@@ -519,6 +734,24 @@ export default function OutreachPage() {
                       </svg>
                       {copied === msg.id ? 'Copied!' : 'Copy Reply'}
                     </button>
+
+                    {/* Show "View Sent Reply" when sent — links directly to the posted comment/DM */}
+                    {msg.status === 'sent' && msg.sent_url && (
+                      <a
+                        href={msg.sent_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                        style={{ background: '#10b981', color: '#fff' }}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View {msg.outreach_type === 'dm' ? 'DM' : 'Comment'}
+                      </a>
+                    )}
+
                     {msg.original_url && (
                       <a
                         href={msg.original_url}
