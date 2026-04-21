@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { toolsApi } from '@/lib/api';
+import { track } from '@/lib/analytics';
 import LeadCaptureModal, { LeadFormData } from '@/components/LeadCaptureModal';
 import { downloadPdf } from '@/lib/downloadPdf';
 import AnalysisLoader from '@/components/AnalysisLoader';
@@ -135,6 +136,18 @@ export default function CyberPathFinderPage() {
   const [countrySearch, setCountrySearch] = useState('');
   const [countryOpen, setCountryOpen] = useState(false);
   const countryRef = useRef<HTMLDivElement>(null);
+  const hasTrackedStartRef = useRef(false);
+  const hasTrackedResultViewRef = useRef(false);
+
+  // Fire result_viewed once per page mount when the full (unlocked)
+  // result first appears. Fires both on live unlock and on localStorage
+  // restore since both are genuine views.
+  useEffect(() => {
+    if (fullResult && !hasTrackedResultViewRef.current) {
+      track('result_viewed', { result_name: 'cyberpath_unlock_result' });
+      hasTrackedResultViewRef.current = true;
+    }
+  }, [fullResult]);
 
   const filteredCountries = COUNTRIES.filter((c) =>
     c.toLowerCase().includes(countrySearch.toLowerCase()),
@@ -183,6 +196,10 @@ export default function CyberPathFinderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasTrackedStartRef.current) {
+      track('tool_started', { tool_name: 'cyber_path_finder' });
+      hasTrackedStartRef.current = true;
+    }
     if (!validate()) return;
 
     setLoading(true);
@@ -199,6 +216,7 @@ export default function CyberPathFinderPage() {
   };
 
   const handleLeadSubmit = async (data: LeadFormData) => {
+    track('email_submitted', { form_name: 'cyberpath_unlock_result2' });
     try {
       const res = await toolsApi.unlockCyberPathFinder(data);
       setFullResult(res.data.full_result);
@@ -541,7 +559,10 @@ export default function CyberPathFinderPage() {
 
                   {activePage < totalPages - 1 ? (
                     <button
-                      onClick={() => setActivePage((p) => Math.min(totalPages - 1, p + 1))}
+                      onClick={() => {
+                        track('tool_cta_clicked', { cta_name: 'cyberpath_roadmap_started' });
+                        setActivePage((p) => Math.min(totalPages - 1, p + 1));
+                      }}
                       className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm bg-[#0BAAEF] text-brand-navy font-semibold hover:bg-[#0BAAEF]/90 transition-colors"
                     >
                       Next Phase
@@ -570,7 +591,10 @@ export default function CyberPathFinderPage() {
             <div className="flex gap-3">
               {fullResult && (
                 <button
-                  onClick={() => downloadPdf({ title: '90-Day GRC Career Roadmap', subtitle: 'Personalised Governance, Risk & Compliance Transition Plan', meta: [ { label: 'Profile', value: formData.current_job }, { label: 'Location', value: formData.country }, { label: 'Income Goal', value: formData.income_goal } ], sections: [{ body: typeof fullResult === 'string' ? fullResult : (fullResult?.roadmap || '') }], filename: 'emc-grc-roadmap.pdf' })}
+                  onClick={() => {
+                    track('tool_cta_clicked', { cta_name: 'cyberpath_download_roadmap' });
+                    downloadPdf({ title: '90-Day GRC Career Roadmap', subtitle: 'Personalised Governance, Risk & Compliance Transition Plan', meta: [ { label: 'Profile', value: formData.current_job }, { label: 'Location', value: formData.country }, { label: 'Income Goal', value: formData.income_goal } ], sections: [{ body: typeof fullResult === 'string' ? fullResult : (fullResult?.roadmap || '') }], filename: 'emc-grc-roadmap.pdf' });
+                  }}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-[#0BAAEF]/30 text-[#0BAAEF] text-sm font-semibold hover:bg-[#0BAAEF]/10 transition-all"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -581,6 +605,7 @@ export default function CyberPathFinderPage() {
               )}
               <button
                 onClick={() => {
+                  track('tool_cta_clicked', { cta_name: 'cyberpath_new_roadmap' });
                   setPreviewResult(null);
                   setFullResult(null);
                   setActivePage(0);

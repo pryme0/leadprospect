@@ -3,6 +3,7 @@ import './globals.css';
 import ConditionalNavbar from '@/components/ConditionalNav';
 import ConditionalFooter from '@/components/ConditionalFooter';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
+import Amplitude from '@/components/Amplitude';
 import {
   GoogleTagManagerHead,
   GoogleTagManagerNoscript,
@@ -82,6 +83,7 @@ export default function RootLayout({
         {/* GTM noscript fallback must be the FIRST child of <body> */}
         <GoogleTagManagerNoscript />
         <GoogleAnalytics />
+        <Amplitude />
         <ConditionalNavbar />
         <main className="flex-1">{children}</main>
         <ConditionalFooter />

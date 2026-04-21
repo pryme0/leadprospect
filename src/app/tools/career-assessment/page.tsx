@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toolsApi } from '@/lib/api';
+import { track } from '@/lib/analytics';
 import LeadCaptureModal, { LeadFormData } from '@/components/LeadCaptureModal';
 import { downloadPdf } from '@/lib/downloadPdf';
 import AnalysisLoader from '@/components/AnalysisLoader';
@@ -121,6 +122,8 @@ export default function CareerAssessmentPage() {
   const [resultId, setResultId] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState('');
+  const hasTrackedStartRef = useRef(false);
+  const hasTrackedResultViewRef = useRef(false);
 
   // Restore from localStorage on mount
   useEffect(() => {
@@ -144,12 +147,26 @@ export default function CareerAssessmentPage() {
     }
   }, [previewResult, fullResult, resultId, answers, currentQ]);
 
+  // Fire result_viewed once per page mount when the full (unlocked)
+  // result first appears. Fires on live unlock AND on localStorage
+  // restore since both are genuine views.
+  useEffect(() => {
+    if (fullResult && !hasTrackedResultViewRef.current) {
+      track('result_viewed', { result_name: 'career_assesment_completed' });
+      hasTrackedResultViewRef.current = true;
+    }
+  }, [fullResult]);
+
   const progress = ((currentQ) / QUESTIONS.length) * 100;
   const question = QUESTIONS[currentQ];
   const isLastQuestion = currentQ === QUESTIONS.length - 1;
   const allAnswered = Object.keys(answers).length === QUESTIONS.length;
 
   const handleSelect = (value: string) => {
+    if (!hasTrackedStartRef.current) {
+      track('tool_started', { tool_name: 'career_assessment' });
+      hasTrackedStartRef.current = true;
+    }
     setAnswers({ ...answers, [question.id]: value });
   };
 
@@ -173,6 +190,11 @@ export default function CareerAssessmentPage() {
         setLoading(false);
       }
     } else {
+      // Midpoint telemetry: fire when advancing past question 4 (the 4th of 8).
+      // currentQ is 0-indexed, so Q4 = currentQ === 3.
+      if (currentQ === 3) {
+        track('tool_cta_clicked', { cta_name: 'career_assessment_midstep4' });
+      }
       setCurrentQ(currentQ + 1);
     }
   };
@@ -382,7 +404,14 @@ export default function CareerAssessmentPage() {
                   </svg>
                 </div>
                 <p className="text-white font-semibold mb-3">Unlock your full assessment report</p>
-                <button onClick={() => setShowModal(true)} className="btn-primary animate-pulse-glow">
+                <button
+                  onClick={() => {
+                    track('full_result_unlock_started', { result_name: 'career_assesment_unlock_result' });
+                    track('email_submitted', { form_name: 'career_assessment_unlock_result2' });
+                    setShowModal(true);
+                  }}
+                  className="btn-primary animate-pulse-glow"
+                >
                   Unlock Full Report
                 </button>
               </div>
@@ -403,7 +432,7 @@ export default function CareerAssessmentPage() {
               <h2 className="text-xl font-bold text-white">Your Full Assessment Report</h2>
             </div>
             <button
-              onClick={() => { const r = typeof fullResult === 'string' ? null : fullResult; downloadPdf({ title: 'GRC Career Readiness Assessment', subtitle: 'Governance, Risk & Compliance Career Report', score: (r?.score > 0) ? { value: r.score, label: r?.category || 'GRC Readiness Score' } : null, meta: r?.recommended_program ? [{ label: 'Recommended Program', value: r.recommended_program }] : [], sections: [{ body: r?.detailed_report ?? (typeof fullResult === 'string' ? fullResult : '') }], filename: 'emc-grc-assessment.pdf' }); }}
+              onClick={() => { track('tool_cta_clicked', { cta_name: 'career_assessment_download' }); const r = typeof fullResult === 'string' ? null : fullResult; downloadPdf({ title: 'GRC Career Readiness Assessment', subtitle: 'Governance, Risk & Compliance Career Report', score: (r?.score > 0) ? { value: r.score, label: r?.category || 'GRC Readiness Score' } : null, meta: r?.recommended_program ? [{ label: 'Recommended Program', value: r.recommended_program }] : [], sections: [{ body: r?.detailed_report ?? (typeof fullResult === 'string' ? fullResult : '') }], filename: 'emc-grc-assessment.pdf' }); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#0BAAEF]/30 text-[#0BAAEF] text-xs font-semibold hover:bg-[#0BAAEF]/10 transition-all"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -477,7 +506,13 @@ export default function CareerAssessmentPage() {
               );
             })()}
           </div>
-          <button onClick={resetQuiz} className="btn-secondary w-full mt-6">
+          <button
+            onClick={() => {
+              track('tool_cta_clicked', { cta_name: 'career_assessment_retake' });
+              resetQuiz();
+            }}
+            className="btn-secondary w-full mt-6"
+          >
             Take Again
           </button>
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { track } from '@/lib/analytics';
 
 // ── Terminal lines ────────────────────────────────────────────────────────────
 const TERM_LINES = [
@@ -69,6 +70,15 @@ const tools = [
     details: ['PDF upload', '5 targeted improvements', 'ATS optimization tips'],
   },
 ];
+
+// Amplitude `tool_card_click` tool_name values for the bento-grid cards
+// (homepage "Three Tools" section). The `_2` suffix distinguishes this
+// placement from other tool-card surfaces (e.g. final CTA = `_3`).
+const BENTO_TRACKING_NAMES: Record<string, string> = {
+  '/tools/cyber-path-finder': 'cyber_path_finder2',
+  '/tools/career-assessment': 'career_assessment2',
+  '/tools/resume-analyzer': 'resume_analyzer2',
+};
 
 const STEPS = [
   {
@@ -145,10 +155,12 @@ export default function HomePage() {
 
               <div className="flex flex-wrap gap-3 mb-10">
                 <Link href="/tools/cyber-path-finder"
+                  onClick={() => track('hero_cta_click', { cta_name: 'find_cyberpath' })}
                   className="btn-primary text-base px-7 py-3.5 rounded-xl font-bold">
                   Find Your Cyber Path →
                 </Link>
                 <Link href="/tools/career-assessment"
+                  onClick={() => track('hero_cta_click', { cta_name: 'take_assessment' })}
                   className="btn-secondary text-base px-7 py-3.5 rounded-xl font-bold">
                   Take the Assessment
                 </Link>
@@ -222,6 +234,7 @@ export default function HomePage() {
                 {/* Terminal footer CTA */}
                 <div className="px-6 pb-5">
                   <Link href="/tools/cyber-path-finder"
+                    onClick={() => track('hero_cta_click', { cta_name: 'generate_roadmap' })}
                     className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-[#050d14] transition-opacity hover:opacity-90"
                     style={{ background: 'linear-gradient(135deg,#0BAAEF,#40C4FF)' }}>
                     Generate My Roadmap
@@ -274,6 +287,7 @@ export default function HomePage() {
 
             {/* Large card — Cyber Path Finder */}
             <Link href={tools[0].href}
+              onClick={() => track('tool_card_click', { tool_name: BENTO_TRACKING_NAMES[tools[0].href] })}
               className="lg:col-span-2 group relative rounded-2xl border border-white/6 p-8 flex flex-col overflow-hidden transition-all duration-300 hover:border-[#0BAAEF]/30"
               style={{ background: 'linear-gradient(135deg, #0b1a14 0%, #08121c 100%)' }}>
               {/* Corner glow */}
@@ -319,6 +333,7 @@ export default function HomePage() {
             <div className="flex flex-col gap-4">
               {tools.slice(1).map((tool) => (
                 <Link key={tool.href} href={tool.href}
+                  onClick={() => track('tool_card_click', { tool_name: BENTO_TRACKING_NAMES[tool.href] })}
                   className="group relative rounded-2xl border border-white/6 p-6 flex flex-col overflow-hidden transition-all duration-300 flex-1"
                   style={{
                     background: 'linear-gradient(135deg, #0b1220 0%, #08121c 100%)',
@@ -414,10 +429,12 @@ export default function HomePage() {
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <Link href="/tools/cyber-path-finder"
+                    onClick={() => track('hero_cta_click', { cta_name: 'find_cyberpath2' })}
                     className="btn-primary text-base px-8 py-3.5 rounded-xl font-bold">
                     Find Your Cyber Path →
                   </Link>
                   <Link href="/tools/resume-analyzer"
+                    onClick={() => track('hero_cta_click', { cta_name: 'analyse_resume' })}
                     className="btn-secondary text-base px-8 py-3.5 rounded-xl font-bold">
                     Analyze My Resume
                   </Link>

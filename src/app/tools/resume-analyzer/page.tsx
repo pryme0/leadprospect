@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { toolsApi } from '@/lib/api';
+import { track } from '@/lib/analytics';
 import LeadCaptureModal, { LeadFormData } from '@/components/LeadCaptureModal';
 import { downloadPdf } from '@/lib/downloadPdf';
 import AnalysisLoader from '@/components/AnalysisLoader';
@@ -33,6 +34,7 @@ export default function ResumeAnalyzerPage() {
   const [resultId, setResultId] = useState('');
   const [showModal, setShowModal] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasTrackedStartRef = useRef(false);
 
   // Restore from localStorage on mount
   useEffect(() => {
@@ -88,6 +90,10 @@ export default function ResumeAnalyzerPage() {
 
   const handleUpload = async () => {
     if (!file) return;
+    if (!hasTrackedStartRef.current) {
+      track('tool_started', { tool_name: 'resume_analyzer' });
+      hasTrackedStartRef.current = true;
+    }
     setLoading(true);
     setError('');
     try {
@@ -306,7 +312,14 @@ export default function ResumeAnalyzerPage() {
                   </svg>
                 </div>
                 <p className="text-white font-semibold mb-3">Unlock your full resume analysis</p>
-                <button onClick={() => setShowModal(true)} className="btn-primary animate-pulse-glow">
+                <button
+                  onClick={() => {
+                    track('analysis_viewed', { result_name: 'resume_analyzer_unlock_analysis' });
+                    track('email_submitted', { form_name: 'resume_analyzer_unlock_analysis2' });
+                    setShowModal(true);
+                  }}
+                  className="btn-primary animate-pulse-glow"
+                >
                   Unlock Full Analysis
                 </button>
               </div>
@@ -326,7 +339,7 @@ export default function ResumeAnalyzerPage() {
               <h2 className="text-xl font-bold text-white">Complete Resume Analysis</h2>
             </div>
             <button
-              onClick={() => downloadPdf({ title: 'Resume Gap Analysis', subtitle: 'GRC Career Transition Report', score: (fullResult?.overall_score > 0) ? { value: fullResult.overall_score, label: 'GRC Readiness Score' } : null, sections: [{ body: typeof fullResult === 'string' ? fullResult : (fullResult?.analysis || '') }], filename: 'emc-grc-resume-analysis.pdf' })}
+              onClick={() => { track('tool_cta_clicked', { cta_name: 'resume_analyzer_download' }); downloadPdf({ title: 'Resume Gap Analysis', subtitle: 'GRC Career Transition Report', score: (fullResult?.overall_score > 0) ? { value: fullResult.overall_score, label: 'GRC Readiness Score' } : null, sections: [{ body: typeof fullResult === 'string' ? fullResult : (fullResult?.analysis || '') }], filename: 'emc-grc-resume-analysis.pdf' }); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#0BAAEF]/30 text-[#0BAAEF] text-xs font-semibold hover:bg-[#0BAAEF]/10 transition-all"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,7 +394,13 @@ export default function ResumeAnalyzerPage() {
               </>
             )}
           </div>
-          <button onClick={reset} className="btn-secondary w-full mt-6">
+          <button
+            onClick={() => {
+              track('tool_cta_clicked', { cta_name: 'resume_analyzer_retake' });
+              reset();
+            }}
+            className="btn-secondary w-full mt-6"
+          >
             Analyze Another Resume
           </button>
         </div>
