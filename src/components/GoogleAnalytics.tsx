@@ -4,7 +4,9 @@ import Script from 'next/script';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
 
-const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+// Override via NEXT_PUBLIC_GA_MEASUREMENT_ID. Falls back to the property
+// the user supplied.
+const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-3QBVWWTRNZ';
 
 declare global {
   interface Window {
