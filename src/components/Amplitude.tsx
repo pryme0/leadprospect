@@ -5,12 +5,16 @@ import { Suspense, useEffect } from 'react';
 import * as amplitude from '@amplitude/analytics-browser';
 
 const AMPLITUDE_API_KEY = process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY;
+const AMPLITUDE_SERVER_ZONE =
+  process.env.NEXT_PUBLIC_AMPLITUDE_SERVER_ZONE === 'EU' ? 'EU' : 'US';
 
 let initialized = false;
 
 function ensureInitialized() {
   if (initialized || !AMPLITUDE_API_KEY) return;
-  amplitude.init(AMPLITUDE_API_KEY, {
+  initialized = true;
+  const result = amplitude.init(AMPLITUDE_API_KEY, {
+    serverZone: AMPLITUDE_SERVER_ZONE,
     defaultTracking: {
       attribution: true,
       pageViews: false,
@@ -19,7 +23,15 @@ function ensureInitialized() {
       fileDownloads: true,
     },
   });
-  initialized = true;
+  result.promise
+    .then(() => {
+      // eslint-disable-next-line no-console
+      console.info(`[amplitude] init ok (zone=${AMPLITUDE_SERVER_ZONE})`);
+    })
+    .catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('[amplitude] init failed — likely ad-blocker or wrong serverZone', err);
+    });
 }
 
 // Custom per-route page-view event names (route-based, host-independent).
