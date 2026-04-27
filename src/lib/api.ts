@@ -60,6 +60,16 @@ export interface CareerAssessmentRequest {
   answers: { question_id: string; answer: string }[];
 }
 
+export interface SignalStats {
+  total: number;
+  processed: number;
+  pending: number;
+  withEmail: number;
+  byIntentLevel: { intent_level: string | null; count: number }[];
+  byIntentCategory: { intent_category: string | null; count: number }[];
+  byIngestionCategory: { ingestion_category: string | null; count: number }[];
+}
+
 export const toolsApi = {
   // Cyber Path Finder
   submitCyberPathFinder: (data: CyberPathFinderRequest) =>
@@ -101,6 +111,9 @@ export const adminApi = {
 
   getDashboardMetrics: () =>
     api.get('/api/dashboard/metrics'),
+
+  getSignalStats: () =>
+    api.get<SignalStats>('/api/admin/signals/stats'),
 
   getSignals: (params: {
     page?: number;

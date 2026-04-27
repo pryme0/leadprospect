@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { adminApi } from '@/lib/api';
 
 interface Signal {
@@ -23,6 +23,50 @@ interface Signal {
 const INTENT_LEVELS = ['', 'HIGH_INTENT', 'MEDIUM_INTENT', 'LOW_INTENT'];
 const SOURCES = ['', 'twitter', 'reddit', 'youtube', 'linkedin', 'instagram', 'google'];
 
+// Keep the option lists for the new filters in sync with what the
+// dashboard displays. These match the values the backend stores —
+// "__null__" is the sentinel for IS NULL rows so the user can land on
+// the unclassified / uncategorized slice from the dashboard.
+const INTENT_CATEGORIES = [
+  '',
+  'Curious',
+  'Beginner',
+  'Career Switcher',
+  'IT Professional Transitioning',
+  'Urgent Job Seeker',
+  'Established Professional',
+  'Not a Prospect',
+  '__null__',
+];
+
+const INGESTION_CATEGORIES = [
+  '',
+  'open_to_work',
+  'cert_failure',
+  'adjacent_pivot',
+  'resume_pain',
+  'rejection_pain',
+  'learning_frustration',
+  'student_grad',
+  'cert_prep',
+  'salary_pivot',
+  'demographic_affinity',
+  'compliance_specialist',
+  'career_pivot',
+  'general',
+  '__null__',
+];
+
+const prettifyIntentCategory = (v: string) =>
+  v === '__null__' ? 'Unclassified' : v;
+const prettifyIngestionCategory = (v: string) => {
+  if (v === '__null__') return 'Uncategorized';
+  return v
+    .split('_')
+    .map((w) => (w.length <= 3 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ');
+};
+
 function IntentBadge({ level }: { level: string | null }) {
   if (!level) return <span className="badge-blue">Unclassified</span>;
   const cls =
@@ -36,17 +80,27 @@ function IntentBadge({ level }: { level: string | null }) {
 
 export default function SignalsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Hydrate filters from the URL on first render so the dashboard's
+  // clickable cards/charts deep-link cleanly. Subsequent dropdown changes
+  // update local state only — the URL is left as-is for shareable links.
+  const initialFilters = {
+    source: searchParams?.get('source') || '',
+    intent_level: searchParams?.get('intent_level') || '',
+    intent_category: searchParams?.get('intent_category') || '',
+    ingestion_category: searchParams?.get('ingestion_category') || '',
+    processed: searchParams?.get('processed') || '',
+    has_email: searchParams?.get('has_email') || '',
+    enrichment: searchParams?.get('enrichment') || '',
+  };
+
   const [signals, setSignals] = useState<Signal[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({
-    source: '',
-    intent_level: '',
-    processed: '',
-    enrichment: '',
-  });
+  const [filters, setFilters] = useState(initialFilters);
 
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -57,7 +111,10 @@ export default function SignalsPage() {
       const params: any = { offset: (page - 1) * 20, limit: 20 };
       if (filters.source) params.source = filters.source;
       if (filters.intent_level) params.intent_level = filters.intent_level;
+      if (filters.intent_category) params.intent_category = filters.intent_category;
+      if (filters.ingestion_category) params.ingestion_category = filters.ingestion_category;
       if (filters.processed) params.processed = filters.processed;
+      if (filters.has_email) params.has_email = filters.has_email;
       if (filters.enrichment) params.enrichment = filters.enrichment;
 
       const res = await adminApi.getSignals(params);
@@ -174,13 +231,45 @@ export default function SignalsPage() {
         </select>
 
         <select
+          className="select-field w-auto min-w-[180px]"
+          value={filters.intent_category}
+          onChange={(e) => handleFilterChange('intent_category', e.target.value)}
+        >
+          <option value="">All Intent Categories</option>
+          {INTENT_CATEGORIES.filter(Boolean).map((c) => (
+            <option key={c} value={c}>{prettifyIntentCategory(c)}</option>
+          ))}
+        </select>
+
+        <select
+          className="select-field w-auto min-w-[200px]"
+          value={filters.ingestion_category}
+          onChange={(e) => handleFilterChange('ingestion_category', e.target.value)}
+        >
+          <option value="">All Ingestion Buckets</option>
+          {INGESTION_CATEGORIES.filter(Boolean).map((c) => (
+            <option key={c} value={c}>{prettifyIngestionCategory(c)}</option>
+          ))}
+        </select>
+
+        <select
+          className="select-field w-auto min-w-[140px]"
+          value={filters.has_email}
+          onChange={(e) => handleFilterChange('has_email', e.target.value)}
+        >
+          <option value="">All Reachability</option>
+          <option value="true">Has email</option>
+          <option value="false">No email</option>
+        </select>
+
+        <select
           className="select-field w-auto min-w-[150px]"
           value={filters.enrichment}
           onChange={(e) => handleFilterChange('enrichment', e.target.value)}
         >
           <option value="">All Enrichment</option>
           <option value="enriched">Enriched only</option>
-          <option value="with_email">With email</option>
+          <option value="with_email">Apollo email</option>
         </select>
 
         {search && (

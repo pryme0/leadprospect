@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { adminApi } from '@/lib/api';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { adminApi, SignalStats } from '@/lib/api';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Cell,
@@ -138,10 +140,248 @@ function ChartCard({
   );
 }
 
+// ── Signal Pipeline section ───────────────────────────────────────────────────
+//
+// Live aggregates from the `signals` table — separate from the KPI cards
+// above so each panel can fail independently. Powered by GET /api/admin/signals/stats.
+
+const INTENT_LEVEL_COLORS: Record<string, string> = {
+  HIGH_INTENT: '#f43f5e',
+  MEDIUM_INTENT: '#f97316',
+  LOW_INTENT: '#0BAAEF',
+  Unclassified: 'rgba(255,255,255,0.18)',
+};
+
+const CATEGORY_PALETTE = [
+  '#0BAAEF', '#40C4FF', '#6366f1', '#f97316', '#f43f5e',
+  '#10b981', '#a855f7', '#eab308', '#06b6d4', '#ec4899', '#84cc16',
+];
+
+function prettifyIntentLevel(v: string | null): string {
+  if (!v) return 'Unclassified';
+  return v.replace(/_INTENT$/i, '').replace(/^./, (c) => c.toUpperCase()).toLowerCase()
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
+function prettifySnake(v: string | null, fallback = 'Uncategorized'): string {
+  if (!v) return fallback;
+  return v
+    .split('_')
+    .map((w) => (w.length <= 3 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
+// Maps a chart slice / bar back to the corresponding /admin/signals filter
+// query params. Centralised so the click-through stays consistent across the
+// dashboard and the dedicated /admin/explore page.
+function intentLevelToFilter(name: string): Record<string, string> {
+  if (name === 'Unclassified') return { processed: 'false' };
+  return { intent_level: `${name.toUpperCase()}_INTENT` };
+}
+function intentCategoryToFilter(name: string): Record<string, string> {
+  return { intent_category: name === 'Unclassified' ? '__null__' : name };
+}
+function ingestionCategoryToFilter(rawValue: string | null): Record<string, string> {
+  return { ingestion_category: rawValue == null ? '__null__' : rawValue };
+}
+
+function buildSignalsHref(params: Record<string, string>): string {
+  const usp = new URLSearchParams(params);
+  const qs = usp.toString();
+  return qs ? `/admin/signals?${qs}` : '/admin/signals';
+}
+
+// Wrap StatCard in a Link so the cursor + hover treatment stay consistent
+// with other clickable surfaces. Keeping it inline rather than adding an
+// `href?` prop to StatCard itself so the existing dashboard KPI cards (which
+// are non-clickable) don't accidentally become links.
+function ClickableStatCard(
+  props: Omit<StatCardProps, 'trend'> & { href: string; trend?: StatCardProps['trend'] },
+) {
+  const { href, ...rest } = props;
+  return (
+    <Link href={href} className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0BAAEF] rounded-2xl">
+      <div className="transition-transform group-hover:-translate-y-0.5 group-active:translate-y-0">
+        <StatCard {...rest} />
+      </div>
+    </Link>
+  );
+}
+
+function SignalPipelineSection({ stats }: { stats: SignalStats }) {
+  const processedPct = stats.total > 0 ? Math.round((stats.processed / stats.total) * 100) : 0;
+  const emailPct = stats.total > 0 ? Math.round((stats.withEmail / stats.total) * 100) : 0;
+
+  const intentLevelData = stats.byIntentLevel.map((r) => ({
+    name: prettifyIntentLevel(r.intent_level),
+    value: r.count,
+  }));
+
+  // Keep the raw value alongside the prettified name so click-through can pass
+  // the canonical DB value (e.g. "open_to_work") rather than the display label.
+  const intentCategoryData = stats.byIntentCategory.map((r) => ({
+    name: r.intent_category || 'Unclassified',
+    raw: r.intent_category,
+    count: r.count,
+  }));
+  const ingestionCategoryData = stats.byIngestionCategory.map((r) => ({
+    name: prettifySnake(r.ingestion_category),
+    raw: r.ingestion_category,
+    count: r.count,
+  }));
+
+  const router = useRouter();
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-baseline justify-between">
+        <div>
+          <h2 className="text-white font-semibold text-base">Signal Pipeline</h2>
+          <p className="text-white/30 text-xs mt-0.5">
+            Live aggregates from the <code className="text-white/50">signals</code> table — click any card or bar to filter the records.
+          </p>
+        </div>
+      </div>
+
+      {/* Pipeline KPI row — every card deep-links into /admin/signals */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <ClickableStatCard
+          href={buildSignalsHref({})}
+          label="Total Signals"
+          value={stats.total.toLocaleString()}
+          accent={C.cyan}
+          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h7" /></svg>}
+        />
+        <ClickableStatCard
+          href={buildSignalsHref({ processed: 'true' })}
+          label="Processed"
+          value={stats.processed.toLocaleString()}
+          sub={`${processedPct}% classified`}
+          accent={C.accent}
+          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+        />
+        <ClickableStatCard
+          href={buildSignalsHref({ processed: 'false' })}
+          label="Pending"
+          value={stats.pending.toLocaleString()}
+          sub="awaiting Claude"
+          accent={C.orange}
+          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+        />
+        <ClickableStatCard
+          href={buildSignalsHref({ has_email: 'true' })}
+          label="With Email"
+          value={stats.withEmail.toLocaleString()}
+          sub={`${emailPct}% reachable`}
+          accent={C.blue}
+          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
+        />
+      </div>
+
+      {/* Charts row — every slice / bar deep-links into /admin/signals.
+          Recharts onClick fires on the <Pie> wrapper for slices, and on
+          <Bar> for individual bars. We use router.push so URLSearchParams
+          can be built with proper escaping. */}
+      <div className="grid lg:grid-cols-3 gap-4">
+        <ChartCard title="Intent Level" subtitle="Click a slice to filter — Claude classification">
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie
+                data={intentLevelData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={90}
+                paddingAngle={2}
+                onClick={(d: any) =>
+                  router.push(buildSignalsHref(intentLevelToFilter(d.name)))
+                }
+                style={{ cursor: 'pointer' }}
+              >
+                {intentLevelData.map((entry, idx) => (
+                  <Cell
+                    key={idx}
+                    fill={INTENT_LEVEL_COLORS[entry.name] || CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+              <Legend
+                verticalAlign="bottom"
+                iconType="circle"
+                wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Intent Category" subtitle="Click a bar to filter — Claude prospect typing">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={intentCategoryData} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="2 4" stroke={C.grid} horizontal={false} />
+              <XAxis type="number" tick={{ fill: C.axis, fontSize: 10 }} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fill: C.axis, fontSize: 10 }}
+                width={150}
+              />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+              <Bar
+                dataKey="count"
+                radius={[0, 4, 4, 0]}
+                onClick={(d: any) =>
+                  router.push(buildSignalsHref(intentCategoryToFilter(d.name)))
+                }
+                style={{ cursor: 'pointer' }}
+              >
+                {intentCategoryData.map((_, idx) => (
+                  <Cell key={idx} fill={CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Ingestion Category" subtitle="Click a bar to filter — pre-classifier regex bucket">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={ingestionCategoryData} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="2 4" stroke={C.grid} horizontal={false} />
+              <XAxis type="number" tick={{ fill: C.axis, fontSize: 10 }} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fill: C.axis, fontSize: 10 }}
+                width={150}
+              />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+              <Bar
+                dataKey="count"
+                radius={[0, 4, 4, 0]}
+                onClick={(d: any) =>
+                  router.push(buildSignalsHref(ingestionCategoryToFilter(d.raw)))
+                }
+                style={{ cursor: 'pointer' }}
+              >
+                {ingestionCategoryData.map((_, idx) => (
+                  <Cell key={idx} fill={CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+    </section>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function AdminDashboardPage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [stats, setStats] = useState<SignalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -153,11 +393,16 @@ export default function AdminDashboardPage() {
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.getDashboardMetrics();
-      setMetrics(res.data);
+      // Fetch metrics + signal-pipeline stats in parallel. A stats failure
+      // shouldn't blank out the whole dashboard — so we settle independently.
+      const [metricsRes, statsRes] = await Promise.allSettled([
+        adminApi.getDashboardMetrics(),
+        adminApi.getSignalStats(),
+      ]);
+      if (metricsRes.status === 'fulfilled') setMetrics(metricsRes.value.data);
+      else setError('Failed to load dashboard metrics.');
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
       setLastRefresh(new Date());
-    } catch {
-      setError('Failed to load dashboard metrics.');
     } finally {
       setLoading(false);
     }
@@ -292,6 +537,9 @@ export default function AdminDashboardPage() {
           icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
       </div>
+
+      {/* ── Signal Pipeline Stats (signals table aggregate) ── */}
+      {stats && <SignalPipelineSection stats={stats} />}
 
       {/* ── Row 1: Area charts ── */}
       <div className="grid lg:grid-cols-2 gap-4">
