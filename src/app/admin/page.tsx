@@ -244,7 +244,7 @@ function SignalPipelineSection({ stats }: { stats: SignalStats }) {
       </div>
 
       {/* Pipeline KPI row — every card deep-links into /admin/signals */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <ClickableStatCard
           href={buildSignalsHref({})}
           label="Total Signals"
@@ -275,6 +275,22 @@ function SignalPipelineSection({ stats }: { stats: SignalStats }) {
           sub={`${emailPct}% reachable`}
           accent={C.blue}
           icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
+        />
+        <ClickableStatCard
+          href={buildSignalsHref({ automation_sent: 'true' })}
+          label="Sent to Automation"
+          value={stats.automationSent.toLocaleString()}
+          sub="forwarded to webhook"
+          accent="#10b981"
+          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12l5 5L20 7" /></svg>}
+        />
+        <ClickableStatCard
+          href={buildSignalsHref({ automation_sent: 'false', intent_level: 'HIGH_INTENT' })}
+          label="Automation Pending"
+          value={stats.automationPending.toLocaleString()}
+          sub="HIGH/MED, not sent"
+          accent="#a855f7"
+          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
         />
       </div>
 

@@ -65,6 +65,11 @@ export interface SignalStats {
   processed: number;
   pending: number;
   withEmail: number;
+  // Forwarded to AUTOMATION_URL (automation_sent_at IS NOT NULL).
+  automationSent: number;
+  // Eligible for the next AUTOMATION_URL flush — classified, intent in
+  // HIGH/MEDIUM, source in (linkedin, twitter), not yet sent.
+  automationPending: number;
   byIntentLevel: { intent_level: string | null; count: number }[];
   byIntentCategory: { intent_category: string | null; count: number }[];
   byIngestionCategory: { ingestion_category: string | null; count: number }[];

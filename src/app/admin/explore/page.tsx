@@ -187,6 +187,22 @@ export default function ExplorePage() {
             accent="#6366f1"
           />
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <BigCard
+            href={buildSignalsHref({ automation_sent: 'true' })}
+            label="Sent to Automation"
+            value={stats.automationSent}
+            sub="forwarded to AUTOMATION_URL"
+            accent="#10b981"
+          />
+          <BigCard
+            href={buildSignalsHref({ automation_sent: 'false', intent_level: 'HIGH_INTENT' })}
+            label="Automation Pending"
+            value={stats.automationPending}
+            sub="HIGH/MED intent, not yet sent"
+            accent="#a855f7"
+          />
+        </div>
       </section>
 
       {/* Intent Level — small, fixed set */}

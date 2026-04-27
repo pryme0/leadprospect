@@ -92,6 +92,7 @@ export default function SignalsPage() {
     ingestion_category: searchParams?.get('ingestion_category') || '',
     processed: searchParams?.get('processed') || '',
     has_email: searchParams?.get('has_email') || '',
+    automation_sent: searchParams?.get('automation_sent') || '',
     enrichment: searchParams?.get('enrichment') || '',
   };
 
@@ -115,6 +116,7 @@ export default function SignalsPage() {
       if (filters.ingestion_category) params.ingestion_category = filters.ingestion_category;
       if (filters.processed) params.processed = filters.processed;
       if (filters.has_email) params.has_email = filters.has_email;
+      if (filters.automation_sent) params.automation_sent = filters.automation_sent;
       if (filters.enrichment) params.enrichment = filters.enrichment;
 
       const res = await adminApi.getSignals(params);
@@ -260,6 +262,16 @@ export default function SignalsPage() {
           <option value="">All Reachability</option>
           <option value="true">Has email</option>
           <option value="false">No email</option>
+        </select>
+
+        <select
+          className="select-field w-auto min-w-[170px]"
+          value={filters.automation_sent}
+          onChange={(e) => handleFilterChange('automation_sent', e.target.value)}
+        >
+          <option value="">All Automation</option>
+          <option value="true">Sent to webhook</option>
+          <option value="false">Not yet sent</option>
         </select>
 
         <select
