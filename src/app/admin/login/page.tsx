@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminApi } from '@/lib/api';
+import { clearCurrentTenant } from '@/lib/tenant';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -25,7 +26,10 @@ export default function AdminLoginPage() {
     try {
       const res = await adminApi.login({ email, password });
       localStorage.setItem('emc_admin_token', res.data.token);
-      router.replace('/admin');
+      // Force the workspace picker on every fresh login so the previous
+      // session's tenant doesn't silently carry over.
+      clearCurrentTenant();
+      router.replace('/admin/tenant-select');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
     } finally {

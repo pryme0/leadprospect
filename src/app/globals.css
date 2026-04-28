@@ -93,6 +93,41 @@
   color-scheme: light;
 }
 
+/* ── Tenant: Lightforth (true-black workspace) ──────────────────────────── */
+/* Layered on top of [data-theme="dark"]. Re-paints the surface tokens to a
+   pure-black palette and switches the accent from EMCI's blue to white so
+   focus rings, glows, and active highlights read on the new background. */
+[data-tenant="lightforth"] {
+  --a-bg:       #000000;
+  --a-surface:  #050505;
+  --a-card:     #0a0a0a;
+  --a-card2:    #050505;
+  --a-border:   rgba(255,255,255,0.06);
+  --a-border2:  rgba(255,255,255,0.10);
+  --a-hover:    rgba(255,255,255,0.03);
+  --a-hover2:   rgba(255,255,255,0.06);
+  --a-input-bg: rgba(255,255,255,0.04);
+  color-scheme: dark;
+}
+
+/* Scrollbar — Lightforth */
+[data-tenant="lightforth"] ::-webkit-scrollbar-track { background: #000; }
+[data-tenant="lightforth"] ::-webkit-scrollbar-thumb { background: #1a1a1a; }
+[data-tenant="lightforth"] ::-webkit-scrollbar-thumb:hover { background: #2a2a2a; }
+
+/* Lightforth: rewire any literal-hex backgrounds inside the dashboard to
+   the tenant tokens so legacy Tailwind classes (e.g. bg-[#0d1e30]) follow
+   the workspace's palette without touching every component. */
+[data-tenant="lightforth"] .bg-\[\#080f17\]     { background-color: var(--a-bg) !important; }
+[data-tenant="lightforth"] .bg-\[\#050a14\]     { background-color: var(--a-bg) !important; }
+[data-tenant="lightforth"] .bg-\[\#0b1520\]     { background-color: var(--a-surface) !important; }
+[data-tenant="lightforth"] .bg-\[\#0b1828\]     { background-color: var(--a-surface) !important; }
+[data-tenant="lightforth"] .bg-\[\#0b1520\]\/80 { background-color: var(--a-surface) !important; }
+[data-tenant="lightforth"] .bg-\[\#0d1b2a\]     { background-color: var(--a-card) !important; }
+[data-tenant="lightforth"] .bg-\[\#0d1e30\]     { background-color: var(--a-card) !important; }
+[data-tenant="lightforth"] .bg-brand-darker     { background-color: var(--a-bg) !important; }
+[data-tenant="lightforth"] .bg-brand-navy       { background-color: var(--a-surface) !important; }
+
 /* Scrollbar themed */
 [data-theme="light"] ::-webkit-scrollbar-track { background: #f0f4f8; }
 [data-theme="light"] ::-webkit-scrollbar-thumb { background: #cbd5e1; }

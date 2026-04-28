@@ -3,6 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import {
+  TenantId,
+  TenantConfig,
+  getCurrentTenant,
+  getTenantConfig,
+  clearCurrentTenant,
+} from '@/lib/tenant';
 
 const sidebarLinks = [
   {
@@ -90,6 +97,33 @@ const sidebarLinks = [
   },
 ];
 
+// Tenant logo block. Falls back to a circular initials wordmark when the
+// tenant has no logo file (e.g. Lightforth's placeholder until a real asset
+// is provided).
+function BrandMark({ tenant }: { tenant: TenantConfig }) {
+  if (tenant.logoSrc) {
+    return (
+      <img
+        src={tenant.logoSrc}
+        alt={`${tenant.name} logo`}
+        className="w-8 h-8 object-contain shrink-0"
+      />
+    );
+  }
+  return (
+    <div
+      className="w-8 h-8 rounded-md flex items-center justify-center font-bold text-[11px] shrink-0"
+      style={
+        tenant.id === 'LIGHTFORTH'
+          ? { background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.25)' }
+          : { background: 'rgba(11,170,239,0.15)', color: '#0BAAEF' }
+      }
+    >
+      {tenant.initials}
+    </div>
+  );
+}
+
 const PAGE_TITLES: Record<string, string> = {
   '/admin': 'Dashboard',
   '/admin/pipeline': 'Signal Pipeline',
@@ -107,6 +141,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [authed, setAuthed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [tenant, setTenant] = useState<TenantId | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('emc_theme') as 'dark' | 'light' | null;
@@ -127,8 +162,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const token = localStorage.getItem('emc_admin_token');
     if (!token) {
       router.replace('/admin/login');
-    } else {
-      setAuthed(true);
+      return;
+    }
+    setAuthed(true);
+
+    // Tenant gate. Anyone authed but without a tenant gets bounced to the
+    // picker (except when they're already on it). This keeps every admin
+    // page rendering against a known workspace.
+    const t = getCurrentTenant();
+    setTenant(t);
+    if (!t && pathname !== '/admin/tenant-select') {
+      router.replace('/admin/tenant-select');
     }
   }, [pathname, router]);
 
@@ -140,19 +184,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (pathname === '/admin/login') {
+  if (pathname === '/admin/login' || pathname === '/admin/tenant-select') {
+    // Login + tenant picker render full-bleed without the sidebar/topbar chrome.
     return <>{children}</>;
   }
 
+  // Below this point we're rendering the dashboard chrome — guaranteed authed
+  // AND tenant-selected. (The redirect above handles the missing-tenant case.)
+  if (!tenant) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-brand-darker">
+        <span className="loading-spinner w-8 h-8 border-[#0BAAEF]" />
+      </div>
+    );
+  }
+
+  const tenantConfig = getTenantConfig(tenant);
+  const tenantAttr = tenant.toLowerCase();
+
   const handleLogout = () => {
     localStorage.removeItem('emc_admin_token');
+    clearCurrentTenant();
     router.replace('/admin/login');
+  };
+
+  const handleSwitchTenant = () => {
+    clearCurrentTenant();
+    router.replace('/admin/tenant-select');
   };
 
   const pageTitle = PAGE_TITLES[pathname] || 'Admin';
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--a-bg)' }} data-theme={theme}>
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--a-bg)' }} data-theme={theme} data-tenant={tenantAttr}>
 
       {/* ── Mobile overlay ── */}
       {sidebarOpen && (
@@ -173,13 +237,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         `}
         style={{ background: 'var(--a-surface)', borderColor: 'var(--a-border)' }}
       >
-        {/* Logo / Brand */}
+        {/* Logo / Brand — tenant-aware */}
         <div className="p-5 border-b" style={{ borderColor: 'var(--a-border)' }}>
           <Link href="/" className="flex items-center gap-3 group">
-            <img src="/emclogo.png" alt="EMC Logo" className="w-8 h-8 object-contain shrink-0" />
+            <BrandMark tenant={tenantConfig} />
             <div>
-              <p className="text-white font-bold text-sm leading-tight">ExcelMindCyber</p>
-              <p className="text-white/30 text-[10px] leading-tight">Lead Intelligence Engine</p>
+              <p className="text-white font-bold text-sm leading-tight">{tenantConfig.name}</p>
+              <p className="text-white/30 text-[10px] leading-tight">{tenantConfig.tagline}</p>
             </div>
           </Link>
         </div>
@@ -240,17 +304,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </nav>
 
-        {/* Bottom — user + logout */}
+        {/* Bottom — workspace + logout */}
         <div className="p-3 border-t space-y-1" style={{ borderColor: 'var(--a-border)' }}>
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/3">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#0BAAEF]/40 to-[#40C4FF]/40 flex items-center justify-center text-[#0BAAEF] text-xs font-bold shrink-0">
-              TH
+          <button
+            onClick={handleSwitchTenant}
+            title="Switch workspace"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/3 hover:bg-white/5 transition-colors w-full text-left"
+          >
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+              style={
+                tenant === 'LIGHTFORTH'
+                  ? { background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }
+                  : { background: 'linear-gradient(135deg, rgba(11,170,239,0.4), rgba(64,196,255,0.4))', color: '#0BAAEF' }
+              }
+            >
+              {tenantConfig.initials}
             </div>
-            <div className="min-w-0">
-              <p className="text-white/80 text-xs font-medium truncate">Thelix Holdings</p>
-              <p className="text-white/30 text-[10px] truncate">admin@thelixholdings.com</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-white/80 text-xs font-medium truncate">{tenantConfig.name}</p>
+              <p className="text-white/30 text-[10px] truncate">Switch workspace</p>
             </div>
-          </div>
+            <svg className="w-3.5 h-3.5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+            </svg>
+          </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/40 hover:text-red-400 hover:bg-red-400/10 w-full transition-all"
@@ -314,16 +392,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <span className="text-[10px] font-semibold" style={{ color: '#0BAAEF' }}>LIVE</span>
             </div>
 
-            {/* Thelix Holdings branding — right end */}
-            <div className="flex items-center gap-2 pl-3 border-l" style={{ borderColor: 'var(--a-border2)' }}>
+            {/* Current tenant + switcher */}
+            <button
+              onClick={handleSwitchTenant}
+              title="Switch workspace"
+              className="flex items-center gap-2 pl-3 border-l hover:opacity-80 transition-opacity"
+              style={{ borderColor: 'var(--a-border2)' }}
+            >
               <div className="text-right hidden sm:block">
-                <p className="text-white/50 text-[10px] leading-tight">Powered by</p>
-                <p className="text-white/70 text-xs font-semibold leading-tight">Thelix Holdings</p>
+                <p className="text-white/50 text-[10px] leading-tight">Workspace</p>
+                <p className="text-white/80 text-xs font-semibold leading-tight">{tenantConfig.shortName}</p>
               </div>
-              <div className="w-7 h-7 bg-gradient-to-br from-[#0BAAEF] to-[#40C4FF] rounded-md flex items-center justify-center text-[#080f17] font-bold text-[10px]">
-                TH
+              <div
+                className="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[10px]"
+                style={
+                  tenant === 'LIGHTFORTH'
+                    ? { background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }
+                    : { background: 'linear-gradient(135deg, #0BAAEF, #40C4FF)', color: '#080f17' }
+                }
+              >
+                {tenantConfig.initials}
               </div>
-            </div>
+              <svg className="w-3.5 h-3.5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+              </svg>
+            </button>
           </div>
         </header>
 
