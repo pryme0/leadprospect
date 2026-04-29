@@ -19,13 +19,13 @@ api.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Multi-tenant scoping. Every admin/dashboard/lead call carries the
-    // currently selected tenant. Backend defaults to EMCI when missing,
+    // Multi-SBU scoping. Every admin/dashboard/lead call carries the
+    // currently selected SBU. Backend defaults to 'emc' when missing,
     // so public lead-capture writes from the tools (no header set) keep
-    // landing in the EMCI workspace as before.
-    const tenant = localStorage.getItem('emc_tenant');
-    if (tenant) {
-      config.headers['X-Tenant'] = tenant;
+    // landing in the EMC workspace as before.
+    const sbu = localStorage.getItem('emc_sbu');
+    if (sbu) {
+      config.headers['X-SBU'] = sbu;
     }
   }
   return config;

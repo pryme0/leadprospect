@@ -9,6 +9,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
 } from 'recharts';
+import { useTenantTheme, TenantPalette } from '@/lib/tenant-theme';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,150 +31,220 @@ interface DashboardMetrics {
   top_pain_points: { point: string; count: number }[];
 }
 
-// ── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  accent:  '#0BAAEF',
-  cyan:    '#40C4FF',
-  blue:    '#6366f1',
-  orange:  '#f97316',
-  rose:    '#f43f5e',
-  grid:    'rgba(255,255,255,0.04)',
-  axis:    'rgba(255,255,255,0.25)',
-  tooltip: 'var(--a-card)',
-};
-
-const PLATFORM_COLORS: Record<string, string> = {
-  twitter:  C.cyan,
-  reddit:   C.orange,
-  youtube:  C.rose,
-  google:   C.blue,
-};
-
-const TOOL_COLORS = [C.accent, C.cyan, C.blue, C.orange];
-
-// ── Custom tooltip ────────────────────────────────────────────────────────────
+// ── Tooltip ───────────────────────────────────────────────────────────────────
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl px-4 py-3 text-sm shadow-2xl backdrop-blur-sm border" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border2)' }}>
-      {label && <p className="text-white/50 text-xs mb-2 font-medium">{label}</p>}
+    <div
+      className="px-3.5 py-2.5 text-xs shadow-2xl backdrop-blur-md border"
+      style={{
+        background: 'var(--a-card)',
+        borderColor: 'var(--a-border2)',
+        borderRadius: 'var(--t-radius)',
+      }}
+    >
+      {label && (
+        <p
+          className="text-white/45 text-[10px] mb-1.5 uppercase tracking-[0.18em]"
+          style={{ fontFamily: 'var(--t-mono-font)' }}
+        >
+          {label}
+        </p>
+      )}
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full" style={{ background: p.color || p.fill }} />
-          <span className="text-white/60 text-xs">{p.name}:</span>
-          <span className="text-white font-semibold text-xs">{p.value?.toLocaleString()}</span>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: p.color || p.fill }} />
+          <span className="text-white/55">{p.name}</span>
+          <span className="text-white font-semibold tabular-nums ml-auto">
+            {p.value?.toLocaleString()}
+          </span>
         </div>
       ))}
     </div>
   );
 };
 
-// ── Stat Card ─────────────────────────────────────────────────────────────────
+// ── Atoms ─────────────────────────────────────────────────────────────────────
 
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  sub?: string;
-  icon: React.ReactNode;
-  accent: string;
-  trend?: { value: number; label: string };
-}
-
-function StatCard({ label, value, sub, icon, accent, trend }: StatCardProps) {
+function MonoLabel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div
-      className="relative overflow-hidden rounded-2xl border p-5 flex flex-col gap-3"
-      style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', boxShadow: `0 0 0 1px var(--a-border), inset 0 1px 0 var(--a-border)` }}
+    <span
+      className={`text-[10px] uppercase tracking-[0.28em] text-white/40 ${className}`}
+      style={{ fontFamily: 'var(--t-mono-font)' }}
     >
-      {/* Subtle glow */}
-      <div
-        className="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-20 pointer-events-none"
-        style={{ background: accent }}
-      />
-
-      <div className="flex items-start justify-between">
-        <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: `${accent}18`, color: accent }}
-        >
-          {icon}
-        </div>
-        {trend && (
-          <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
-            trend.value >= 0
-              ? 'bg-emerald-400/10 text-emerald-400'
-              : 'bg-red-400/10 text-red-400'
-          }`}>
-            {trend.value >= 0 ? '↑' : '↓'} {Math.abs(trend.value)}%
-          </div>
-        )}
-      </div>
-
-      <div>
-        <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-0.5">{label}</p>
-        <p className="text-white font-bold text-2xl tracking-tight">{value}</p>
-        {sub && <p className="text-white/30 text-xs mt-0.5">{sub}</p>}
-      </div>
-    </div>
+      {children}
+    </span>
   );
 }
 
-// ── Section wrapper ───────────────────────────────────────────────────────────
-
-function ChartCard({
-  title, subtitle, children, className = '',
+function Surface({
+  children,
+  className = '',
+  inset = false,
 }: {
-  title: string; subtitle?: string; children: React.ReactNode; className?: string;
+  children: React.ReactNode;
+  className?: string;
+  inset?: boolean;
 }) {
   return (
-    <div className={`rounded-2xl border p-5 ${className}`}
-      style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', boxShadow: `0 0 0 1px var(--a-border)` }}
+    <div
+      className={className}
+      style={{
+        background: 'var(--a-card)',
+        border: '1px solid var(--a-border)',
+        borderRadius: 'var(--t-radius-lg)',
+        padding: inset ? '1.25rem' : 0,
+        boxShadow: 'var(--t-card-shadow)',
+      }}
     >
-      <div className="mb-5">
-        <h3 className="text-white font-semibold text-sm">{title}</h3>
-        {subtitle && <p className="text-white/30 text-xs mt-0.5">{subtitle}</p>}
-      </div>
       {children}
     </div>
   );
 }
 
-// ── Signal Pipeline section ───────────────────────────────────────────────────
-//
-// Live aggregates from the `signals` table — separate from the KPI cards
-// above so each panel can fail independently. Powered by GET /api/admin/signals/stats.
+interface KpiProps {
+  ord: string;
+  label: string;
+  value: string | number;
+  sub?: string;
+  trend?: number;
+  accent?: string;
+  href?: string;
+}
 
-const INTENT_LEVEL_COLORS: Record<string, string> = {
-  HIGH_INTENT: '#f43f5e',
-  MEDIUM_INTENT: '#f97316',
-  LOW_INTENT: '#0BAAEF',
-  Unclassified: 'rgba(255,255,255,0.18)',
-};
+function Kpi({ ord, label, value, sub, trend, accent, href }: KpiProps) {
+  const inner = (
+    <div
+      className="group relative px-5 py-5 h-full flex flex-col gap-3 transition-all"
+      style={{
+        background: 'var(--a-card)',
+        border: '1px solid var(--a-border)',
+        borderRadius: 'var(--t-radius)',
+      }}
+    >
+      <div className="flex items-baseline justify-between">
+        <span
+          className="text-[9px] tabular-nums tracking-[0.2em] text-white/30"
+          style={{ fontFamily: 'var(--t-mono-font)' }}
+        >
+          {ord}
+        </span>
+        {trend !== undefined && (
+          <span
+            className={`text-[10px] font-semibold tabular-nums px-1.5 py-0.5 ${
+              trend >= 0 ? 'text-emerald-400' : 'text-red-400'
+            }`}
+            style={{
+              background: trend >= 0 ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
+              borderRadius: 'var(--t-radius-sm)',
+              fontFamily: 'var(--t-mono-font)',
+            }}
+          >
+            {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col gap-1">
+        <span
+          className="text-2xl font-bold tracking-tight tabular-nums leading-none"
+          style={{ color: accent || '#fff' }}
+        >
+          {value}
+        </span>
+        <MonoLabel>{label}</MonoLabel>
+        {sub && (
+          <span className="text-white/35 text-[11px] mt-0.5">{sub}</span>
+        )}
+      </div>
+      {href && (
+        <span
+          className="absolute bottom-3 right-4 text-white/20 group-hover:text-white/60 transition-colors text-xs"
+          aria-hidden
+        >
+          →
+        </span>
+      )}
+    </div>
+  );
 
-const CATEGORY_PALETTE = [
-  '#0BAAEF', '#40C4FF', '#6366f1', '#f97316', '#f43f5e',
-  '#10b981', '#a855f7', '#eab308', '#06b6d4', '#ec4899', '#84cc16',
-];
+  if (href) return <Link href={href} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--t-accent)]" style={{ borderRadius: 'var(--t-radius)' }}>{inner}</Link>;
+  return inner;
+}
+
+function SectionHeader({
+  ord,
+  title,
+  subtitle,
+  right,
+}: {
+  ord: string;
+  title: string;
+  subtitle?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-end justify-between gap-4 mb-4">
+      <div className="flex items-baseline gap-3 min-w-0">
+        <span
+          className="text-[10px] tracking-[0.3em] text-white/35 tabular-nums"
+          style={{ fontFamily: 'var(--t-mono-font)' }}
+        >
+          {ord}
+        </span>
+        <span className="block h-px w-6" style={{ background: 'var(--t-accent-soft)' }} />
+        <div className="min-w-0">
+          <h2 className="text-white font-semibold text-sm tracking-tight">{title}</h2>
+          {subtitle && (
+            <p className="text-white/35 text-[11px] mt-0.5">{subtitle}</p>
+          )}
+        </div>
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function ChartFrame({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        background: 'var(--a-card)',
+        border: '1px solid var(--a-border)',
+        borderRadius: 'var(--t-radius-lg)',
+      }}
+      className="p-5 flex flex-col"
+    >
+      <div className="mb-4">
+        <p className="text-white font-semibold text-[13px] tracking-tight">{title}</p>
+        {subtitle && (
+          <MonoLabel className="mt-1 block">{subtitle}</MonoLabel>
+        )}
+      </div>
+      <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
+// ── Pipeline section ──────────────────────────────────────────────────────────
 
 function prettifyIntentLevel(v: string | null): string {
   if (!v) return 'Unclassified';
   return v.replace(/_INTENT$/i, '').replace(/^./, (c) => c.toUpperCase()).toLowerCase()
     .replace(/^./, (c) => c.toUpperCase());
 }
-
 function prettifySnake(v: string | null, fallback = 'Uncategorized'): string {
   if (!v) return fallback;
-  return v
-    .split('_')
-    .map((w) => (w.length <= 3 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
-    .join(' ');
+  return v.split('_').map((w) => (w.length <= 3 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
 }
-
-// Maps a chart slice / bar back to the corresponding /admin/signals filter
-// query params. Centralised so the click-through stays consistent across the
-// dashboard and the dedicated /admin/explore page.
 function intentLevelToFilter(name: string): Record<string, string> {
   if (name === 'Unclassified') return { processed: 'false' };
   return { intent_level: `${name.toUpperCase()}_INTENT` };
@@ -184,31 +255,14 @@ function intentCategoryToFilter(name: string): Record<string, string> {
 function ingestionCategoryToFilter(rawValue: string | null): Record<string, string> {
   return { ingestion_category: rawValue == null ? '__null__' : rawValue };
 }
-
 function buildSignalsHref(params: Record<string, string>): string {
   const usp = new URLSearchParams(params);
   const qs = usp.toString();
   return qs ? `/admin/signals?${qs}` : '/admin/signals';
 }
 
-// Wrap StatCard in a Link so the cursor + hover treatment stay consistent
-// with other clickable surfaces. Keeping it inline rather than adding an
-// `href?` prop to StatCard itself so the existing dashboard KPI cards (which
-// are non-clickable) don't accidentally become links.
-function ClickableStatCard(
-  props: Omit<StatCardProps, 'trend'> & { href: string; trend?: StatCardProps['trend'] },
-) {
-  const { href, ...rest } = props;
-  return (
-    <Link href={href} className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0BAAEF] rounded-2xl">
-      <div className="transition-transform group-hover:-translate-y-0.5 group-active:translate-y-0">
-        <StatCard {...rest} />
-      </div>
-    </Link>
-  );
-}
-
-function SignalPipelineSection({ stats }: { stats: SignalStats }) {
+function PipelineSection({ stats, theme }: { stats: SignalStats; theme: TenantPalette }) {
+  const router = useRouter();
   const processedPct = stats.total > 0 ? Math.round((stats.processed / stats.total) * 100) : 0;
   const emailPct = stats.total > 0 ? Math.round((stats.withEmail / stats.total) * 100) : 0;
 
@@ -216,9 +270,6 @@ function SignalPipelineSection({ stats }: { stats: SignalStats }) {
     name: prettifyIntentLevel(r.intent_level),
     value: r.count,
   }));
-
-  // Keep the raw value alongside the prettified name so click-through can pass
-  // the canonical DB value (e.g. "open_to_work") rather than the display label.
   const intentCategoryData = stats.byIntentCategory.map((r) => ({
     name: r.intent_category || 'Unclassified',
     raw: r.intent_category,
@@ -230,164 +281,95 @@ function SignalPipelineSection({ stats }: { stats: SignalStats }) {
     count: r.count,
   }));
 
-  const router = useRouter();
+  const intentLevelColor = (name: string) =>
+    name === 'High' ? theme.intent.high
+    : name === 'Medium' ? theme.intent.medium
+    : name === 'Low' ? theme.intent.low
+    : theme.intent.none;
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <h2 className="text-white font-semibold text-base">Signal Pipeline</h2>
-          <p className="text-white/30 text-xs mt-0.5">
-            Live aggregates from the <code className="text-white/50">signals</code> table — click any card or bar to filter the records.
-          </p>
-        </div>
+    <section>
+      <SectionHeader
+        ord="03"
+        title="Signal pipeline"
+        subtitle="Live aggregates — every card and bar deep-links into /admin/signals"
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6" data-stagger>
+        <Kpi ord="01" label="Total" value={stats.total.toLocaleString()} accent={theme.chart[1]} href={buildSignalsHref({})} />
+        <Kpi ord="02" label="Processed" value={stats.processed.toLocaleString()} sub={`${processedPct}% classified`} accent={theme.accent} href={buildSignalsHref({ processed: 'true' })} />
+        <Kpi ord="03" label="Pending" value={stats.pending.toLocaleString()} sub="awaiting Claude" accent={theme.intent.medium} href={buildSignalsHref({ processed: 'false' })} />
+        <Kpi ord="04" label="With email" value={stats.withEmail.toLocaleString()} sub={`${emailPct}% reachable`} accent={theme.chart[2]} href={buildSignalsHref({ has_email: 'true' })} />
+        <Kpi ord="05" label="Sent → automation" value={stats.automationSent.toLocaleString()} sub="forwarded" accent="#10b981" href={buildSignalsHref({ automation_sent: 'true' })} />
+        <Kpi ord="06" label="Automation pending" value={stats.automationPending.toLocaleString()} sub="HIGH/MED, queued" accent={theme.chart[6] || theme.accent} href={buildSignalsHref({ automation_sent: 'false', intent_level: 'HIGH_INTENT' })} />
       </div>
 
-      {/* Pipeline KPI row — every card deep-links into /admin/signals */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-        <ClickableStatCard
-          href={buildSignalsHref({})}
-          label="Total Signals"
-          value={stats.total.toLocaleString()}
-          accent={C.cyan}
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h7" /></svg>}
-        />
-        <ClickableStatCard
-          href={buildSignalsHref({ processed: 'true' })}
-          label="Processed"
-          value={stats.processed.toLocaleString()}
-          sub={`${processedPct}% classified`}
-          accent={C.accent}
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-        />
-        <ClickableStatCard
-          href={buildSignalsHref({ processed: 'false' })}
-          label="Pending"
-          value={stats.pending.toLocaleString()}
-          sub="awaiting Claude"
-          accent={C.orange}
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-        />
-        <ClickableStatCard
-          href={buildSignalsHref({ has_email: 'true' })}
-          label="With Email"
-          value={stats.withEmail.toLocaleString()}
-          sub={`${emailPct}% reachable`}
-          accent={C.blue}
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
-        />
-        <ClickableStatCard
-          href={buildSignalsHref({ automation_sent: 'true' })}
-          label="Sent to Automation"
-          value={stats.automationSent.toLocaleString()}
-          sub="forwarded to webhook"
-          accent="#10b981"
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12l5 5L20 7" /></svg>}
-        />
-        <ClickableStatCard
-          href={buildSignalsHref({ automation_sent: 'false', intent_level: 'HIGH_INTENT' })}
-          label="Automation Pending"
-          value={stats.automationPending.toLocaleString()}
-          sub="HIGH/MED, not sent"
-          accent="#a855f7"
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
-        />
-      </div>
-
-      {/* Charts row — every slice / bar deep-links into /admin/signals.
-          Recharts onClick fires on the <Pie> wrapper for slices, and on
-          <Bar> for individual bars. We use router.push so URLSearchParams
-          can be built with proper escaping. */}
       <div className="grid lg:grid-cols-3 gap-4">
-        <ChartCard title="Intent Level" subtitle="Click a slice to filter — Claude classification">
+        <ChartFrame title="Intent level" subtitle="Classified by Claude — click a slice to filter">
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
                 data={intentLevelData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={90}
+                dataKey="value" nameKey="name"
+                cx="50%" cy="50%"
+                innerRadius={52} outerRadius={88}
                 paddingAngle={2}
-                onClick={(d: any) =>
-                  router.push(buildSignalsHref(intentLevelToFilter(d.name)))
-                }
+                stroke="transparent"
+                onClick={(d: any) => router.push(buildSignalsHref(intentLevelToFilter(d.name)))}
                 style={{ cursor: 'pointer' }}
               >
                 {intentLevelData.map((entry, idx) => (
-                  <Cell
-                    key={idx}
-                    fill={INTENT_LEVEL_COLORS[entry.name] || CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length]}
-                  />
+                  <Cell key={idx} fill={intentLevelColor(entry.name)} />
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
               <Legend
-                verticalAlign="bottom"
-                iconType="circle"
-                wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}
+                verticalAlign="bottom" iconType="circle" iconSize={6}
+                wrapperStyle={{ fontSize: 10, color: 'var(--t-fg-55)', textTransform: 'uppercase', letterSpacing: '0.18em', fontFamily: theme.fontMono }}
               />
             </PieChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </ChartFrame>
 
-        <ChartCard title="Intent Category" subtitle="Click a bar to filter — Claude prospect typing">
+        <ChartFrame title="Intent category" subtitle="Prospect typing — click a bar to filter">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={intentCategoryData} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="2 4" stroke={C.grid} horizontal={false} />
-              <XAxis type="number" tick={{ fill: C.axis, fontSize: 10 }} />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ fill: C.axis, fontSize: 10 }}
-                width={150}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+              <CartesianGrid strokeDasharray="2 4" stroke={theme.grid} horizontal={false} />
+              <XAxis type="number" tick={{ fill: theme.axis, fontSize: 10, fontFamily: theme.fontMono }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" tick={{ fill: theme.axis, fontSize: 10 }} width={150} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--t-fg-03)' }} />
               <Bar
-                dataKey="count"
-                radius={[0, 4, 4, 0]}
-                onClick={(d: any) =>
-                  router.push(buildSignalsHref(intentCategoryToFilter(d.name)))
-                }
+                dataKey="count" radius={[0, 3, 3, 0]} maxBarSize={14}
+                onClick={(d: any) => router.push(buildSignalsHref(intentCategoryToFilter(d.name)))}
                 style={{ cursor: 'pointer' }}
               >
                 {intentCategoryData.map((_, idx) => (
-                  <Cell key={idx} fill={CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length]} />
+                  <Cell key={idx} fill={theme.chart[idx % theme.chart.length]} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </ChartFrame>
 
-        <ChartCard title="Ingestion Category" subtitle="Click a bar to filter — pre-classifier regex bucket">
+        <ChartFrame title="Ingestion category" subtitle="Pre-classifier regex bucket">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={ingestionCategoryData} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="2 4" stroke={C.grid} horizontal={false} />
-              <XAxis type="number" tick={{ fill: C.axis, fontSize: 10 }} />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ fill: C.axis, fontSize: 10 }}
-                width={150}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+              <CartesianGrid strokeDasharray="2 4" stroke={theme.grid} horizontal={false} />
+              <XAxis type="number" tick={{ fill: theme.axis, fontSize: 10, fontFamily: theme.fontMono }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" tick={{ fill: theme.axis, fontSize: 10 }} width={150} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--t-fg-03)' }} />
               <Bar
-                dataKey="count"
-                radius={[0, 4, 4, 0]}
-                onClick={(d: any) =>
-                  router.push(buildSignalsHref(ingestionCategoryToFilter(d.raw)))
-                }
+                dataKey="count" radius={[0, 3, 3, 0]} maxBarSize={14}
+                onClick={(d: any) => router.push(buildSignalsHref(ingestionCategoryToFilter(d.raw)))}
                 style={{ cursor: 'pointer' }}
               >
                 {ingestionCategoryData.map((_, idx) => (
-                  <Cell key={idx} fill={CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length]} />
+                  <Cell key={idx} fill={theme.chart[idx % theme.chart.length]} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </ChartFrame>
       </div>
     </section>
   );
@@ -396,6 +378,7 @@ function SignalPipelineSection({ stats }: { stats: SignalStats }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function AdminDashboardPage() {
+  const theme = useTenantTheme();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [stats, setStats] = useState<SignalStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -409,8 +392,6 @@ export default function AdminDashboardPage() {
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch metrics + signal-pipeline stats in parallel. A stats failure
-      // shouldn't blank out the whole dashboard — so we settle independently.
       const [metricsRes, statsRes] = await Promise.allSettled([
         adminApi.getDashboardMetrics(),
         adminApi.getSignalStats(),
@@ -426,7 +407,6 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchMetrics();
-    // Auto-refresh every 60 seconds
     const id = setInterval(fetchMetrics, 60_000);
     return () => clearInterval(id);
   }, [fetchMetrics]);
@@ -435,8 +415,11 @@ export default function AdminDashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-2 border-white/10 border-t-[#0BAAEF] rounded-full animate-spin mx-auto" />
-          <p className="text-white/30 text-sm">Loading dashboard...</p>
+          <div
+            className="w-10 h-10 border-2 rounded-full animate-spin mx-auto"
+            style={{ borderColor: 'var(--t-fg-06)', borderTopColor: theme.accent }}
+          />
+          <MonoLabel>Loading dashboard…</MonoLabel>
         </div>
       </div>
     );
@@ -448,7 +431,18 @@ export default function AdminDashboardPage() {
         <div className="text-center space-y-4">
           <div className="w-12 h-12 rounded-full bg-red-400/10 flex items-center justify-center mx-auto text-red-400 text-xl">!</div>
           <p className="text-white/50 text-sm">{error}</p>
-          <button onClick={fetchMetrics} className="btn-secondary text-sm px-5">Retry</button>
+          <button
+            onClick={fetchMetrics}
+            className="px-4 py-2 text-xs uppercase tracking-[0.2em]"
+            style={{
+              border: `1px solid ${theme.accent}`,
+              color: theme.accent,
+              borderRadius: 'var(--t-radius-sm)',
+              fontFamily: 'var(--t-mono-font)',
+            }}
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -458,382 +452,487 @@ export default function AdminDashboardPage() {
 
   const convRate = (metrics.conversion_rate * 100).toFixed(1);
   const highIntentCount = (metrics as any).high_intent_signals || metrics.high_intent_count || 0;
-  const highIntentPct = metrics.total_signals > 0
-    ? Math.round((highIntentCount / metrics.total_signals) * 100)
-    : 0;
+  const highIntentPct = metrics.total_signals > 0 ? Math.round((highIntentCount / metrics.total_signals) * 100) : 0;
 
-  // Format platform data with colors
   const platformData = (metrics.signals_by_platform || []).map((p) => ({
     ...p,
-    color: PLATFORM_COLORS[p.platform] || C.blue,
+    color: theme.platform[p.platform] || theme.chart[3],
   }));
 
-  // Shorten date labels
   const formatDate = (d: string) => {
     try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
     catch { return d; }
   };
-  const signalsByDay = (metrics.signals_by_day || []).map((d) => ({
-    ...d,
-    date: formatDate(d.date),
-  }));
-  const leadsByDay = (metrics.leads_by_day || []).map((d) => ({
-    ...d,
-    date: formatDate(d.date),
-  }));
+  const signalsByDay = (metrics.signals_by_day || []).map((d) => ({ ...d, date: formatDate(d.date) }));
+  const leadsByDay = (metrics.leads_by_day || []).map((d) => ({ ...d, date: formatDate(d.date) }));
 
-  // Tool name shortener
   const shortenTool = (t: string) =>
     t.replace('cyber-path-finder', 'Path Finder')
      .replace('career-assessment', 'Assessment')
      .replace('resume-analyzer', 'Resume');
+  const toolData = (metrics.leads_by_tool || []).map((t) => ({ ...t, tool: shortenTool(t.tool) }));
 
-  const toolData = (metrics.leads_by_tool || []).map((t) => ({
-    ...t,
-    tool: shortenTool(t.tool),
-  }));
+  const todayCount = signalsByDay[signalsByDay.length - 1]?.count ?? 0;
+  const yesterdayCount = signalsByDay[signalsByDay.length - 2]?.count ?? 0;
+  const dayDelta = yesterdayCount > 0 ? Math.round(((todayCount - yesterdayCount) / yesterdayCount) * 100) : 0;
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
-
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-10 max-w-[1480px] mx-auto">
+      {/* ── Hero ── */}
+      <header className="grid lg:grid-cols-[1fr,auto] gap-6 items-end pb-2">
         <div>
-          <h1 className="text-white font-bold text-xl">Dashboard</h1>
-          <p className="text-white/30 text-xs mt-0.5">
-            Last updated {lastRefresh.toLocaleTimeString()} · Auto-refreshes every 60s
+          <MonoLabel>
+            {new Date().toLocaleDateString('en-US', {
+              weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+            })}
+          </MonoLabel>
+          <h1 className="text-white font-bold text-3xl sm:text-4xl tracking-tight leading-[1.05] mt-2">
+            Lead intelligence,
+            <br className="hidden sm:block" />
+            <span style={{ color: theme.accent }}>at a glance.</span>
+          </h1>
+          <p className="text-white/45 text-sm mt-3 max-w-md">
+            Live signals from social, refined by Claude into intent, urgency, and pain points.
+            Updated {lastRefresh.toLocaleTimeString()}.
           </p>
         </div>
-        <button
-          onClick={fetchMetrics}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/8 text-white/50 hover:text-white text-sm transition-all border border-white/5 disabled:opacity-40"
+
+        <div className="flex items-center gap-2">
+          <div
+            className="hidden sm:flex items-center gap-2 px-3 py-2"
+            style={{
+              background: 'var(--t-accent-faint)',
+              border: '1px solid var(--t-accent-soft)',
+              borderRadius: 'var(--t-radius-sm)',
+            }}
+          >
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping opacity-60 rounded-full" style={{ background: theme.accent }} />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: theme.accent }} />
+            </span>
+            <span
+              className="text-[9px] uppercase tracking-[0.25em] font-semibold"
+              style={{ color: theme.accent, fontFamily: theme.fontMono }}
+            >
+              Auto · 60s
+            </span>
+          </div>
+          <button
+            onClick={fetchMetrics}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-[0.2em] hover:bg-white/[0.04] transition-colors disabled:opacity-40"
+            style={{
+              border: '1px solid var(--a-border2)',
+              color: 'var(--t-fg-70)',
+              borderRadius: 'var(--t-radius-sm)',
+              fontFamily: 'var(--t-mono-font)',
+            }}
+          >
+            <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24">
+              <path strokeLinecap="round" d="M4 4v5h.582m15.356 2A8 8 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8 8 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      {/* ── Hero metric: asymmetric ── */}
+      <section className="grid lg:grid-cols-[1.4fr,1fr] gap-6">
+        {/* Big number + sparkline */}
+        <div
+          className="relative p-7 overflow-hidden"
+          style={{
+            background: 'var(--a-card)',
+            border: '1px solid var(--a-border)',
+            borderRadius: 'var(--t-radius-lg)',
+          }}
         >
-          <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh
-        </button>
-      </div>
+          <div className="flex items-start justify-between">
+            <div>
+              <MonoLabel>Total signals · all time</MonoLabel>
+              <p className="text-white font-bold mt-2 leading-none tabular-nums" style={{ fontSize: 'clamp(3rem, 6vw, 5rem)', letterSpacing: '-0.04em' }}>
+                {metrics.total_signals.toLocaleString()}
+              </p>
+              <div className="flex items-center gap-3 mt-3">
+                <span
+                  className={`text-xs font-semibold tabular-nums px-2 py-0.5 ${
+                    dayDelta >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}
+                  style={{
+                    background: dayDelta >= 0 ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
+                    borderRadius: 'var(--t-radius-sm)',
+                    fontFamily: theme.fontMono,
+                  }}
+                >
+                  {dayDelta >= 0 ? '↑' : '↓'} {Math.abs(dayDelta)}%
+                </span>
+                <span className="text-white/40 text-xs">vs yesterday · {todayCount.toLocaleString()} today</span>
+              </div>
+            </div>
+            <span
+              className="text-[10px] tabular-nums tracking-[0.2em] text-white/30"
+              style={{ fontFamily: theme.fontMono }}
+            >
+              ✱ 01
+            </span>
+          </div>
 
-      {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <StatCard
-          label="Total Signals"
-          value={metrics.total_signals.toLocaleString()}
-          accent={C.cyan}
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
-        />
-        <StatCard
-          label="High Intent"
-          value={highIntentCount.toLocaleString()}
-          sub={`${highIntentPct}% of signals`}
-          accent={C.rose}
-          trend={metrics.high_intent_wow !== undefined ? { value: metrics.high_intent_wow, label: 'vs last week' } : undefined}
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" /></svg>}
-        />
-        <StatCard
-          label="Leads Captured"
-          value={metrics.leads_captured.toLocaleString()}
-          accent={C.accent}
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
-        />
-        <StatCard
-          label="Conversion Rate"
-          value={`${convRate}%`}
-          sub="signals → leads"
-          accent={C.blue}
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
-        />
-        <StatCard
-          label="Avg Urgency Score"
-          value={`${metrics.avg_urgency.toFixed(0)}/100`}
-          sub={metrics.avg_urgency >= 70 ? 'High urgency pool' : metrics.avg_urgency >= 40 ? 'Medium urgency pool' : 'Low urgency pool'}
-          accent={metrics.avg_urgency >= 70 ? C.rose : metrics.avg_urgency >= 40 ? C.orange : C.accent}
-          icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-        />
-      </div>
-
-      {/* ── Signal Pipeline Stats (signals table aggregate) ── */}
-      {stats && <SignalPipelineSection stats={stats} />}
-
-      {/* ── Row 1: Area charts ── */}
-      <div className="grid lg:grid-cols-2 gap-4">
-
-        {/* Signals by Day — Area */}
-        <ChartCard title="Signals Collected" subtitle="Daily ingestion volume">
-          <div className="h-56">
+          <div className="h-24 mt-6 -mx-1">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={signalsByDay} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <AreaChart data={signalsByDay} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="gradSignals" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={C.cyan} stopOpacity={0.3} />
-                    <stop offset="100%" stopColor={C.cyan} stopOpacity={0} />
+                  <linearGradient id="gradHero" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={theme.accent} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={theme.accent} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false} />
-                <XAxis dataKey="date" stroke="transparent" tick={{ fill: C.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis stroke="transparent" tick={{ fill: C.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: C.cyan, strokeWidth: 1, strokeDasharray: '4 2' }} />
-                <Area type="monotone" dataKey="count" name="Signals" stroke={C.cyan} strokeWidth={2} fill="url(#gradSignals)" dot={false} activeDot={{ r: 5, fill: C.cyan, stroke: 'var(--a-card)', strokeWidth: 2 }} />
+                <Tooltip content={<CustomTooltip />} cursor={false} />
+                <Area type="monotone" dataKey="count" stroke={theme.accent} strokeWidth={2} fill="url(#gradHero)" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </ChartCard>
+        </div>
 
-        {/* Leads by Day — Area */}
-        <ChartCard title="Leads Captured" subtitle="Daily lead conversions">
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={leadsByDay} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gradLeads" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={C.accent} stopOpacity={0.3} />
-                    <stop offset="100%" stopColor={C.accent} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false} />
-                <XAxis dataKey="date" stroke="transparent" tick={{ fill: C.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis stroke="transparent" tick={{ fill: C.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: C.accent, strokeWidth: 1, strokeDasharray: '4 2' }} />
-                <Area type="monotone" dataKey="count" name="Leads" stroke={C.accent} strokeWidth={2} fill="url(#gradLeads)" dot={false} activeDot={{ r: 5, fill: C.accent, stroke: 'var(--a-card)', strokeWidth: 2 }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </ChartCard>
-      </div>
+        {/* Side KPI stack */}
+        <div className="grid grid-cols-2 gap-3 content-start">
+          <Kpi
+            ord="02" label="High intent"
+            value={highIntentCount.toLocaleString()}
+            sub={`${highIntentPct}% of pool`}
+            trend={metrics.high_intent_wow}
+            accent={theme.intent.high}
+          />
+          <Kpi
+            ord="03" label="Leads captured"
+            value={metrics.leads_captured.toLocaleString()}
+            accent={theme.accent}
+          />
+          <Kpi
+            ord="04" label="Conversion"
+            value={`${convRate}%`}
+            sub="signals → leads"
+            accent={theme.chart[2]}
+          />
+          <Kpi
+            ord="05" label="Urgency"
+            value={`${metrics.avg_urgency.toFixed(0)}`}
+            sub={metrics.avg_urgency >= 70 ? 'High urgency pool' : metrics.avg_urgency >= 40 ? 'Medium pool' : 'Low pool'}
+            accent={metrics.avg_urgency >= 70 ? theme.intent.high : metrics.avg_urgency >= 40 ? theme.intent.medium : theme.accent}
+          />
+        </div>
+      </section>
 
-      {/* ── Row 2: Platform pie + Leads by tool ── */}
-      <div className="grid lg:grid-cols-2 gap-4">
+      {/* ── Pipeline ── */}
+      {stats && <PipelineSection stats={stats} theme={theme} />}
 
-        {/* Platform Distribution — Pie */}
-        <ChartCard title="Signals by Platform" subtitle="Source breakdown">
-          {platformData.length === 0 ? (
-            <div className="h-56 flex items-center justify-center text-white/20 text-sm">No data yet</div>
-          ) : (
+      {/* ── Trends ── */}
+      <section>
+        <SectionHeader ord="04" title="Trends" subtitle="Daily ingestion + capture velocity" />
+        <div className="grid lg:grid-cols-2 gap-4">
+          <ChartFrame title="Signals collected" subtitle="Daily ingestion volume">
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={platformData}
-                    dataKey="count"
-                    nameKey="platform"
-                    cx="40%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    strokeWidth={0}
-                  >
-                    {platformData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} opacity={0.9} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend
-                    layout="vertical"
-                    align="right"
-                    verticalAlign="middle"
-                    iconType="circle"
-                    iconSize={8}
-                    formatter={(value) => (
-                      <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, textTransform: 'capitalize' }}>
-                        {value}
-                      </span>
-                    )}
-                  />
-                </PieChart>
+                <AreaChart data={signalsByDay} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradSignals" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={theme.chart[1]} stopOpacity={0.30} />
+                      <stop offset="100%" stopColor={theme.chart[1]} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 4" stroke={theme.grid} vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: theme.axis, fontSize: 10, fontFamily: theme.fontMono }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: theme.axis, fontSize: 10, fontFamily: theme.fontMono }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: theme.chart[1], strokeWidth: 1, strokeDasharray: '4 2' }} />
+                  <Area type="monotone" dataKey="count" name="Signals" stroke={theme.chart[1]} strokeWidth={2} fill="url(#gradSignals)" dot={false} activeDot={{ r: 5, fill: theme.chart[1], stroke: 'var(--a-card)', strokeWidth: 2 }} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
-          )}
-        </ChartCard>
+          </ChartFrame>
 
-        {/* Leads by Tool — Horizontal Bar */}
-        <ChartCard title="Leads by Tool" subtitle="Which tool converts most">
-          {toolData.length === 0 ? (
-            <div className="h-56 flex items-center justify-center text-white/20 text-sm">No leads yet</div>
-          ) : (
+          <ChartFrame title="Leads captured" subtitle="Daily conversions">
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={toolData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={C.grid} horizontal={false} />
-                  <XAxis type="number" stroke="transparent" tick={{ fill: C.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="tool" stroke="transparent" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} tickLine={false} axisLine={false} width={90} />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                  <Bar dataKey="count" name="Leads" radius={[0, 6, 6, 0]} maxBarSize={22}>
-                    {toolData.map((_, i) => (
-                      <Cell key={i} fill={TOOL_COLORS[i % TOOL_COLORS.length]} fillOpacity={0.85} />
-                    ))}
-                  </Bar>
-                </BarChart>
+                <AreaChart data={leadsByDay} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradLeads" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={theme.accent} stopOpacity={0.30} />
+                      <stop offset="100%" stopColor={theme.accent} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 4" stroke={theme.grid} vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: theme.axis, fontSize: 10, fontFamily: theme.fontMono }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: theme.axis, fontSize: 10, fontFamily: theme.fontMono }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: theme.accent, strokeWidth: 1, strokeDasharray: '4 2' }} />
+                  <Area type="monotone" dataKey="count" name="Leads" stroke={theme.accent} strokeWidth={2} fill="url(#gradLeads)" dot={false} activeDot={{ r: 5, fill: theme.accent, stroke: 'var(--a-card)', strokeWidth: 2 }} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
-          )}
-        </ChartCard>
-      </div>
+          </ChartFrame>
+        </div>
+      </section>
 
-      {/* ── Pain Points ── */}
+      {/* ── Mix ── */}
+      <section>
+        <SectionHeader ord="05" title="Mix" subtitle="Where signals come from, where leads convert" />
+        <div className="grid lg:grid-cols-2 gap-4">
+          <ChartFrame title="Signals by platform" subtitle="Source breakdown">
+            {platformData.length === 0 ? (
+              <EmptyState label="No platform data yet" />
+            ) : (
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={platformData} dataKey="count" nameKey="platform"
+                      cx="40%" cy="50%" innerRadius={55} outerRadius={85}
+                      paddingAngle={3} stroke="transparent"
+                    >
+                      {platformData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} opacity={0.92} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend
+                      layout="vertical" align="right" verticalAlign="middle"
+                      iconType="circle" iconSize={6}
+                      formatter={(value) => (
+                        <span style={{ color: 'var(--t-fg-70)', fontSize: 11, textTransform: 'capitalize', fontFamily: theme.fontMono, letterSpacing: '0.05em' }}>
+                          {value}
+                        </span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </ChartFrame>
+
+          <ChartFrame title="Leads by tool" subtitle="Which tool converts most">
+            {toolData.length === 0 ? (
+              <EmptyState label="No leads yet" />
+            ) : (
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={toolData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 4" stroke={theme.grid} horizontal={false} />
+                    <XAxis type="number" tick={{ fill: theme.axis, fontSize: 10, fontFamily: theme.fontMono }} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="tool" tick={{ fill: 'var(--t-fg-55)', fontSize: 11 }} tickLine={false} axisLine={false} width={94} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--t-fg-03)' }} />
+                    <Bar dataKey="count" name="Leads" radius={[0, 5, 5, 0]} maxBarSize={20}>
+                      {toolData.map((_, i) => (
+                        <Cell key={i} fill={theme.chart[i % theme.chart.length]} fillOpacity={0.92} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </ChartFrame>
+        </div>
+      </section>
+
+      {/* ── Pain points (editorial list) ── */}
       {(metrics.top_pain_points || []).length > 0 && (
-        <ChartCard title="Top Pain Points" subtitle="Most common barriers detected by AI across all signals">
-          <div className="space-y-2.5">
-            {metrics.top_pain_points.slice(0, 8).map((item, i) => {
-              const max = metrics.top_pain_points[0]?.count || 1;
-              const pct = Math.round((item.count / max) * 100);
-              const colors = [C.accent, C.cyan, C.blue, C.orange, C.rose];
-              const color = colors[i % colors.length];
-              return (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 text-[10px] font-bold"
-                    style={{ background: `${color}20`, color }}>
-                    {i + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-white/70 text-xs truncate">{item.point}</span>
-                      <span className="text-white/40 text-xs ml-3 shrink-0">{item.count}</span>
+        <section>
+          <SectionHeader ord="06" title="Top pain points" subtitle="Most-cited barriers across all classified signals" />
+          <div
+            className="px-2 py-2"
+            style={{
+              background: 'var(--a-card)',
+              border: '1px solid var(--a-border)',
+              borderRadius: 'var(--t-radius-lg)',
+            }}
+          >
+            <ol className="divide-y" style={{ borderColor: 'var(--a-border)' }}>
+              {metrics.top_pain_points.slice(0, 8).map((item, i) => {
+                const max = metrics.top_pain_points[0]?.count || 1;
+                const pct = Math.round((item.count / max) * 100);
+                const color = theme.chart[i % theme.chart.length];
+                return (
+                  <li
+                    key={i}
+                    className="grid grid-cols-[40px,1fr,auto] gap-4 items-center px-4 py-3 hover:bg-white/[0.02] transition-colors"
+                    style={{ borderColor: 'var(--a-border)' }}
+                  >
+                    <span
+                      className="text-2xl font-bold tabular-nums leading-none"
+                      style={{ color, fontFamily: theme.fontMono }}
+                    >
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-white/85 text-sm leading-snug truncate">{item.point}</p>
+                      <div className="mt-2 h-[3px] bg-white/[0.04] rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${pct}%`, background: color, opacity: 0.85 }}
+                        />
+                      </div>
                     </div>
-                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${pct}%`, background: color, opacity: 0.7 }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                    <span
+                      className="text-white/55 text-sm tabular-nums"
+                      style={{ fontFamily: theme.fontMono }}
+                    >
+                      {item.count.toLocaleString()}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
           </div>
-        </ChartCard>
+        </section>
       )}
 
-      {/* ── Row 3: GHL Sync + Urgency Distribution + Cost Per Lead ── */}
-      <div className="grid lg:grid-cols-3 gap-4">
-
-        {/* GHL Sync Status */}
-        <ChartCard title="GHL Sync Status" subtitle="GoHighLevel CRM sync health">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-white/40 text-xs">Sync rate</span>
-              <span className="text-white font-bold text-lg">
-                {Math.round((metrics.ghl_sync_rate || 0) * 100)}%
-              </span>
+      {/* ── Health row ── */}
+      <section>
+        <SectionHeader ord="07" title="Health" subtitle="Sync, urgency mix, and unit economics" />
+        <div className="grid lg:grid-cols-3 gap-4">
+          {/* GHL sync */}
+          <div
+            className="p-5 flex flex-col gap-4"
+            style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)', borderRadius: 'var(--t-radius-lg)' }}
+          >
+            <div>
+              <p className="text-white font-semibold text-[13px] tracking-tight">GHL sync</p>
+              <MonoLabel className="block mt-1">GoHighLevel CRM health</MonoLabel>
             </div>
-            {/* Progress bar */}
-            <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+            <div className="flex items-baseline gap-2">
+              <span className="text-white font-bold tabular-nums" style={{ fontSize: '2.2rem', letterSpacing: '-0.03em' }}>
+                {Math.round((metrics.ghl_sync_rate || 0) * 100)}
+              </span>
+              <span className="text-white/40 text-lg font-semibold">%</span>
+            </div>
+            <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
                   width: `${Math.round((metrics.ghl_sync_rate || 0) * 100)}%`,
-                  background: (metrics.ghl_sync_rate || 0) >= 0.9 ? C.accent : (metrics.ghl_sync_rate || 0) >= 0.7 ? C.orange : C.rose,
+                  background:
+                    (metrics.ghl_sync_rate || 0) >= 0.9 ? '#10b981'
+                    : (metrics.ghl_sync_rate || 0) >= 0.7 ? theme.intent.medium
+                    : theme.intent.high,
                 }}
               />
             </div>
             <div className="grid grid-cols-2 gap-3 pt-1">
-              <div className="bg-white/3 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1">Synced</p>
-                <p className="text-emerald-400 font-bold text-xl">{(metrics.ghl_synced || 0).toLocaleString()}</p>
+              <div>
+                <MonoLabel>Synced</MonoLabel>
+                <p className="text-emerald-400 font-bold text-xl mt-1 tabular-nums">{(metrics.ghl_synced || 0).toLocaleString()}</p>
               </div>
-              <div className="bg-white/3 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1">Pending</p>
-                <p className="text-yellow-400 font-bold text-xl">{(metrics.ghl_unsynced || 0).toLocaleString()}</p>
+              <div>
+                <MonoLabel>Pending</MonoLabel>
+                <p className="text-yellow-400 font-bold text-xl mt-1 tabular-nums">{(metrics.ghl_unsynced || 0).toLocaleString()}</p>
               </div>
             </div>
           </div>
-        </ChartCard>
 
-        {/* Urgency Distribution */}
-        <ChartCard title="Urgency Distribution" subtitle="Signal urgency score breakdown">
-          {(metrics.urgency_distribution || []).length === 0 ? (
-            <div className="h-40 flex items-center justify-center text-white/20 text-sm">No classified signals yet</div>
-          ) : (
-            <div className="h-40">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={metrics.urgency_distribution} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false} />
-                  <XAxis dataKey="bucket" stroke="transparent" tick={{ fill: C.axis, fontSize: 9 }} tickLine={false} axisLine={false} />
-                  <YAxis stroke="transparent" tick={{ fill: C.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                  <Bar dataKey="count" name="Signals" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                    {(metrics.urgency_distribution || []).map((entry, i) => (
-                      <Cell key={i} fill={i === 0 ? C.rose : i === 1 ? C.orange : C.accent} fillOpacity={0.85} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </ChartCard>
+          {/* Urgency dist */}
+          <ChartFrame title="Urgency distribution" subtitle="Score buckets across classified signals">
+            {(metrics.urgency_distribution || []).length === 0 ? (
+              <EmptyState label="No classified signals yet" />
+            ) : (
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={metrics.urgency_distribution} margin={{ top: 5, right: 5, left: -16, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 4" stroke={theme.grid} vertical={false} />
+                    <XAxis dataKey="bucket" tick={{ fill: theme.axis, fontSize: 9, fontFamily: theme.fontMono }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fill: theme.axis, fontSize: 10, fontFamily: theme.fontMono }} tickLine={false} axisLine={false} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--t-fg-03)' }} />
+                    <Bar dataKey="count" name="Signals" radius={[3, 3, 0, 0]} maxBarSize={36}>
+                      {(metrics.urgency_distribution || []).map((entry, i) => (
+                        <Cell key={i} fill={i === 0 ? theme.intent.high : i === 1 ? theme.intent.medium : theme.intent.low} fillOpacity={0.92} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </ChartFrame>
 
-        {/* Cost Per Lead */}
-        <ChartCard title="Cost Per Lead" subtitle="Manual ad spend input — stored locally">
-          <div className="space-y-4">
+          {/* Cost per lead */}
+          <div
+            className="p-5 flex flex-col gap-4"
+            style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)', borderRadius: 'var(--t-radius-lg)' }}
+          >
             <div>
-              <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
-                Ad spend this month ($)
-              </label>
-              <input
-                type="number"
-                min="0"
-                placeholder="e.g. 500"
-                value={adSpend}
-                onChange={(e) => {
-                  setAdSpend(e.target.value);
-                  localStorage.setItem('emc_ad_spend', e.target.value);
-                }}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#0BAAEF]/40 placeholder:text-white/20"
-              />
+              <p className="text-white font-semibold text-[13px] tracking-tight">Cost per lead</p>
+              <MonoLabel className="block mt-1">Manual ad spend · stored locally</MonoLabel>
             </div>
-            <div className="bg-white/3 rounded-xl p-4 text-center">
-              <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1">Cost Per Lead</p>
+            <input
+              type="number" min="0" placeholder="Ad spend this month ($)"
+              value={adSpend}
+              onChange={(e) => {
+                setAdSpend(e.target.value);
+                localStorage.setItem('emc_ad_spend', e.target.value);
+              }}
+              className="w-full bg-transparent border px-4 py-2.5 text-white text-sm focus:outline-none placeholder:text-white/25 transition-colors"
+              style={{
+                borderColor: 'var(--a-border2)',
+                borderRadius: 'var(--t-radius-sm)',
+              }}
+            />
+            <div className="flex-1 flex flex-col justify-end">
               {adSpend && parseFloat(adSpend) > 0 && metrics.leads_captured > 0 ? (
                 <>
-                  <p className="text-white font-bold text-2xl">
+                  <p className="text-white font-bold tabular-nums" style={{ fontSize: '2rem', letterSpacing: '-0.03em' }}>
                     ${(parseFloat(adSpend) / metrics.leads_captured).toFixed(2)}
                   </p>
-                  <p className="text-white/30 text-xs mt-0.5">
-                    ${adSpend} ÷ {metrics.leads_captured} leads
-                  </p>
+                  <MonoLabel className="block mt-1">
+                    ${parseFloat(adSpend).toLocaleString()} ÷ {metrics.leads_captured.toLocaleString()} leads
+                  </MonoLabel>
                 </>
               ) : (
-                <p className="text-white/20 text-sm">Enter ad spend above</p>
+                <p className="text-white/30 text-sm">Enter ad spend above</p>
               )}
             </div>
           </div>
-        </ChartCard>
-      </div>
+        </div>
+      </section>
 
-      {/* ── Quick stats bottom row ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          {
-            label: 'Signals Today',
-            value: signalsByDay[signalsByDay.length - 1]?.count?.toLocaleString() ?? '—',
-            color: C.cyan,
-          },
-          {
-            label: 'HIGH INTENT Rate',
-            value: `${highIntentPct}%`,
-            color: C.rose,
-          },
-          {
-            label: 'Top Platform',
-            value: platformData.sort((a, b) => b.count - a.count)[0]?.platform ?? '—',
-            color: C.orange,
-          },
-          {
-            label: 'Top Tool',
-            value: toolData.sort((a, b) => b.count - a.count)[0]?.tool ?? '—',
-            color: C.accent,
-          },
-        ].map((item, i) => (
-          <div key={i} className="rounded-xl border px-4 py-3" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
-            <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">{item.label}</p>
-            <p className="font-bold text-lg capitalize" style={{ color: item.color }}>
-              {item.value}
-            </p>
-          </div>
-        ))}
-      </div>
+      {/* ── Quick stats ── */}
+      <section>
+        <SectionHeader ord="08" title="At a glance" subtitle="Today's snapshot" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'Signals today', value: todayCount.toLocaleString(), color: theme.chart[1] },
+            { label: 'High intent rate', value: `${highIntentPct}%`, color: theme.intent.high },
+            { label: 'Top platform', value: platformData.sort((a, b) => b.count - a.count)[0]?.platform ?? '—', color: theme.intent.medium },
+            { label: 'Top tool', value: toolData.sort((a, b) => b.count - a.count)[0]?.tool ?? '—', color: theme.accent },
+          ].map((item, i) => (
+            <div
+              key={i}
+              className="px-4 py-3"
+              style={{
+                background: 'var(--a-card)',
+                border: '1px solid var(--a-border)',
+                borderRadius: 'var(--t-radius)',
+              }}
+            >
+              <MonoLabel>{item.label}</MonoLabel>
+              <p
+                className="font-bold text-lg capitalize tabular-nums tracking-tight mt-1"
+                style={{ color: item.color }}
+              >
+                {item.value}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function EmptyState({ label }: { label: string }) {
+  return (
+    <div className="h-56 flex flex-col items-center justify-center gap-2">
+      <div className="h-px w-12 bg-white/10" />
+      <span
+        className="text-white/30 text-[10px] uppercase tracking-[0.28em]"
+        style={{ fontFamily: 'var(--t-mono-font)' }}
+      >
+        {label}
+      </span>
     </div>
   );
 }

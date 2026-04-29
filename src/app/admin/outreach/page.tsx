@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '@/lib/api';
+import { useTenantTheme } from '@/lib/tenant-theme';
 
 interface OutreachMessage {
   id: string;
@@ -13,8 +14,8 @@ interface OutreachMessage {
   original_url: string;
   tool_recommendation: string;
   suggested_reply: string;
-  outreach_type: string; // reply | dm
-  status: string; // pending | approved | sent | skipped | failed
+  outreach_type: string;
+  status: string;
   auto_approved: boolean;
   send_error: string | null;
   sent_url: string | null;
@@ -44,108 +45,14 @@ interface Stats {
   top_failure_reasons: { reason: string; count: number }[];
 }
 
-const PLATFORM_ICONS: Record<string, string> = {
-  twitter: 'X',
-  reddit: 'R',
-  youtube: 'YT',
-  linkedin: 'in',
-  instagram: 'IG',
-};
-
-const PLATFORM_COLORS: Record<string, string> = {
-  twitter: '#1DA1F2',
-  reddit: '#FF4500',
-  youtube: '#FF0000',
-  linkedin: '#0A66C2',
-  instagram: '#E1306C',
-};
-
 const TOOL_LABELS: Record<string, string> = {
   'cyber-path-finder': 'Career Path',
   'career-assessment': 'Assessment',
   'resume-analyzer': 'Resume',
 };
 
-const INTENT_COLORS: Record<string, string> = {
-  HIGH_INTENT: '#0BAAEF',
-  MEDIUM_INTENT: '#40C4FF',
-  LOW_INTENT: '#94a3b8',
-};
-
-/**
- * Convert raw API error JSON into a human-readable title + actionable hint.
- * Never shows raw JSON on screen.
- */
-function friendlyError(raw: string): { title: string; hint: string } {
-  const text = raw || '';
-
-  if (text.includes('CreditsDepleted')) {
-    return {
-      title: 'Twitter free tier monthly quota exhausted',
-      hint: 'Upgrade to Twitter API Basic ($200/mo) or wait for the quota to reset.',
-    };
-  }
-  if (text.includes('oauth1 app permission') || text.includes('not configured with the appropriate')) {
-    return {
-      title: 'Twitter app is read-only',
-      hint: 'Enable "Read + Write + DM" in the Twitter developer portal and regenerate access tokens.',
-    };
-  }
-  if (text.includes('"status":401') || text.includes('Unauthorized')) {
-    return {
-      title: 'Twitter authentication failed',
-      hint: 'Access tokens may be expired or have wrong scope. Regenerate in the developer portal.',
-    };
-  }
-  if (text.includes('"status":403') || text.includes('Forbidden')) {
-    return {
-      title: 'Twitter rejected the request (403)',
-      hint: 'Check app permissions and verify the account is not suspended.',
-    };
-  }
-  if (text.includes('li_at') || text.includes('csrf-token') || text.includes('voyager')) {
-    return {
-      title: 'LinkedIn session cookie expired',
-      hint: 'Log in fresh to LinkedIn and update LINKEDIN_SESSION_COOKIE in .env.',
-    };
-  }
-  if (text.includes('RATELIMIT') || text.includes('TOO_FAST')) {
-    return {
-      title: 'Reddit rate limit hit',
-      hint: 'Too many requests — Reddit will release the limit shortly.',
-    };
-  }
-  if (text.includes('reddit') && text.includes('401')) {
-    return {
-      title: 'Reddit authentication failed',
-      hint: 'Check REDDIT_USERNAME, PASSWORD, CLIENT_ID, CLIENT_SECRET in .env.',
-    };
-  }
-  if (text.includes('quotaExceeded') || (text.includes('youtube') && text.includes('403'))) {
-    return {
-      title: 'YouTube daily API quota exceeded',
-      hint: 'Resets at midnight Pacific Time. Reduce YOUTUBE_DAILY_QUOTA in .env.',
-    };
-  }
-  if (text.includes('402')) {
-    return {
-      title: 'Payment required — plan upgrade needed',
-      hint: 'The platform API tier is exhausted. Upgrade or wait for the quota to reset.',
-    };
-  }
-  if (text.includes('ETIMEDOUT') || text.includes('ECONNREFUSED') || text.includes('socket hang up')) {
-    return {
-      title: 'Network error reaching platform',
-      hint: 'Transient issue — will retry on next cron cycle.',
-    };
-  }
-  return {
-    title: 'Platform API error',
-    hint: 'Check the failed outreach tab to see the affected message and error details.',
-  };
-}
-
 export default function OutreachPage() {
+  const theme = useTenantTheme();
   const [messages, setMessages] = useState<OutreachMessage[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -153,8 +60,6 @@ export default function OutreachPage() {
   const [statusFilter, setStatusFilter] = useState('pending');
   const [platformFilter, setPlatformFilter] = useState('');
   const [toolFilter, setToolFilter] = useState('');
-  // viewMode toggles between the standard outreach queue and the
-  // "manual DM required" queue (rows the agent flagged DM-disabled)
   const [viewMode, setViewMode] = useState<'queue' | 'manual_dm'>('queue');
   const [manualDmTotal, setManualDmTotal] = useState<number>(0);
   const [manualDmByPlatform, setManualDmByPlatform] = useState<{ platform: string; count: number }[]>([]);
@@ -170,11 +75,7 @@ export default function OutreachPage() {
     try {
       if (viewMode === 'manual_dm') {
         const [mdmRes, statsRes] = await Promise.all([
-          adminApi.getManualDmRequired({
-            page,
-            limit: 15,
-            platform: platformFilter || undefined,
-          }),
+          adminApi.getManualDmRequired({ page, limit: 15, platform: platformFilter || undefined }),
           adminApi.getOutreachStats(),
         ]);
         setMessages(mdmRes.data.data);
@@ -185,15 +86,12 @@ export default function OutreachPage() {
       } else {
         const [queueRes, statsRes, mdmCountRes] = await Promise.all([
           adminApi.getOutreachQueue({
-            page,
-            limit: 15,
+            page, limit: 15,
             status: statusFilter || undefined,
             platform: platformFilter || undefined,
             tool_recommendation: toolFilter || undefined,
           }),
           adminApi.getOutreachStats(),
-          // Always fetch the manual-dm count even on the queue tab so the
-          // badge stays in sync without a second click
           adminApi.getManualDmRequired({ page: 1, limit: 1 }),
         ]);
         setMessages(queueRes.data.data);
@@ -203,27 +101,16 @@ export default function OutreachPage() {
         setManualDmTotal(mdmCountRes.data.pagination.total);
         setManualDmByPlatform(mdmCountRes.data.by_platform || []);
       }
-    } catch (err) {
-      console.error('Failed to load outreach data:', err);
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* silent */ }
+    finally { setLoading(false); }
   }, [page, statusFilter, platformFilter, toolFilter, viewMode]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleGenerate = async () => {
     setGenerating(true);
-    try {
-      await adminApi.triggerOutreachGenerate();
-      await loadData();
-    } catch (err) {
-      console.error('Generate failed:', err);
-    } finally {
-      setGenerating(false);
-    }
+    try { await adminApi.triggerOutreachGenerate(); await loadData(); }
+    finally { setGenerating(false); }
   };
 
   const handleAction = async (id: string, status: 'approved' | 'sent' | 'skipped', reply?: string) => {
@@ -233,12 +120,9 @@ export default function OutreachPage() {
         prev.map((m) => (m.id === id ? { ...m, status, suggested_reply: reply || m.suggested_reply } : m)),
       );
       setEditingId(null);
-      // Refresh stats
       const statsRes = await adminApi.getOutreachStats();
       setStats(statsRes.data);
-    } catch (err) {
-      console.error('Action failed:', err);
-    }
+    } catch { /* silent */ }
   };
 
   const copyToClipboard = async (text: string, id: string) => {
@@ -250,563 +134,949 @@ export default function OutreachPage() {
   const progressPercent = stats ? Math.min(100, Math.round((stats.sent_today / stats.daily_target) * 100)) : 0;
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
+    <div className="space-y-8 max-w-[1480px] mx-auto">
+      {/* Header */}
+      <header>
+        <p
+          className="text-[10px] uppercase tracking-[0.3em] text-white/35 mb-2 flex items-center gap-2.5"
+          style={{ fontFamily: theme.fontMono }}
+        >
+          <span className="text-white/55">04</span>
+          <span className="block h-px w-6" style={{ background: 'var(--t-accent-soft)' }} />
+          <span>Outreach</span>
+        </p>
+        <h1 className="text-white font-bold text-3xl tracking-tight leading-[1.05]">
+          Reply queue.
+        </h1>
+        <p className="text-white/45 text-sm mt-2 max-w-xl">
+          Review, edit, and approve AI-drafted replies before they go out. Daily
+          target keeps the velocity steady — failed sends loop back for retry.
+        </p>
+      </header>
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {[
-          { label: 'Sent Today', value: stats?.sent_today ?? 0, target: `/ ${stats?.daily_target ?? 2000}`, color: '#0BAAEF' },
-          { label: 'Approved (Ready)', value: stats?.approved_total ?? 0, color: '#40C4FF' },
-          { label: 'Pending Review', value: stats?.pending_total ?? 0, color: '#f59e0b' },
-          { label: 'Total Sent', value: stats?.total_sent ?? 0, color: '#10b981' },
-          {
-            label: 'Failed',
-            value: stats?.failed_total ?? 0,
-            sub: stats?.failed_today ? `${stats.failed_today} today` : undefined,
-            color: '#ef4444',
-          },
-        ].map((s: any, i) => (
-          <div key={i} className="rounded-xl border p-4" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
-            <p className="text-xs font-medium" style={{ color: 'var(--a-muted)' }}>{s.label}</p>
-            <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</span>
-              {s.target && <span className="text-xs" style={{ color: 'var(--a-muted)' }}>{s.target}</span>}
-            </div>
-            {s.sub && <p className="text-[10px] mt-1" style={{ color: 'var(--a-muted)' }}>{s.sub}</p>}
-          </div>
-        ))}
-      </div>
+      {/* Stats strip */}
+      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3" data-stagger>
+        <StatTile ord="01" label="Sent today" value={stats?.sent_today ?? 0} sub={`/ ${stats?.daily_target ?? 2000}`} accent={theme.accent} theme={theme} />
+        <StatTile ord="02" label="Approved · ready" value={stats?.approved_total ?? 0} accent={theme.chart[1]} theme={theme} />
+        <StatTile ord="03" label="Pending review" value={stats?.pending_total ?? 0} accent={theme.intent.medium} theme={theme} />
+        <StatTile ord="04" label="Total sent" value={stats?.total_sent ?? 0} accent="#10b981" theme={theme} />
+        <StatTile ord="05" label="Failed" value={stats?.failed_total ?? 0} sub={stats?.failed_today ? `${stats.failed_today} today` : undefined} accent={theme.intent.high} theme={theme} />
+      </section>
 
-      {/* Classification breakdown — approved outreach by tool recommendation */}
+      {/* Daily progress */}
+      <section
+        className="px-5 py-4"
+        style={{
+          background: 'var(--a-card)',
+          border: '1px solid var(--a-border)',
+          borderRadius: 'var(--t-radius-lg)',
+        }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <p
+            className="text-[10px] uppercase tracking-[0.3em] text-white/45"
+            style={{ fontFamily: theme.fontMono }}
+          >
+            Daily progress
+          </p>
+          <p
+            className="text-[11px] tabular-nums font-semibold"
+            style={{ color: theme.accent, fontFamily: theme.fontMono }}
+          >
+            {progressPercent}%
+          </p>
+        </div>
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--t-fg-05)' }}>
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${progressPercent}%`,
+              background: `linear-gradient(90deg, ${theme.accent}, ${theme.chart[1]})`,
+            }}
+          />
+        </div>
+        <p className="text-white/45 text-[11px] mt-2 tabular-nums" style={{ fontFamily: theme.fontMono }}>
+          {(stats?.sent_today ?? 0).toLocaleString()} / {(stats?.daily_target ?? 2000).toLocaleString()} sent
+        </p>
+      </section>
+
+      {/* Tool classification */}
       {(stats?.approved_by_tool ?? []).length > 0 && (
-        <div className="rounded-xl border p-4" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-cyan-500" />
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--a-text)' }}>
-                Classification — Approved by Tool
-              </h3>
-            </div>
-            <span className="text-[10px]" style={{ color: 'var(--a-muted)' }}>
-              click a tool to filter the list below
-            </span>
-          </div>
+        <section>
+          <SectionHeader
+            ord="06"
+            title="Approved by tool"
+            subtitle="Click a tile to filter the queue below"
+            theme={theme}
+          />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {(stats?.approved_by_tool ?? []).map((t) => {
+            {stats!.approved_by_tool.map((t) => {
               const isActive = toolFilter === t.tool;
               return (
                 <button
                   key={t.tool}
                   onClick={() => { setToolFilter(isActive ? '' : t.tool); setPage(1); }}
-                  className="rounded-lg border p-3 text-left transition-all hover:border-cyan-500/50"
+                  className="text-left p-5 transition-all hover:-translate-y-0.5"
                   style={{
-                    background: isActive ? 'rgba(11, 170, 239, 0.08)' : 'var(--a-hover)',
-                    borderColor: isActive ? '#0BAAEF' : 'var(--a-border)',
+                    background: isActive ? 'var(--t-accent-soft)' : 'var(--a-card)',
+                    border: `1px solid ${isActive ? 'var(--t-accent-soft)' : 'var(--a-border)'}`,
+                    borderRadius: 'var(--t-radius)',
                   }}
                 >
-                  <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--a-muted)' }}>
+                  <p
+                    className="text-[10px] uppercase tracking-[0.22em] text-white/45 mb-2"
+                    style={{ fontFamily: theme.fontMono }}
+                  >
                     {TOOL_LABELS[t.tool] || t.tool}
                   </p>
-                  <p className="text-2xl font-bold" style={{ color: isActive ? '#0BAAEF' : 'var(--a-text)' }}>
+                  <p
+                    className="font-bold tabular-nums leading-none"
+                    style={{
+                      color: isActive ? theme.accent : 'var(--t-fg-95)',
+                      fontSize: 'clamp(2rem, 3vw, 2.6rem)',
+                      letterSpacing: '-0.03em',
+                    }}
+                  >
                     {t.count}
                   </p>
-                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--a-muted)' }}>
-                    leads ready for outreach
+                  <p
+                    className="text-white/40 text-[11px] mt-2 uppercase tracking-[0.18em]"
+                    style={{ fontFamily: theme.fontMono }}
+                  >
+                    leads ready
                   </p>
                 </button>
               );
             })}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Daily progress bar */}
-      <div className="rounded-xl border p-4" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium" style={{ color: 'var(--a-text)' }}>Daily Progress</span>
-          <span className="text-xs font-semibold" style={{ color: '#0BAAEF' }}>{progressPercent}%</span>
-        </div>
-        <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--a-hover)' }}>
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${progressPercent}%`, background: 'linear-gradient(90deg, #0BAAEF, #40C4FF)' }}
-          />
-        </div>
-        <p className="text-xs mt-2" style={{ color: 'var(--a-muted)' }}>
-          {stats?.sent_today ?? 0} of {stats?.daily_target ?? 2000} messages sent today
-        </p>
-      </div>
-
-      {/* View toggle: standard outreach queue vs Manual DM Required */}
-      <div className="flex items-center gap-2">
-        <button
+      {/* View toggle */}
+      <section className="flex items-center gap-2 flex-wrap">
+        <ViewTab
+          active={viewMode === 'queue'}
           onClick={() => { setViewMode('queue'); setPage(1); }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-          style={
-            viewMode === 'queue'
-              ? { background: '#0BAAEF', color: '#080e1c' }
-              : { background: 'var(--a-card)', color: 'var(--a-muted)', border: '1px solid var(--a-border)' }
-          }
+          theme={theme}
         >
-          Outreach Queue
-        </button>
-        <button
+          Queue
+        </ViewTab>
+        <ViewTab
+          active={viewMode === 'manual_dm'}
           onClick={() => { setViewMode('manual_dm'); setPage(1); }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-          style={
-            viewMode === 'manual_dm'
-              ? { background: '#f59e0b', color: '#000' }
-              : { background: 'var(--a-card)', color: 'var(--a-muted)', border: '1px solid var(--a-border)' }
-          }
+          theme={theme}
+          tone="gold"
+          badge={manualDmTotal > 0 ? manualDmTotal : undefined}
         >
-          Manual DM Required
-          {manualDmTotal > 0 && (
-            <span
-              className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-              style={{
-                background: viewMode === 'manual_dm' ? '#000' : '#f59e0b',
-                color: viewMode === 'manual_dm' ? '#f59e0b' : '#000',
-              }}
-            >
-              {manualDmTotal}
-            </span>
-          )}
-        </button>
+          Manual DM required
+        </ViewTab>
         {viewMode === 'manual_dm' && manualDmByPlatform.length > 0 && (
-          <div className="ml-2 flex items-center gap-2 text-[10px]" style={{ color: 'var(--a-muted)' }}>
-            <span>by platform:</span>
+          <div className="flex items-center gap-1.5 ml-2 text-[10px] uppercase tracking-[0.18em]" style={{ fontFamily: theme.fontMono }}>
+            <span className="text-white/35">By platform</span>
             {manualDmByPlatform.map((p) => (
               <span
                 key={p.platform}
-                className="px-2 py-0.5 rounded-full font-medium"
-                style={{ background: 'var(--a-hover)', color: 'var(--a-text)' }}
+                className="px-2 py-0.5 text-white/65"
+                style={{
+                  background: 'var(--t-fg-04)',
+                  border: '1px solid var(--a-border2)',
+                  borderRadius: 'var(--t-radius-sm)',
+                }}
               >
                 {p.platform} {p.count}
               </span>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        {viewMode === 'queue' && (
-          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--a-hover)' }}>
+      <section
+        className="flex flex-wrap items-center gap-2 px-4 py-3"
+        style={{
+          background: 'var(--a-card)',
+          border: '1px solid var(--a-border)',
+          borderRadius: 'var(--t-radius)',
+        }}
+      >
+        {viewMode === 'queue' ? (
+          <>
+            <span
+              className="text-[10px] uppercase tracking-[0.25em] text-white/40 mr-2"
+              style={{ fontFamily: theme.fontMono }}
+            >
+              Status
+            </span>
             {['pending', 'approved', 'sent', 'failed', 'skipped', ''].map((s) => (
-              <button
-                key={s}
+              <SegmentBtn
+                key={s || 'all'}
+                active={statusFilter === s}
                 onClick={() => { setStatusFilter(s); setPage(1); }}
-                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
-                style={statusFilter === s ? { background: 'var(--a-card)', color: '#0BAAEF' } : { color: 'var(--a-muted)' }}
+                theme={theme}
               >
                 {s || 'All'}
                 {statusFilter === s && queueTotal > 0 && (
-                  <span className="ml-1.5 opacity-70">({queueTotal})</span>
+                  <span className="ml-1 opacity-60 tabular-nums">{queueTotal}</span>
                 )}
-              </button>
+              </SegmentBtn>
             ))}
-          </div>
-        )}
-        {viewMode === 'manual_dm' && (
-          <div className="text-xs px-3 py-2 rounded-lg" style={{ background: 'var(--a-hover)', color: 'var(--a-text)' }}>
-            Showing leads where the agent detected DMs are disabled — click <strong>Open</strong> to DM them manually on the original platform.
-          </div>
+          </>
+        ) : (
+          <p className="text-[11px] text-white/65 max-w-2xl">
+            <span
+              className="font-semibold uppercase tracking-[0.18em] text-[10px] mr-2"
+              style={{ color: theme.intent.medium, fontFamily: theme.fontMono }}
+            >
+              Manual
+            </span>
+            Leads where the agent detected DMs are disabled. Click <strong>Open</strong> to DM them on the original platform.
+          </p>
         )}
 
-        <select
-          className="text-xs rounded-lg border px-3 py-2"
-          style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', color: 'var(--a-text)' }}
+        <div className="hidden sm:block w-px h-5 mx-1" style={{ background: 'var(--a-border2)' }} />
+
+        <FilterPill
+          label="Platform"
           value={platformFilter}
-          onChange={(e) => { setPlatformFilter(e.target.value); setPage(1); }}
-        >
-          <option value="">All Platforms</option>
-          <option value="twitter">Twitter/X</option>
-          <option value="reddit">Reddit</option>
-          <option value="youtube">YouTube</option>
-          <option value="linkedin">LinkedIn</option>
-          <option value="instagram">Instagram</option>
-        </select>
+          options={[
+            { value: '', label: 'All' },
+            { value: 'twitter', label: 'twitter' },
+            { value: 'reddit', label: 'reddit' },
+            { value: 'youtube', label: 'youtube' },
+            { value: 'linkedin', label: 'linkedin' },
+            { value: 'instagram', label: 'instagram' },
+          ]}
+          onChange={(v) => { setPlatformFilter(v); setPage(1); }}
+          theme={theme}
+        />
 
-        <select
-          className="text-xs rounded-lg border px-3 py-2"
-          style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', color: 'var(--a-text)' }}
+        <FilterPill
+          label="Tool"
           value={toolFilter}
-          onChange={(e) => { setToolFilter(e.target.value); setPage(1); }}
-        >
-          <option value="">All Tools</option>
-          <option value="cyber-path-finder">Cyber Path Finder</option>
-          <option value="career-assessment">Career Assessment</option>
-          <option value="resume-analyzer">Resume Analyzer</option>
-        </select>
+          options={[
+            { value: '', label: 'All' },
+            { value: 'cyber-path-finder', label: 'Path' },
+            { value: 'career-assessment', label: 'Assessment' },
+            { value: 'resume-analyzer', label: 'Resume' },
+          ]}
+          onChange={(v) => { setToolFilter(v); setPage(1); }}
+          theme={theme}
+        />
 
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={async () => { await adminApi.bulkApproveOutreach(); await loadData(); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
-            style={{ background: '#f59e0b', color: '#000' }}
-          >
-            Approve All Pending
-          </button>
-          <button
-            onClick={async () => { await adminApi.retryFailedOutreach(); await loadData(); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-all"
-            style={{ borderColor: 'var(--a-border2)', color: 'var(--a-text)', background: 'var(--a-card)' }}
-          >
-            Retry Failed
-          </button>
-          <button
-            onClick={async () => { await adminApi.triggerOutreachSend(); await loadData(); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
-            style={{ background: '#10b981', color: '#fff' }}
-          >
-            Send Approved
-          </button>
-          <button
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
+          <BulkBtn theme={theme} tone="gold" onClick={async () => { await adminApi.bulkApproveOutreach(); await loadData(); }}>
+            Approve all pending
+          </BulkBtn>
+          <BulkBtn theme={theme} tone="ghost" onClick={async () => { await adminApi.retryFailedOutreach(); await loadData(); }}>
+            Retry failed
+          </BulkBtn>
+          <BulkBtn theme={theme} tone="green" onClick={async () => { await adminApi.triggerOutreachSend(); await loadData(); }}>
+            Send approved
+          </BulkBtn>
+          <BulkBtn
+            theme={theme}
+            tone="primary"
             onClick={handleGenerate}
             disabled={generating}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-            style={{ background: '#0BAAEF', color: '#080e1c' }}
           >
             {generating ? (
-              <><span className="loading-spinner w-3 h-3" /> Generating...</>
+              <>
+                <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Generating
+              </>
             ) : (
               <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                Generate Replies
+                Generate replies
               </>
             )}
-          </button>
+          </BulkBtn>
         </div>
-      </div>
+      </section>
 
-      {/* Message Queue */}
+      {/* Queue */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <span className="loading-spinner w-8 h-8" style={{ borderColor: '#0BAAEF' }} />
+          <div
+            className="w-8 h-8 border-2 rounded-full animate-spin"
+            style={{ borderColor: 'var(--t-fg-06)', borderTopColor: theme.accent }}
+          />
         </div>
       ) : messages.length === 0 ? (
-        <div className="text-center py-16 rounded-xl border" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
-          <svg className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--a-muted)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          <p className="font-medium" style={{ color: 'var(--a-text)' }}>No messages in queue</p>
-          <p className="text-sm mt-1" style={{ color: 'var(--a-muted)' }}>
-            Click "Generate Replies" to create outreach messages from classified signals.
+        <div
+          className="flex flex-col items-center justify-center py-16 gap-3"
+          style={{
+            background: 'var(--a-card)',
+            border: '1px solid var(--a-border)',
+            borderRadius: 'var(--t-radius-lg)',
+          }}
+        >
+          <div className="h-px w-12" style={{ background: 'var(--a-border2)' }} />
+          <p className="text-white/55 text-sm">No messages in queue</p>
+          <p
+            className="text-[10px] uppercase tracking-[0.22em] text-white/30"
+            style={{ fontFamily: theme.fontMono }}
+          >
+            Click "Generate replies" above
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" data-stagger>
           {messages.map((msg) => (
-            <div
+            <MessageCard
               key={msg.id}
-              className="rounded-xl border overflow-hidden transition-all"
-              style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}
-            >
-              {/* Header row */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: 'var(--a-border)' }}>
-                {/* Platform badge */}
-                <span
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                  style={{ background: PLATFORM_COLORS[msg.platform] || '#666' }}
-                >
-                  {PLATFORM_ICONS[msg.platform] || '?'}
-                </span>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold truncate" style={{ color: 'var(--a-text)' }}>
-                      {msg.name || `@${msg.username}`}
-                    </span>
-                    {msg.name && msg.username && msg.username !== msg.name && !/^ACoAA/i.test(msg.username) && (
-                      <span className="text-[10px] font-mono truncate max-w-[140px]" style={{ color: 'var(--a-muted)' }}>
-                        @{msg.username}
-                      </span>
-                    )}
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                      style={{ background: `${INTENT_COLORS[msg.intent_level] || '#666'}20`, color: INTENT_COLORS[msg.intent_level] || '#666' }}>
-                      {msg.intent_level?.replace('_', ' ')}
-                    </span>
-                    {msg.urgency_score > 0 && (
-                      <span className="text-[10px] font-medium" style={{ color: 'var(--a-muted)' }}>
-                        Urgency: {msg.urgency_score}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] truncate" style={{ color: 'var(--a-muted)' }}>
-                    {msg.platform} · {msg.intent_category} · {new Date(msg.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-
-                {/* Tool badge */}
-                <span className="text-[10px] px-2 py-1 rounded-full font-semibold shrink-0"
-                  style={{ background: 'rgba(11,170,239,0.1)', color: '#0BAAEF', border: '1px solid rgba(11,170,239,0.2)' }}>
-                  {TOOL_LABELS[msg.tool_recommendation] || msg.tool_recommendation}
-                </span>
-
-                {/* Type badge (DM / Reply) */}
-                <span className={`text-[10px] px-2 py-1 rounded-full font-semibold shrink-0 ${
-                  msg.outreach_type === 'dm'
-                    ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                    : 'bg-white/5 text-white/40 border border-white/10'
-                }`}>
-                  {msg.outreach_type === 'dm' ? 'DM' : 'Reply'}
-                </span>
-
-                {/* Status badge */}
-                <span className={`text-[10px] px-2 py-1 rounded-full font-semibold shrink-0 ${
-                  msg.status === 'pending' ? 'bg-yellow-500/10 text-yellow-500' :
-                  msg.status === 'approved' ? 'bg-blue-500/10 text-blue-400' :
-                  msg.status === 'sent' ? 'bg-emerald-500/10 text-emerald-400' :
-                  msg.status === 'failed' ? 'bg-red-500/10 text-red-400' :
-                  'bg-white/5 text-white/40'
-                }`}>
-                  {msg.status}{msg.auto_approved ? ' (auto)' : ''}
-                </span>
-              </div>
-
-              {/* Content */}
-              <div className="px-4 py-3 space-y-3">
-                {/* Original post */}
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--a-muted)' }}>
-                    Original Post
-                  </p>
-                  <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'var(--a-text)', opacity: 0.7 }}>
-                    {msg.original_content}
-                  </p>
-                  {msg.original_url && (
-                    <a href={msg.original_url} target="_blank" rel="noopener noreferrer"
-                      className="text-[10px] mt-1 inline-flex items-center gap-1 hover:underline" style={{ color: '#0BAAEF' }}>
-                      View original
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
-                  )}
-                </div>
-
-                {/* Suggested reply */}
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#0BAAEF' }}>
-                    AI Suggested Reply
-                  </p>
-                  {editingId === msg.id ? (
-                    <textarea
-                      className="w-full text-xs rounded-lg border p-3 min-h-[80px] resize-y"
-                      style={{ background: 'var(--a-hover)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                    />
-                  ) : (
-                    <p className="text-xs leading-relaxed" style={{ color: 'var(--a-text)' }}>
-                      {msg.suggested_reply}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-2 px-4 py-3 border-t" style={{ borderColor: 'var(--a-border)', background: 'var(--a-hover)' }}>
-                {viewMode === 'manual_dm' && (
-                  <>
-                    <span className="text-[10px] px-2 py-1 rounded font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
-                      DM disabled — manual outreach
-                    </span>
-                    {msg.original_url && (
-                      <a
-                        href={msg.original_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                        style={{ background: '#f59e0b', color: '#000' }}
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Open original post
-                      </a>
-                    )}
-                    <button
-                      onClick={() => copyToClipboard(msg.suggested_reply, msg.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                      style={{ background: 'var(--a-card)', color: 'var(--a-text)', border: '1px solid var(--a-border2)' }}
-                    >
-                      {copied === msg.id ? '✓ Copied' : 'Copy reply text'}
-                    </button>
-                    {msg.outreach_type === 'dm' && (
-                      <button
-                        onClick={async () => {
-                          await adminApi.convertDmToReply(msg.id);
-                          await loadData();
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                        style={{ background: 'rgba(11,170,239,0.15)', color: '#0BAAEF' }}
-                      >
-                        Requeue as Reply
-                      </button>
-                    )}
-                  </>
-                )}
-                {viewMode === 'queue' && msg.status === 'pending' && (
-                  <>
-                    <button
-                      onClick={() => handleAction(msg.id, 'approved')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                      style={{ background: 'rgba(11,170,239,0.15)', color: '#0BAAEF' }}
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => { setEditingId(msg.id); setEditText(msg.suggested_reply); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                      style={{ background: 'var(--a-card)', color: 'var(--a-text)', border: '1px solid var(--a-border2)' }}
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleAction(msg.id, 'skipped')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                      style={{ color: 'var(--a-muted)' }}
-                    >
-                      Skip
-                    </button>
-                  </>
-                )}
-
-                {editingId === msg.id && (
-                  <>
-                    <button
-                      onClick={() => handleAction(msg.id, 'approved', editText)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                      style={{ background: '#0BAAEF', color: '#080e1c' }}
-                    >
-                      Save & Approve
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="px-3 py-1.5 rounded-lg text-xs" style={{ color: 'var(--a-muted)' }}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                )}
-
-                {viewMode === 'queue' && msg.status === 'failed' && (
-                  <>
-                    {msg.send_error && (
-                      <span className="text-[10px] text-red-400 truncate max-w-[200px]" title={msg.send_error}>
-                        Error: {msg.send_error}
-                      </span>
-                    )}
-                    <button
-                      onClick={() => handleAction(msg.id, 'approved')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                      style={{ background: 'rgba(11,170,239,0.15)', color: '#0BAAEF' }}
-                    >
-                      Retry
-                    </button>
-                    <button
-                      onClick={() => handleAction(msg.id, 'skipped')}
-                      className="px-3 py-1.5 rounded-lg text-xs" style={{ color: 'var(--a-muted)' }}
-                    >
-                      Skip
-                    </button>
-                  </>
-                )}
-
-                {viewMode === 'queue' && (msg.status === 'approved' || msg.status === 'sent') && (
-                  <>
-                    <button
-                      onClick={() => copyToClipboard(msg.suggested_reply, msg.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                      style={{ background: 'rgba(11,170,239,0.15)', color: '#0BAAEF' }}
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      {copied === msg.id ? 'Copied!' : 'Copy Reply'}
-                    </button>
-
-                    {/* Show "View Sent Reply" when sent — links directly to the posted comment/DM */}
-                    {msg.status === 'sent' && msg.sent_url && (
-                      <a
-                        href={msg.sent_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                        style={{ background: '#10b981', color: '#fff' }}
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        View {msg.outreach_type === 'dm' ? 'DM' : 'Comment'}
-                      </a>
-                    )}
-
-                    {msg.original_url && (
-                      <a
-                        href={msg.original_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                        style={{ background: 'var(--a-card)', color: 'var(--a-text)', border: '1px solid var(--a-border2)' }}
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Go to Post
-                      </a>
-                    )}
-                    {msg.status === 'approved' && (
-                      <button
-                        onClick={() => handleAction(msg.id, 'sent')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                        style={{ background: '#10b981', color: '#fff' }}
-                      >
-                        Mark Sent
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+              msg={msg}
+              theme={theme}
+              viewMode={viewMode}
+              editingId={editingId}
+              editText={editText}
+              copied={copied === msg.id}
+              onSelect={() => {}}
+              onCopy={() => copyToClipboard(msg.suggested_reply, msg.id)}
+              onApprove={() => handleAction(msg.id, 'approved')}
+              onApproveEdit={() => handleAction(msg.id, 'approved', editText)}
+              onMarkSent={() => handleAction(msg.id, 'sent')}
+              onSkip={() => handleAction(msg.id, 'skipped')}
+              onEditStart={() => { setEditingId(msg.id); setEditText(msg.suggested_reply); }}
+              onEditCancel={() => setEditingId(null)}
+              onEditChange={setEditText}
+              onConvertDm={async () => { await adminApi.convertDmToReply(msg.id); await loadData(); }}
+            />
           ))}
         </div>
       )}
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-30"
-            style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', color: 'var(--a-text)' }}
+        <div className="flex items-center justify-between pt-2">
+          <p
+            className="text-[10px] uppercase tracking-[0.25em] text-white/40 tabular-nums"
+            style={{ fontFamily: theme.fontMono }}
           >
-            Previous
-          </button>
-          <span className="text-xs" style={{ color: 'var(--a-muted)' }}>
-            Page {page} of {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-30"
-            style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', color: 'var(--a-text)' }}
-          >
-            Next
-          </button>
+            Page {String(page).padStart(2, '0')} / {String(totalPages).padStart(2, '0')}
+          </p>
+          <div className="flex gap-2">
+            <PaginationButton onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} theme={theme}>
+              ← Prev
+            </PaginationButton>
+            <PaginationButton onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} theme={theme}>
+              Next →
+            </PaginationButton>
+          </div>
         </div>
       )}
     </div>
+  );
+}
+
+// ── Atoms ──────────────────────────────────────────────────────────────────
+
+function SectionHeader({
+  ord, title, subtitle, theme,
+}: {
+  ord: string;
+  title: string;
+  subtitle?: string;
+  theme: ReturnType<typeof useTenantTheme>;
+}) {
+  return (
+    <div className="flex items-baseline gap-3 mb-4">
+      <span className="text-[10px] tracking-[0.3em] text-white/35 tabular-nums" style={{ fontFamily: theme.fontMono }}>
+        {ord}
+      </span>
+      <span className="block h-px w-6" style={{ background: 'var(--t-accent-soft)' }} />
+      <div>
+        <h2 className="text-white font-semibold text-sm tracking-tight">{title}</h2>
+        {subtitle && <p className="text-white/35 text-[11px] mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
+function StatTile({
+  ord, label, value, sub, accent, theme,
+}: {
+  ord: string;
+  label: string;
+  value: number;
+  sub?: string;
+  accent: string;
+  theme: ReturnType<typeof useTenantTheme>;
+}) {
+  return (
+    <div
+      className="px-5 py-5"
+      style={{
+        background: 'var(--a-card)',
+        border: '1px solid var(--a-border)',
+        borderRadius: 'var(--t-radius)',
+      }}
+    >
+      <div className="flex items-baseline justify-between">
+        <span
+          className="text-[9px] tabular-nums tracking-[0.2em] text-white/30"
+          style={{ fontFamily: theme.fontMono }}
+        >
+          {ord}
+        </span>
+      </div>
+      <p
+        className="font-bold tabular-nums leading-none mt-3"
+        style={{ color: accent, fontSize: 'clamp(1.6rem, 2.4vw, 2.2rem)', letterSpacing: '-0.03em' }}
+      >
+        {value.toLocaleString()}
+        {sub && <span className="text-white/30 text-sm font-medium ml-1">{sub}</span>}
+      </p>
+      <p
+        className="text-[10px] uppercase tracking-[0.22em] text-white/45 mt-2"
+        style={{ fontFamily: theme.fontMono }}
+      >
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function ViewTab({
+  active, onClick, theme, children, tone, badge,
+}: {
+  active: boolean;
+  onClick: () => void;
+  theme: ReturnType<typeof useTenantTheme>;
+  children: React.ReactNode;
+  tone?: 'gold';
+  badge?: number;
+}) {
+  const accentColor = tone === 'gold' ? theme.intent.medium : theme.accent;
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-[0.18em] font-semibold transition-colors"
+      style={{
+        fontFamily: theme.fontMono,
+        background: active ? accentColor : 'transparent',
+        color: active ? (tone === 'gold' ? '#000' : theme.accentOn) : 'var(--t-fg-70)',
+        border: `1px solid ${active ? accentColor : 'var(--a-border2)'}`,
+        borderRadius: 'var(--t-radius-sm)',
+      }}
+    >
+      {children}
+      {badge !== undefined && (
+        <span
+          className="px-1.5 py-0.5 text-[9px] font-bold tabular-nums"
+          style={{
+            background: active ? '#000' : accentColor,
+            color: active ? accentColor : '#000',
+            borderRadius: 'var(--t-radius-sm)',
+          }}
+        >
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function SegmentBtn({
+  children, active, onClick, theme,
+}: {
+  children: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  theme: ReturnType<typeof useTenantTheme>;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] font-medium transition-colors capitalize"
+      style={{
+        fontFamily: theme.fontMono,
+        background: active ? 'var(--t-accent-soft)' : 'var(--t-fg-02)',
+        color: active ? theme.accent : 'var(--t-fg-55)',
+        border: `1px solid ${active ? 'var(--t-accent-soft)' : 'var(--a-border2)'}`,
+        borderRadius: 'var(--t-radius-sm)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FilterPill({
+  label, value, options, onChange, theme,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+  theme: ReturnType<typeof useTenantTheme>;
+}) {
+  const active = value !== '';
+  return (
+    <label
+      className="relative flex items-center gap-2 pl-3 pr-2 py-1.5 transition-colors cursor-pointer"
+      style={{
+        background: active ? 'var(--t-accent-soft)' : 'var(--t-fg-02)',
+        border: `1px solid ${active ? 'var(--t-accent-soft)' : 'var(--a-border2)'}`,
+        borderRadius: 'var(--t-radius-sm)',
+      }}
+    >
+      <span
+        className="text-[10px] uppercase tracking-[0.22em] font-semibold"
+        style={{
+          fontFamily: theme.fontMono,
+          color: active ? theme.accent : 'var(--t-fg-55)',
+        }}
+      >
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-transparent text-white text-xs font-medium focus:outline-none capitalize cursor-pointer"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value} className="bg-[#0d1e30]">{o.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function BulkBtn({
+  theme, tone, onClick, disabled, children,
+}: {
+  theme: ReturnType<typeof useTenantTheme>;
+  tone: 'primary' | 'gold' | 'green' | 'ghost';
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  const styleMap = {
+    primary: { bg: theme.accent, fg: theme.accentOn, border: theme.accent },
+    gold:    { bg: theme.intent.medium, fg: '#000', border: theme.intent.medium },
+    green:   { bg: '#10b981', fg: '#000', border: '#10b981' },
+    ghost:   { bg: 'transparent', fg: 'var(--t-fg-70)', border: 'var(--t-fg-12)' },
+  }[tone];
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{
+        fontFamily: theme.fontMono,
+        background: styleMap.bg,
+        color: styleMap.fg,
+        border: `1px solid ${styleMap.border}`,
+        borderRadius: 'var(--t-radius-sm)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PaginationButton({
+  children, onClick, disabled, theme,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled: boolean;
+  theme: ReturnType<typeof useTenantTheme>;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/[0.04]"
+      style={{
+        fontFamily: theme.fontMono,
+        border: '1px solid var(--a-border2)',
+        color: 'var(--t-fg-70)',
+        borderRadius: 'var(--t-radius-sm)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ToneBadge({
+  children, tone, theme, title,
+}: {
+  children: React.ReactNode;
+  tone: 'accent' | 'green' | 'gold' | 'blue' | 'red' | 'mute' | 'purple';
+  theme: ReturnType<typeof useTenantTheme>;
+  title?: string;
+}) {
+  const map: Record<string, { bg: string; fg: string }> = {
+    accent: { bg: 'var(--t-accent-soft)', fg: theme.accent },
+    green:  { bg: 'rgba(16,185,129,0.12)', fg: '#34d399' },
+    gold:   { bg: 'rgba(212,163,115,0.12)', fg: '#d4a373' },
+    blue:   { bg: 'rgba(99,102,241,0.12)', fg: '#a5b4fc' },
+    red:    { bg: 'rgba(239,68,68,0.12)',  fg: '#f87171' },
+    purple: { bg: 'rgba(168,85,247,0.12)', fg: '#c4b5fd' },
+    mute:   { bg: 'var(--t-fg-04)', fg: 'var(--t-fg-55)' },
+  };
+  const { bg, fg } = map[tone];
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] capitalize"
+      style={{
+        background: bg, color: fg,
+        borderRadius: 'var(--t-radius-sm)',
+        fontFamily: theme.fontMono,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function MessageCard({
+  msg, theme, viewMode, editingId, editText, copied,
+  onCopy, onApprove, onApproveEdit, onMarkSent, onSkip, onEditStart, onEditCancel, onEditChange, onConvertDm,
+}: {
+  msg: OutreachMessage;
+  theme: ReturnType<typeof useTenantTheme>;
+  viewMode: 'queue' | 'manual_dm';
+  editingId: string | null;
+  editText: string;
+  copied: boolean;
+  onSelect: () => void;
+  onCopy: () => void;
+  onApprove: () => void;
+  onApproveEdit: () => void;
+  onMarkSent: () => void;
+  onSkip: () => void;
+  onEditStart: () => void;
+  onEditCancel: () => void;
+  onEditChange: (v: string) => void;
+  onConvertDm: () => void;
+}) {
+  const platformColor = theme.platform[msg.platform] || theme.chart[3];
+  const intentTone: 'red' | 'gold' | 'blue' | 'mute' =
+    msg.intent_level === 'HIGH_INTENT' ? 'red'
+    : msg.intent_level === 'MEDIUM_INTENT' ? 'gold'
+    : msg.intent_level === 'LOW_INTENT' ? 'blue'
+    : 'mute';
+  const statusTone: 'gold' | 'accent' | 'green' | 'red' | 'mute' =
+    msg.status === 'pending' ? 'gold'
+    : msg.status === 'approved' ? 'accent'
+    : msg.status === 'sent' ? 'green'
+    : msg.status === 'failed' ? 'red'
+    : 'mute';
+
+  return (
+    <article
+      className="overflow-hidden"
+      style={{
+        background: 'var(--a-card)',
+        border: '1px solid var(--a-border)',
+        borderRadius: 'var(--t-radius-lg)',
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid var(--a-border)' }}>
+        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: platformColor, boxShadow: `0 0 8px ${platformColor}80` }} />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-white truncate max-w-[180px]">
+              {msg.name || `@${msg.username}`}
+            </span>
+            {msg.name && msg.username && msg.username !== msg.name && !/^ACoAA/i.test(msg.username) && (
+              <span
+                className="text-[10px] text-white/40 truncate max-w-[140px]"
+                style={{ fontFamily: theme.fontMono }}
+              >
+                @{msg.username}
+              </span>
+            )}
+            <ToneBadge tone={intentTone} theme={theme}>
+              {(msg.intent_level || 'unc').replace('_INTENT', '').toLowerCase()}
+            </ToneBadge>
+            {msg.urgency_score > 0 && (
+              <span
+                className="text-[10px] text-white/45 tabular-nums"
+                style={{ fontFamily: theme.fontMono }}
+              >
+                u·{msg.urgency_score}
+              </span>
+            )}
+          </div>
+          <p
+            className="text-[10px] text-white/35 mt-0.5 truncate uppercase tracking-[0.18em]"
+            style={{ fontFamily: theme.fontMono }}
+          >
+            {msg.platform} · {msg.intent_category} · {new Date(msg.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <ToneBadge tone="accent" theme={theme}>
+            {TOOL_LABELS[msg.tool_recommendation] || msg.tool_recommendation}
+          </ToneBadge>
+          <ToneBadge tone={msg.outreach_type === 'dm' ? 'purple' : 'mute'} theme={theme}>
+            {msg.outreach_type === 'dm' ? 'DM' : 'Reply'}
+          </ToneBadge>
+          <ToneBadge tone={statusTone} theme={theme}>
+            {msg.status}{msg.auto_approved ? ' · auto' : ''}
+          </ToneBadge>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="px-5 py-4 grid lg:grid-cols-[minmax(0,1fr),minmax(0,1.2fr)] gap-5">
+        {/* Original */}
+        <div>
+          <p
+            className="text-[10px] uppercase tracking-[0.22em] text-white/40 mb-1.5"
+            style={{ fontFamily: theme.fontMono }}
+          >
+            Original post
+          </p>
+          <p className="text-sm text-white/70 leading-relaxed line-clamp-3">{msg.original_content}</p>
+          {msg.original_url && (
+            <a
+              href={msg.original_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] mt-2 hover:underline"
+              style={{ color: theme.accent }}
+            >
+              View original
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                <path strokeLinecap="round" d="M14 4h6v6M10 14L20 4M10 6H5a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5" />
+              </svg>
+            </a>
+          )}
+        </div>
+
+        {/* Suggested reply */}
+        <div>
+          <p
+            className="text-[10px] uppercase tracking-[0.22em] mb-1.5 font-semibold"
+            style={{ color: theme.accent, fontFamily: theme.fontMono }}
+          >
+            AI suggested reply
+          </p>
+          {editingId === msg.id ? (
+            <textarea
+              className="w-full text-sm p-3 min-h-[100px] resize-y leading-relaxed text-white"
+              style={{
+                background: 'var(--t-fg-03)',
+                border: '1px solid var(--a-border2)',
+                borderRadius: 'var(--t-radius-sm)',
+              }}
+              value={editText}
+              onChange={(e) => onEditChange(e.target.value)}
+            />
+          ) : (
+            <p
+              className="text-sm leading-relaxed px-3 py-2"
+              style={{
+                color: 'var(--t-fg-95)',
+                background: 'var(--t-accent-faint)',
+                borderLeft: `2px solid ${theme.accent}`,
+              }}
+            >
+              {msg.suggested_reply}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div
+        className="flex items-center gap-2 px-5 py-3 flex-wrap"
+        style={{
+          borderTop: '1px solid var(--a-border)',
+          background: 'var(--t-fg-02)',
+        }}
+      >
+        {viewMode === 'manual_dm' && (
+          <>
+            <ToneBadge tone="gold" theme={theme}>DM disabled · manual</ToneBadge>
+            {msg.original_url && (
+              <a
+                href={msg.original_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] font-semibold transition-colors"
+                style={{
+                  fontFamily: theme.fontMono,
+                  background: theme.intent.medium,
+                  color: '#000',
+                  borderRadius: 'var(--t-radius-sm)',
+                }}
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" d="M14 4h6v6M10 14L20 4M10 6H5a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5" />
+                </svg>
+                Open original
+              </a>
+            )}
+            <ActionBtn theme={theme} onClick={onCopy} tone="ghost">
+              {copied ? '✓ Copied' : 'Copy reply'}
+            </ActionBtn>
+            {msg.outreach_type === 'dm' && (
+              <ActionBtn theme={theme} onClick={onConvertDm} tone="accent-soft">
+                Requeue as reply
+              </ActionBtn>
+            )}
+          </>
+        )}
+
+        {viewMode === 'queue' && msg.status === 'pending' && editingId !== msg.id && (
+          <>
+            <ActionBtn theme={theme} onClick={onApprove} tone="accent-soft">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Approve
+            </ActionBtn>
+            <ActionBtn theme={theme} onClick={onEditStart} tone="ghost">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit
+            </ActionBtn>
+            <button
+              onClick={onSkip}
+              className="text-[11px] uppercase tracking-[0.18em] font-medium text-white/45 hover:text-white transition-colors px-2"
+              style={{ fontFamily: theme.fontMono }}
+            >
+              Skip
+            </button>
+          </>
+        )}
+
+        {editingId === msg.id && (
+          <>
+            <ActionBtn theme={theme} onClick={onApproveEdit} tone="primary">
+              Save & approve
+            </ActionBtn>
+            <button
+              onClick={onEditCancel}
+              className="text-[11px] uppercase tracking-[0.18em] font-medium text-white/45 hover:text-white transition-colors px-2"
+              style={{ fontFamily: theme.fontMono }}
+            >
+              Cancel
+            </button>
+          </>
+        )}
+
+        {viewMode === 'queue' && msg.status === 'failed' && (
+          <>
+            {msg.send_error && (
+              <span
+                className="text-[10px] text-red-400 truncate max-w-[260px]"
+                title={msg.send_error}
+              >
+                {msg.send_error}
+              </span>
+            )}
+            <ActionBtn theme={theme} onClick={onApprove} tone="accent-soft">
+              Retry
+            </ActionBtn>
+            <button
+              onClick={onSkip}
+              className="text-[11px] uppercase tracking-[0.18em] font-medium text-white/45 hover:text-white transition-colors px-2"
+              style={{ fontFamily: theme.fontMono }}
+            >
+              Skip
+            </button>
+          </>
+        )}
+
+        {viewMode === 'queue' && (msg.status === 'approved' || msg.status === 'sent') && (
+          <>
+            <ActionBtn theme={theme} onClick={onCopy} tone="accent-soft">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              {copied ? 'Copied' : 'Copy reply'}
+            </ActionBtn>
+
+            {msg.status === 'sent' && msg.sent_url && (
+              <a
+                href={msg.sent_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] font-semibold transition-colors"
+                style={{
+                  fontFamily: theme.fontMono,
+                  background: '#10b981',
+                  color: '#000',
+                  borderRadius: 'var(--t-radius-sm)',
+                }}
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="3" />
+                  <path strokeLinecap="round" d="M2.46 12C3.73 7.94 7.52 5 12 5s8.27 2.94 9.54 7c-1.27 4.06-5.06 7-9.54 7s-8.27-2.94-9.54-7z" />
+                </svg>
+                View {msg.outreach_type === 'dm' ? 'DM' : 'comment'}
+              </a>
+            )}
+
+            {msg.original_url && (
+              <ActionBtn theme={theme} tone="ghost" href={msg.original_url}>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" d="M14 4h6v6M10 14L20 4M10 6H5a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5" />
+                </svg>
+                Go to post
+              </ActionBtn>
+            )}
+
+            {msg.status === 'approved' && (
+              <ActionBtn theme={theme} onClick={onMarkSent} tone="green">
+                Mark sent
+              </ActionBtn>
+            )}
+          </>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function ActionBtn({
+  theme, tone, onClick, href, children,
+}: {
+  theme: ReturnType<typeof useTenantTheme>;
+  tone: 'primary' | 'accent-soft' | 'green' | 'ghost';
+  onClick?: () => void;
+  href?: string;
+  children: React.ReactNode;
+}) {
+  const styleMap = {
+    primary: { bg: theme.accent, fg: theme.accentOn, border: theme.accent },
+    'accent-soft': { bg: 'var(--t-accent-soft)', fg: theme.accent, border: 'var(--t-accent-soft)' },
+    green:   { bg: '#10b981', fg: '#000', border: '#10b981' },
+    ghost:   { bg: 'transparent', fg: 'var(--t-fg-70)', border: 'var(--t-fg-12)' },
+  }[tone];
+  const cls = "inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] font-semibold transition-colors";
+  const style = {
+    fontFamily: theme.fontMono,
+    background: styleMap.bg,
+    color: styleMap.fg,
+    border: `1px solid ${styleMap.border}`,
+    borderRadius: 'var(--t-radius-sm)',
+  };
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={cls} style={style}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <button onClick={onClick} className={cls} style={style}>
+      {children}
+    </button>
   );
 }

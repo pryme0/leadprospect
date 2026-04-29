@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { adminApi } from '@/lib/api';
+import { useTenantTheme } from '@/lib/tenant-theme';
 
 interface Signal {
   id: string;
@@ -22,69 +23,27 @@ interface Signal {
 
 const INTENT_LEVELS = ['', 'HIGH_INTENT', 'MEDIUM_INTENT', 'LOW_INTENT'];
 const SOURCES = ['', 'twitter', 'reddit', 'youtube', 'linkedin', 'instagram', 'google'];
-
-// Keep the option lists for the new filters in sync with what the
-// dashboard displays. These match the values the backend stores —
-// "__null__" is the sentinel for IS NULL rows so the user can land on
-// the unclassified / uncategorized slice from the dashboard.
 const INTENT_CATEGORIES = [
-  '',
-  'Curious',
-  'Beginner',
-  'Career Switcher',
-  'IT Professional Transitioning',
-  'Urgent Job Seeker',
-  'Established Professional',
-  'Not a Prospect',
-  '__null__',
+  '', 'Curious', 'Beginner', 'Career Switcher', 'IT Professional Transitioning',
+  'Urgent Job Seeker', 'Established Professional', 'Not a Prospect', '__null__',
 ];
-
 const INGESTION_CATEGORIES = [
-  '',
-  'open_to_work',
-  'cert_failure',
-  'adjacent_pivot',
-  'resume_pain',
-  'rejection_pain',
-  'learning_frustration',
-  'student_grad',
-  'cert_prep',
-  'salary_pivot',
-  'demographic_affinity',
-  'compliance_specialist',
-  'career_pivot',
-  'general',
-  '__null__',
+  '', 'open_to_work', 'cert_failure', 'adjacent_pivot', 'resume_pain', 'rejection_pain',
+  'learning_frustration', 'student_grad', 'cert_prep', 'salary_pivot', 'demographic_affinity',
+  'compliance_specialist', 'career_pivot', 'general', '__null__',
 ];
 
-const prettifyIntentCategory = (v: string) =>
-  v === '__null__' ? 'Unclassified' : v;
+const prettifyIntentCategory = (v: string) => v === '__null__' ? 'Unclassified' : v;
 const prettifyIngestionCategory = (v: string) => {
   if (v === '__null__') return 'Uncategorized';
-  return v
-    .split('_')
-    .map((w) => (w.length <= 3 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
-    .join(' ');
+  return v.split('_').map((w) => (w.length <= 3 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
 };
 
-function IntentBadge({ level }: { level: string | null }) {
-  if (!level) return <span className="badge-blue">Unclassified</span>;
-  const cls =
-    level === 'HIGH_INTENT'
-      ? 'badge-red'
-      : level === 'MEDIUM_INTENT'
-      ? 'badge-yellow'
-      : 'badge-blue';
-  return <span className={cls}>{level.replace(/_/g, ' ')}</span>;
-}
-
 export default function SignalsPage() {
+  const theme = useTenantTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Hydrate filters from the URL on first render so the dashboard's
-  // clickable cards/charts deep-link cleanly. Subsequent dropdown changes
-  // update local state only — the URL is left as-is for shareable links.
   const initialFilters = {
     source: searchParams?.get('source') || '',
     intent_level: searchParams?.get('intent_level') || '',
@@ -102,7 +61,6 @@ export default function SignalsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(initialFilters);
-
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchSignals = useCallback(async () => {
@@ -110,31 +68,15 @@ export default function SignalsPage() {
     setFetchError(null);
     try {
       const params: any = { offset: (page - 1) * 20, limit: 20 };
-      if (filters.source) params.source = filters.source;
-      if (filters.intent_level) params.intent_level = filters.intent_level;
-      if (filters.intent_category) params.intent_category = filters.intent_category;
-      if (filters.ingestion_category) params.ingestion_category = filters.ingestion_category;
-      if (filters.processed) params.processed = filters.processed;
-      if (filters.has_email) params.has_email = filters.has_email;
-      if (filters.automation_sent) params.automation_sent = filters.automation_sent;
-      if (filters.enrichment) params.enrichment = filters.enrichment;
+      Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
 
       const res = await adminApi.getSignals(params);
       setSignals(res.data.signals || res.data.data || []);
       setTotalPages(
-        res.data.total_pages ||
-        res.data.totalPages ||
-        Math.ceil((res.data.total || 0) / 20) ||
-        1
+        res.data.total_pages || res.data.totalPages || Math.ceil((res.data.total || 0) / 20) || 1,
       );
     } catch (err: any) {
-      // Surface the error so invalid filter values don't silently fall back
-      // to stale results (the previous bug: selecting "linkedin" appeared to
-      // work but actually 400'd on the DTO validator and kept showing old data).
-      const msg =
-        err?.response?.data?.message?.toString() ||
-        err?.message ||
-        'Failed to load signals';
+      const msg = err?.response?.data?.message?.toString() || err?.message || 'Failed to load signals';
       setFetchError(Array.isArray(msg) ? msg.join('; ') : msg);
       setSignals([]);
       setTotalPages(1);
@@ -143,9 +85,7 @@ export default function SignalsPage() {
     }
   }, [page, filters]);
 
-  useEffect(() => {
-    fetchSignals();
-  }, [fetchSignals]);
+  useEffect(() => { fetchSignals(); }, [fetchSignals]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -160,12 +100,11 @@ export default function SignalsPage() {
   const filteredSignals = useMemo(() => {
     if (!search.trim()) return signals;
     const q = search.toLowerCase();
-    return signals.filter(
-      (s) =>
-        s.content?.toLowerCase().includes(q) ||
-        s.username?.toLowerCase().includes(q) ||
-        s.summary?.toLowerCase().includes(q) ||
-        (s.pain_points || []).some((p) => p.toLowerCase().includes(q)),
+    return signals.filter((s) =>
+      s.content?.toLowerCase().includes(q) ||
+      s.username?.toLowerCase().includes(q) ||
+      s.summary?.toLowerCase().includes(q) ||
+      (s.pain_points || []).some((p) => p.toLowerCase().includes(q)),
     );
   }, [signals, search]);
 
@@ -177,198 +116,271 @@ export default function SignalsPage() {
     return filteredSignals.slice(start, start + PAGE_SIZE);
   }, [filteredSignals, search, page]);
 
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const clearAll = () => {
+    setFilters({
+      source: '', intent_level: '', intent_category: '', ingestion_category: '',
+      processed: '', has_email: '', automation_sent: '', enrichment: '',
+    });
+    setSearch('');
+    setPage(1);
+  };
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Signals</h1>
-        <p className="text-brand-muted text-sm">Collected intent signals from social platforms</p>
-      </div>
+    <div className="space-y-7 max-w-[1480px] mx-auto">
+      {/* Header */}
+      <header className="flex items-end justify-between gap-6 flex-wrap">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-white/35 mb-2 flex items-center gap-2.5" style={{ fontFamily: theme.fontMono }}>
+            <span className="text-white/55">03</span>
+            <span className="block h-px w-6" style={{ background: 'var(--t-accent-soft)' }} />
+            <span>Signals</span>
+          </p>
+          <h1 className="text-white font-bold text-3xl tracking-tight leading-[1.05]">
+            Intent signals.
+          </h1>
+          <p className="text-white/45 text-sm mt-2 max-w-md">
+            Public signals from social platforms, classified by Claude into intent
+            level, urgency, and pain points.
+          </p>
+        </div>
+      </header>
 
       {fetchError && (
-        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          <span className="font-medium">Request failed:</span> {fetchError}
+        <div
+          className="px-4 py-3 text-sm flex items-start gap-3"
+          style={{
+            background: 'rgba(239,68,68,0.06)',
+            border: '1px solid rgba(239,68,68,0.20)',
+            color: '#fca5a5',
+            borderRadius: 'var(--t-radius-sm)',
+          }}
+        >
+          <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 8v5M12 16h.01" />
+          </svg>
+          <span><span className="font-semibold uppercase tracking-[0.18em] text-[11px] mr-2" style={{ fontFamily: theme.fontMono }}>Request failed</span>{fetchError}</span>
         </div>
       )}
 
-      {/* Search + Filters */}
-      <div className="flex flex-wrap gap-3">
-        <input
-          type="text"
-          placeholder="Search content, username, pain points..."
-          value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="input-field min-w-[260px] flex-1"
-        />
+      {/* Search + filters */}
+      <div
+        className="flex flex-col gap-3 px-4 py-3.5"
+        style={{
+          background: 'var(--a-card)',
+          border: '1px solid var(--a-border)',
+          borderRadius: 'var(--t-radius-lg)',
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <svg className="w-4 h-4 text-white/30 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" />
+            <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search content, username, pain points…"
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="flex-1 bg-transparent text-white text-sm focus:outline-none placeholder:text-white/30 py-1"
+          />
+          {activeFilterCount > 0 && (
+            <span
+              className="text-[10px] uppercase tracking-[0.22em] px-2 py-1"
+              style={{
+                background: 'var(--t-accent-soft)',
+                color: theme.accent,
+                fontFamily: theme.fontMono,
+                borderRadius: 'var(--t-radius-sm)',
+              }}
+            >
+              {activeFilterCount} active
+            </span>
+          )}
+          {(search || activeFilterCount > 0) && (
+            <button
+              onClick={clearAll}
+              className="text-[10px] uppercase tracking-[0.2em] text-white/45 hover:text-white transition-colors"
+              style={{ fontFamily: theme.fontMono }}
+            >
+              Clear ×
+            </button>
+          )}
+        </div>
 
-        <select
-          className="select-field w-auto min-w-[140px]"
-          value={filters.source}
-          onChange={(e) => handleFilterChange('source', e.target.value)}
-        >
-          <option value="">All Sources</option>
-          {SOURCES.filter(Boolean).map((s) => (
-            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-          ))}
-        </select>
+        <div className="h-px" style={{ background: 'var(--a-border)' }} />
 
-        <select
-          className="select-field w-auto min-w-[160px]"
-          value={filters.intent_level}
-          onChange={(e) => handleFilterChange('intent_level', e.target.value)}
-        >
-          <option value="">All Intent Levels</option>
-          {INTENT_LEVELS.filter(Boolean).map((l) => (
-            <option key={l} value={l}>{l.replace(/_/g, ' ')}</option>
-          ))}
-        </select>
-
-        <select
-          className="select-field w-auto min-w-[140px]"
-          value={filters.processed}
-          onChange={(e) => handleFilterChange('processed', e.target.value)}
-        >
-          <option value="">All Status</option>
-          <option value="true">Processed</option>
-          <option value="false">Unprocessed</option>
-        </select>
-
-        <select
-          className="select-field w-auto min-w-[180px]"
-          value={filters.intent_category}
-          onChange={(e) => handleFilterChange('intent_category', e.target.value)}
-        >
-          <option value="">All Intent Categories</option>
-          {INTENT_CATEGORIES.filter(Boolean).map((c) => (
-            <option key={c} value={c}>{prettifyIntentCategory(c)}</option>
-          ))}
-        </select>
-
-        <select
-          className="select-field w-auto min-w-[200px]"
-          value={filters.ingestion_category}
-          onChange={(e) => handleFilterChange('ingestion_category', e.target.value)}
-        >
-          <option value="">All Ingestion Buckets</option>
-          {INGESTION_CATEGORIES.filter(Boolean).map((c) => (
-            <option key={c} value={c}>{prettifyIngestionCategory(c)}</option>
-          ))}
-        </select>
-
-        <select
-          className="select-field w-auto min-w-[140px]"
-          value={filters.has_email}
-          onChange={(e) => handleFilterChange('has_email', e.target.value)}
-        >
-          <option value="">All Reachability</option>
-          <option value="true">Has email</option>
-          <option value="false">No email</option>
-        </select>
-
-        <select
-          className="select-field w-auto min-w-[170px]"
-          value={filters.automation_sent}
-          onChange={(e) => handleFilterChange('automation_sent', e.target.value)}
-        >
-          <option value="">All Automation</option>
-          <option value="true">Sent to webhook</option>
-          <option value="false">Not yet sent</option>
-        </select>
-
-        <select
-          className="select-field w-auto min-w-[150px]"
-          value={filters.enrichment}
-          onChange={(e) => handleFilterChange('enrichment', e.target.value)}
-        >
-          <option value="">All Enrichment</option>
-          <option value="enriched">Enriched only</option>
-          <option value="with_email">Apollo email</option>
-        </select>
-
-        {search && (
-          <button
-            onClick={() => handleSearchChange('')}
-            className="px-3 py-2 text-sm text-brand-muted hover:text-white transition-colors"
-          >
-            Clear
-          </button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <FilterPill
+            label="Source"
+            value={filters.source}
+            options={[{ value: '', label: 'All' }, ...SOURCES.filter(Boolean).map((s) => ({ value: s, label: s }))]}
+            onChange={(v) => handleFilterChange('source', v)}
+            theme={theme}
+          />
+          <FilterPill
+            label="Intent"
+            value={filters.intent_level}
+            options={[{ value: '', label: 'All' }, ...INTENT_LEVELS.filter(Boolean).map((l) => ({ value: l, label: l.replace('_INTENT', '').toLowerCase() }))]}
+            onChange={(v) => handleFilterChange('intent_level', v)}
+            theme={theme}
+          />
+          <FilterPill
+            label="Status"
+            value={filters.processed}
+            options={[{ value: '', label: 'All' }, { value: 'true', label: 'Processed' }, { value: 'false', label: 'Pending' }]}
+            onChange={(v) => handleFilterChange('processed', v)}
+            theme={theme}
+          />
+          <FilterPill
+            label="Category"
+            value={filters.intent_category}
+            options={[{ value: '', label: 'All' }, ...INTENT_CATEGORIES.filter(Boolean).map((c) => ({ value: c, label: prettifyIntentCategory(c) }))]}
+            onChange={(v) => handleFilterChange('intent_category', v)}
+            theme={theme}
+          />
+          <FilterPill
+            label="Bucket"
+            value={filters.ingestion_category}
+            options={[{ value: '', label: 'All' }, ...INGESTION_CATEGORIES.filter(Boolean).map((c) => ({ value: c, label: prettifyIngestionCategory(c) }))]}
+            onChange={(v) => handleFilterChange('ingestion_category', v)}
+            theme={theme}
+          />
+          <FilterPill
+            label="Email"
+            value={filters.has_email}
+            options={[{ value: '', label: 'All' }, { value: 'true', label: 'Has email' }, { value: 'false', label: 'No email' }]}
+            onChange={(v) => handleFilterChange('has_email', v)}
+            theme={theme}
+          />
+          <FilterPill
+            label="Automation"
+            value={filters.automation_sent}
+            options={[{ value: '', label: 'All' }, { value: 'true', label: 'Sent' }, { value: 'false', label: 'Not sent' }]}
+            onChange={(v) => handleFilterChange('automation_sent', v)}
+            theme={theme}
+          />
+          <FilterPill
+            label="Enrichment"
+            value={filters.enrichment}
+            options={[{ value: '', label: 'All' }, { value: 'enriched', label: 'Enriched' }, { value: 'with_email', label: 'Apollo email' }]}
+            onChange={(v) => handleFilterChange('enrichment', v)}
+            theme={theme}
+          />
+        </div>
       </div>
 
       {search && (
-        <p className="text-brand-muted text-sm">
-          {filteredSignals.length} result{filteredSignals.length !== 1 ? 's' : ''} for &ldquo;{search}&rdquo;
+        <p
+          className="text-[11px] uppercase tracking-[0.22em] text-white/45"
+          style={{ fontFamily: theme.fontMono }}
+        >
+          {filteredSignals.length} result{filteredSignals.length !== 1 ? 's' : ''} · "{search}"
         </p>
       )}
 
       {/* Table */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <span className="loading-spinner w-8 h-8 border-[#0BAAEF]" />
-        </div>
-      ) : pagedFilteredSignals.length === 0 ? (
-        <div className="text-center py-20 text-brand-muted">
-          {search ? `No signals match "${search}".` : 'No signals found.'}
-        </div>
-      ) : (
-        <div className="table-container">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th>Author</th>
-                <th>Content</th>
-                <th>Intent</th>
-                <th>Urgency</th>
-                <th>Pain Points</th>
-                <th>Status</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedFilteredSignals.map((s) => (
-                <tr
-                  key={s.id}
-                  onClick={() => router.push(`/admin/signals/${s.id}`)}
-                  className="cursor-pointer hover:bg-white/5 transition-colors"
-                >
-                  <td className="capitalize font-medium text-white">{s.source}</td>
-                  <td className="text-brand-light">
-                    <div className="font-medium text-white">{s.name || s.username || '-'}</div>
-                    {s.name && s.username && s.username !== s.name && !/^ACoAA/i.test(s.username) && (
-                      <div className="text-xs text-brand-muted font-mono truncate max-w-[180px]" title={s.username}>
-                        @{s.username}
-                      </div>
-                    )}
-                  </td>
-                  <td className="max-w-xs truncate text-brand-muted" title={s.content}>
-                    {s.content?.slice(0, 80)}{s.content?.length > 80 ? '...' : ''}
-                  </td>
-                  <td><IntentBadge level={s.intent_level} /></td>
-                  <td>
-                    <span className={`font-mono font-bold ${
-                      s.urgency_score >= 7 ? 'text-brand-danger' :
-                      s.urgency_score >= 4 ? 'text-yellow-400' : 'text-[#0BAAEF]'
-                    }`}>
-                      {s.urgency_score ?? '-'}
-                    </span>
-                  </td>
-                  <td className="text-brand-muted text-xs">
-                    {(s.pain_points || []).slice(0, 2).join(', ')}
-                  </td>
-                  <td>
-                    <span className={s.processed ? 'badge-green' : 'badge-yellow'}>
-                      {s.processed ? 'Processed' : 'Pending'}
-                    </span>
-                  </td>
-                  <td className="text-brand-muted text-xs whitespace-nowrap">
-                    {new Date(s.created_at).toLocaleDateString()}
-                  </td>
+      <div
+        className="overflow-hidden"
+        style={{
+          background: 'var(--a-card)',
+          border: '1px solid var(--a-border)',
+          borderRadius: 'var(--t-radius-lg)',
+        }}
+      >
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div
+              className="w-8 h-8 border-2 rounded-full animate-spin"
+              style={{ borderColor: 'var(--t-fg-06)', borderTopColor: theme.accent }}
+            />
+          </div>
+        ) : pagedFilteredSignals.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="h-px w-12" style={{ background: 'var(--a-border2)' }} />
+            <p className="text-white/35 text-sm">{search ? `No signals match "${search}"` : 'No signals found'}</p>
+            <p
+              className="text-[10px] uppercase tracking-[0.25em] text-white/25"
+              style={{ fontFamily: theme.fontMono }}
+            >
+              Adjust filters above
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--a-border)' }}>
+                  {['Source', 'Author', 'Content', 'Intent', 'Urgency', 'Pain points', 'Status', 'Date'].map((h, i) => (
+                    <th
+                      key={i}
+                      className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"
+                      style={{ fontFamily: theme.fontMono }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {pagedFilteredSignals.map((s) => (
+                  <tr
+                    key={s.id}
+                    onClick={() => router.push(`/admin/signals/${s.id}`)}
+                    className="cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    style={{ borderBottom: '1px solid var(--a-border)' }}
+                  >
+                    <td className="px-4 py-4 capitalize">
+                      <SourceTag source={s.source} theme={theme} />
+                    </td>
+                    <td className="px-4 py-4 max-w-[200px]">
+                      <p className="font-medium text-white truncate">{s.name || s.username || '—'}</p>
+                      {s.name && s.username && s.username !== s.name && !/^ACoAA/i.test(s.username) && (
+                        <p
+                          className="text-xs text-white/40 truncate mt-0.5"
+                          style={{ fontFamily: theme.fontMono }}
+                          title={s.username}
+                        >
+                          @{s.username}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 max-w-md">
+                      <p className="text-white/70 text-sm truncate" title={s.content}>
+                        {s.content?.slice(0, 120)}{s.content?.length > 120 ? '…' : ''}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <IntentBadge level={s.intent_level} theme={theme} />
+                    </td>
+                    <td className="px-4 py-4">
+                      <UrgencyMeter score={s.urgency_score} theme={theme} />
+                    </td>
+                    <td className="px-4 py-4 max-w-[180px]">
+                      <p className="text-white/55 text-xs truncate">
+                        {(s.pain_points || []).slice(0, 2).join(' · ') || '—'}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4">
+                      {s.processed ? (
+                        <ToneBadge tone="green" theme={theme}>Processed</ToneBadge>
+                      ) : (
+                        <ToneBadge tone="gold" theme={theme}>Pending</ToneBadge>
+                      )}
+                    </td>
+                    <td
+                      className="px-4 py-4 text-white/40 text-xs whitespace-nowrap tabular-nums"
+                      style={{ fontFamily: theme.fontMono }}
+                    >
+                      {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Pagination */}
       {(() => {
@@ -376,29 +388,162 @@ export default function SignalsPage() {
         if (activeTotalPages <= 1) return null;
         return (
           <div className="flex items-center justify-between">
-            <p className="text-brand-muted text-sm">
-              Page {page} of {activeTotalPages}
+            <p
+              className="text-[10px] uppercase tracking-[0.25em] text-white/40 tabular-nums"
+              style={{ fontFamily: theme.fontMono }}
+            >
+              Page {String(page).padStart(2, '0')} / {String(activeTotalPages).padStart(2, '0')}
               {search && ` · ${filteredSignals.length} result${filteredSignals.length !== 1 ? 's' : ''}`}
             </p>
             <div className="flex gap-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 bg-brand-slate rounded-lg text-sm text-brand-light hover:bg-brand-slate/70 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage(Math.min(activeTotalPages, page + 1))}
-                disabled={page === activeTotalPages}
-                className="px-4 py-2 bg-brand-slate rounded-lg text-sm text-brand-light hover:bg-brand-slate/70 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                Next
-              </button>
+              <PaginationButton onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} theme={theme}>
+                ← Prev
+              </PaginationButton>
+              <PaginationButton onClick={() => setPage(Math.min(activeTotalPages, page + 1))} disabled={page === activeTotalPages} theme={theme}>
+                Next →
+              </PaginationButton>
             </div>
           </div>
         );
       })()}
     </div>
+  );
+}
+
+// ── Atoms ──────────────────────────────────────────────────────────────────
+
+function FilterPill({
+  label, value, options, onChange, theme,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+  theme: ReturnType<typeof useTenantTheme>;
+}) {
+  const active = value !== '';
+  return (
+    <label
+      className="relative flex items-center gap-2 pl-3 pr-2 py-1.5 transition-colors cursor-pointer"
+      style={{
+        background: active ? 'var(--t-accent-soft)' : 'var(--t-fg-02)',
+        border: `1px solid ${active ? 'var(--t-accent-soft)' : 'var(--a-border2)'}`,
+        borderRadius: 'var(--t-radius-sm)',
+      }}
+    >
+      <span
+        className="text-[10px] uppercase tracking-[0.22em] font-semibold"
+        style={{
+          fontFamily: theme.fontMono,
+          color: active ? theme.accent : 'var(--t-fg-55)',
+        }}
+      >
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-transparent text-white text-xs font-medium focus:outline-none capitalize cursor-pointer"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value} className="bg-[#0d1e30]">{o.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function SourceTag({ source, theme }: { source: string; theme: ReturnType<typeof useTenantTheme> }) {
+  const color = theme.platform[source] || theme.chart[3];
+  return (
+    <span className="inline-flex items-center gap-2 font-medium text-white">
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ background: color, boxShadow: `0 0 8px ${color}80` }}
+      />
+      <span className="capitalize">{source}</span>
+    </span>
+  );
+}
+
+function IntentBadge({ level, theme }: { level: string | null; theme: ReturnType<typeof useTenantTheme> }) {
+  if (!level) return <ToneBadge tone="blue" theme={theme}>Unclassified</ToneBadge>;
+  const tone: 'red' | 'gold' | 'blue' =
+    level === 'HIGH_INTENT' ? 'red' : level === 'MEDIUM_INTENT' ? 'gold' : 'blue';
+  return <ToneBadge tone={tone} theme={theme}>{level.replace('_INTENT', '').toLowerCase()}</ToneBadge>;
+}
+
+function UrgencyMeter({ score, theme }: { score: number; theme: ReturnType<typeof useTenantTheme> }) {
+  if (score == null) return <span className="text-white/30 text-sm">—</span>;
+  const pct = Math.min(100, (score / 10) * 100);
+  const color = score >= 7 ? theme.intent.high : score >= 4 ? theme.intent.medium : theme.intent.low;
+  return (
+    <div className="flex items-center gap-2 min-w-[86px]">
+      <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--t-fg-06)' }}>
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <span
+        className="text-xs font-bold tabular-nums w-5 text-right"
+        style={{ color, fontFamily: theme.fontMono }}
+      >
+        {score}
+      </span>
+    </div>
+  );
+}
+
+function ToneBadge({
+  children, tone, theme, title,
+}: {
+  children: React.ReactNode;
+  tone: 'accent' | 'green' | 'gold' | 'blue' | 'red';
+  theme: ReturnType<typeof useTenantTheme>;
+  title?: string;
+}) {
+  const map: Record<string, { bg: string; fg: string }> = {
+    accent: { bg: 'var(--t-accent-soft)', fg: theme.accent },
+    green:  { bg: 'rgba(16,185,129,0.12)', fg: '#34d399' },
+    gold:   { bg: 'rgba(212,163,115,0.12)', fg: '#d4a373' },
+    blue:   { bg: 'rgba(99,102,241,0.12)', fg: '#a5b4fc' },
+    red:    { bg: 'rgba(239,68,68,0.12)',  fg: '#f87171' },
+  };
+  const { bg, fg } = map[tone];
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] capitalize"
+      style={{
+        background: bg, color: fg,
+        borderRadius: 'var(--t-radius-sm)',
+        fontFamily: theme.fontMono,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function PaginationButton({
+  children, onClick, disabled, theme,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled: boolean;
+  theme: ReturnType<typeof useTenantTheme>;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/[0.04]"
+      style={{
+        fontFamily: theme.fontMono,
+        border: '1px solid var(--a-border2)',
+        color: 'var(--t-fg-70)',
+        borderRadius: 'var(--t-radius-sm)',
+      }}
+    >
+      {children}
+    </button>
   );
 }
