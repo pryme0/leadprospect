@@ -69,6 +69,7 @@ export default function SignalsPage() {
     try {
       const params: any = { offset: (page - 1) * 20, limit: 20 };
       Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
+      if (search.trim()) params.q = search.trim();
 
       const res = await adminApi.getSignals(params);
       setSignals(res.data.signals || res.data.data || []);
@@ -83,9 +84,13 @@ export default function SignalsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filters]);
+  }, [page, filters, search]);
 
-  useEffect(() => { fetchSignals(); }, [fetchSignals]);
+  // Debounce search by 300ms so each keystroke doesn't fire a request.
+  useEffect(() => {
+    const id = window.setTimeout(() => { fetchSignals(); }, 300);
+    return () => window.clearTimeout(id);
+  }, [fetchSignals]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -97,24 +102,12 @@ export default function SignalsPage() {
     setPage(1);
   };
 
-  const filteredSignals = useMemo(() => {
-    if (!search.trim()) return signals;
-    const q = search.toLowerCase();
-    return signals.filter((s) =>
-      s.content?.toLowerCase().includes(q) ||
-      s.username?.toLowerCase().includes(q) ||
-      s.summary?.toLowerCase().includes(q) ||
-      (s.pain_points || []).some((p) => p.toLowerCase().includes(q)),
-    );
-  }, [signals, search]);
-
-  const PAGE_SIZE = 20;
-  const searchTotalPages = Math.max(1, Math.ceil(filteredSignals.length / PAGE_SIZE));
-  const pagedFilteredSignals = useMemo(() => {
-    if (!search.trim()) return filteredSignals;
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredSignals.slice(start, start + PAGE_SIZE);
-  }, [filteredSignals, search, page]);
+  // Search is now server-side (?q=…) — backend ILIKEs across name, email,
+  // phone, content, summary, username, and all enriched_* fields. Local
+  // arrays are kept as aliases so the JSX below doesn't need to change.
+  const filteredSignals = signals;
+  const searchTotalPages = totalPages;
+  const pagedFilteredSignals = signals;
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
   const clearAll = () => {

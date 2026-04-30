@@ -89,6 +89,18 @@ export default function PipelinePage() {
   const [feedTotal, setFeedTotal] = useState(0);
   const FEED_PAGE_SIZE = 20;
 
+  const fetchStats = useCallback(async () => {
+    try {
+      // Use the dedicated stats endpoint instead of filter+count on getSignals
+      // — the latter goes through the QuerySignalsDto which (until the deploy
+      // ships) string-coerces ?processed=false into TRUE, returning the
+      // processed-count instead of pending. getSignalStats does its own
+      // server-side boolean count and is unaffected.
+      const statsRes = await adminApi.getSignalStats();
+      setUnprocessedCount(statsRes.data.pending ?? 0);
+    } catch { /* leave previous count in place */ }
+  }, []);
+
   const fetchSignals = useCallback(async () => {
     setSignalsLoading(true);
     setSignalsError(null);
@@ -101,14 +113,7 @@ export default function PipelinePage() {
       const list: Signal[] = res.data.signals || res.data.data || [];
       setSignals(list);
       setFeedTotal(res.data.total || list.length);
-
-      // Use the dedicated stats endpoint instead of filter+count on getSignals
-      // — the latter goes through the QuerySignalsDto which (until the deploy
-      // ships) string-coerces ?processed=false into TRUE, returning the
-      // processed-count instead of pending. getSignalStats does its own
-      // server-side boolean count and is unaffected.
-      const statsRes = await adminApi.getSignalStats();
-      setUnprocessedCount(statsRes.data.pending ?? 0);
+      fetchStats();
     } catch (err: any) {
       const msg = err?.response?.data?.message?.toString() || err?.message || 'Failed to load signals';
       setSignalsError(Array.isArray(msg) ? msg.join('; ') : msg);
@@ -117,9 +122,24 @@ export default function PipelinePage() {
     } finally {
       setSignalsLoading(false);
     }
-  }, [signalFilter, sourceFilter, feedPage]);
+  }, [signalFilter, sourceFilter, feedPage, fetchStats]);
 
   useEffect(() => { fetchSignals(); }, [fetchSignals]);
+
+  // Poll the pending-classification count so the big number on this page
+  // tracks the cron's progress without forcing a full feed refetch. Pause
+  // when the tab is hidden so we don't burn requests in the background.
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === 'visible') fetchStats();
+    };
+    const id = window.setInterval(tick, 10_000);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [fetchStats]);
 
   const triggerIngest = async (platform: Platform) => {
     setIngestStatus((prev) => ({ ...prev, [platform]: { ...prev[platform], running: true, error: null } }));
