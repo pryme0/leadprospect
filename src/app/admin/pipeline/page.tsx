@@ -102,8 +102,13 @@ export default function PipelinePage() {
       setSignals(list);
       setFeedTotal(res.data.total || list.length);
 
-      const unprocessedRes = await adminApi.getSignals({ processed: 'false', limit: 1 });
-      setUnprocessedCount(unprocessedRes.data.total || unprocessedRes.data.count || 0);
+      // Use the dedicated stats endpoint instead of filter+count on getSignals
+      // — the latter goes through the QuerySignalsDto which (until the deploy
+      // ships) string-coerces ?processed=false into TRUE, returning the
+      // processed-count instead of pending. getSignalStats does its own
+      // server-side boolean count and is unaffected.
+      const statsRes = await adminApi.getSignalStats();
+      setUnprocessedCount(statsRes.data.pending ?? 0);
     } catch (err: any) {
       const msg = err?.response?.data?.message?.toString() || err?.message || 'Failed to load signals';
       setSignalsError(Array.isArray(msg) ? msg.join('; ') : msg);

@@ -13,6 +13,14 @@ import { useTenantTheme, TenantPalette } from '@/lib/tenant-theme';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+interface DailyBucket {
+  linkedin_signals: number;
+  linkedin_high_intent: number;
+  leads_captured: number;
+  conversion_rate: number;
+  avg_urgency: number;
+}
+
 interface DashboardMetrics {
   total_signals: number;
   high_intent_count: number;
@@ -29,6 +37,7 @@ interface DashboardMetrics {
   leads_by_tool: { tool: string; count: number }[];
   leads_by_day: { date: string; count: number }[];
   top_pain_points: { point: string; count: number }[];
+  daily?: { today: DailyBucket; yesterday: DailyBucket };
 }
 
 // ── Tooltip ───────────────────────────────────────────────────────────────────
@@ -261,6 +270,13 @@ function buildSignalsHref(params: Record<string, string>): string {
   return qs ? `/admin/signals?${qs}` : '/admin/signals';
 }
 
+// Module-level helper — used by both the hero KPI computation and the
+// Pipeline section's "Sent today" card.
+function pctDelta(a: number, b: number): number {
+  if (b === 0) return a > 0 ? 100 : 0;
+  return Math.round(((a - b) / b) * 100);
+}
+
 function PipelineSection({ stats, theme }: { stats: SignalStats; theme: TenantPalette }) {
   const router = useRouter();
   const processedPct = stats.total > 0 ? Math.round((stats.processed / stats.total) * 100) : 0;
@@ -300,7 +316,15 @@ function PipelineSection({ stats, theme }: { stats: SignalStats; theme: TenantPa
         <Kpi ord="02" label="Processed" value={stats.processed.toLocaleString()} sub={`${processedPct}% classified`} accent={theme.accent} href={buildSignalsHref({ processed: 'true' })} />
         <Kpi ord="03" label="Pending" value={stats.pending.toLocaleString()} sub="awaiting Claude" accent={theme.intent.medium} href={buildSignalsHref({ processed: 'false' })} />
         <Kpi ord="04" label="With email" value={stats.withEmail.toLocaleString()} sub={`${emailPct}% reachable`} accent={theme.chart[2]} href={buildSignalsHref({ has_email: 'true' })} />
-        <Kpi ord="05" label="Sent → automation" value={stats.automationSent.toLocaleString()} sub="forwarded" accent="#10b981" href={buildSignalsHref({ automation_sent: 'true' })} />
+        <Kpi
+          ord="05"
+          label="Sent · today"
+          value={(stats.automationSentToday ?? 0).toLocaleString()}
+          sub={`yesterday ${(stats.automationSentYesterday ?? 0).toLocaleString()} · ${stats.automationSent.toLocaleString()} all-time`}
+          trend={pctDelta(stats.automationSentToday ?? 0, stats.automationSentYesterday ?? 0)}
+          accent="#10b981"
+          href={buildSignalsHref({ automation_sent: 'true' })}
+        />
         <Kpi ord="06" label="Automation pending" value={stats.automationPending.toLocaleString()} sub="HIGH/MED, queued" accent={theme.chart[6] || theme.accent} href={buildSignalsHref({ automation_sent: 'false', intent_level: 'HIGH_INTENT' })} />
       </div>
 
@@ -454,6 +478,22 @@ export default function AdminDashboardPage() {
   const highIntentCount = (metrics as any).high_intent_signals || metrics.high_intent_count || 0;
   const highIntentPct = metrics.total_signals > 0 ? Math.round((highIntentCount / metrics.total_signals) * 100) : 0;
 
+  // Today vs yesterday LinkedIn snapshot — drives the hero KPIs. Falls back
+  // to zeros so older backend builds without `daily` don't crash the UI.
+  const today = metrics.daily?.today ?? {
+    linkedin_signals: 0, linkedin_high_intent: 0, leads_captured: 0,
+    conversion_rate: 0, avg_urgency: 0,
+  };
+  const yest = metrics.daily?.yesterday ?? {
+    linkedin_signals: 0, linkedin_high_intent: 0, leads_captured: 0,
+    conversion_rate: 0, avg_urgency: 0,
+  };
+  const dailySignalDelta = pctDelta(today.linkedin_signals, yest.linkedin_signals);
+  const dailyHighDelta = pctDelta(today.linkedin_high_intent, yest.linkedin_high_intent);
+  const dailyLeadsDelta = pctDelta(today.leads_captured, yest.leads_captured);
+  const dailyConvDelta = pctDelta(today.conversion_rate, yest.conversion_rate);
+  const dailyUrgencyDelta = pctDelta(today.avg_urgency, yest.avg_urgency);
+
   const platformData = (metrics.signals_by_platform || []).map((p) => ({
     ...p,
     color: theme.platform[p.platform] || theme.chart[3],
@@ -536,9 +576,9 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      {/* ── Hero metric: asymmetric ── */}
+      {/* ── Hero metric: today vs yesterday, LinkedIn focus ── */}
       <section className="grid lg:grid-cols-[1.4fr,1fr] gap-6">
-        {/* Big number + sparkline */}
+        {/* Big number + sparkline — today's LinkedIn signals */}
         <div
           className="relative p-7 overflow-hidden"
           style={{
@@ -549,24 +589,26 @@ export default function AdminDashboardPage() {
         >
           <div className="flex items-start justify-between">
             <div>
-              <MonoLabel>Total signals · all time</MonoLabel>
+              <MonoLabel>LinkedIn signals · today</MonoLabel>
               <p className="text-white font-bold mt-2 leading-none tabular-nums" style={{ fontSize: 'clamp(3rem, 6vw, 5rem)', letterSpacing: '-0.04em' }}>
-                {metrics.total_signals.toLocaleString()}
+                {today.linkedin_signals.toLocaleString()}
               </p>
               <div className="flex items-center gap-3 mt-3">
                 <span
                   className={`text-xs font-semibold tabular-nums px-2 py-0.5 ${
-                    dayDelta >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    dailySignalDelta >= 0 ? 'text-emerald-400' : 'text-red-400'
                   }`}
                   style={{
-                    background: dayDelta >= 0 ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
+                    background: dailySignalDelta >= 0 ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
                     borderRadius: 'var(--t-radius-sm)',
                     fontFamily: theme.fontMono,
                   }}
                 >
-                  {dayDelta >= 0 ? '↑' : '↓'} {Math.abs(dayDelta)}%
+                  {dailySignalDelta >= 0 ? '↑' : '↓'} {Math.abs(dailySignalDelta)}%
                 </span>
-                <span className="text-white/40 text-xs">vs yesterday · {todayCount.toLocaleString()} today</span>
+                <span className="text-white/40 text-xs tabular-nums" style={{ fontFamily: theme.fontMono }}>
+                  vs yesterday · {yest.linkedin_signals.toLocaleString()}
+                </span>
               </div>
             </div>
             <span
@@ -593,31 +635,35 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Side KPI stack */}
+        {/* Side KPI stack — every card is today vs yesterday, LinkedIn-focused */}
         <div className="grid grid-cols-2 gap-3 content-start">
           <Kpi
-            ord="02" label="High intent"
-            value={highIntentCount.toLocaleString()}
-            sub={`${highIntentPct}% of pool`}
-            trend={metrics.high_intent_wow}
+            ord="02" label="High intent · today"
+            value={today.linkedin_high_intent.toLocaleString()}
+            sub={`yesterday ${yest.linkedin_high_intent.toLocaleString()}`}
+            trend={dailyHighDelta}
             accent={theme.intent.high}
           />
           <Kpi
-            ord="03" label="Leads captured"
-            value={metrics.leads_captured.toLocaleString()}
+            ord="03" label="Leads · today"
+            value={today.leads_captured.toLocaleString()}
+            sub={`yesterday ${yest.leads_captured.toLocaleString()}`}
+            trend={dailyLeadsDelta}
             accent={theme.accent}
           />
           <Kpi
-            ord="04" label="Conversion"
-            value={`${convRate}%`}
-            sub="signals → leads"
+            ord="04" label="Conversion · today"
+            value={`${today.conversion_rate.toFixed(1)}%`}
+            sub={`yesterday ${yest.conversion_rate.toFixed(1)}%`}
+            trend={dailyConvDelta}
             accent={theme.chart[2]}
           />
           <Kpi
-            ord="05" label="Urgency"
-            value={`${metrics.avg_urgency.toFixed(0)}`}
-            sub={metrics.avg_urgency >= 70 ? 'High urgency pool' : metrics.avg_urgency >= 40 ? 'Medium pool' : 'Low pool'}
-            accent={metrics.avg_urgency >= 70 ? theme.intent.high : metrics.avg_urgency >= 40 ? theme.intent.medium : theme.accent}
+            ord="05" label="Urgency · today"
+            value={`${today.avg_urgency}`}
+            sub={`yesterday ${yest.avg_urgency}`}
+            trend={dailyUrgencyDelta}
+            accent={today.avg_urgency >= 70 ? theme.intent.high : today.avg_urgency >= 40 ? theme.intent.medium : theme.accent}
           />
         </div>
       </section>

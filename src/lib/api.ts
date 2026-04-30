@@ -76,6 +76,9 @@ export interface SignalStats {
   withEmail: number;
   // Forwarded to AUTOMATION_URL (automation_sent_at IS NOT NULL).
   automationSent: number;
+  // Forwarded today / yesterday — measured by automation_sent_at timestamp.
+  automationSentToday: number;
+  automationSentYesterday: number;
   // Eligible for the next AUTOMATION_URL flush — classified, intent in
   // HIGH/MEDIUM, source in (linkedin, twitter), not yet sent.
   automationPending: number;
