@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { track } from '@/lib/analytics';
+import HomepagePromptOrchestrator from '@/components/HomepagePromptOrchestrator';
 
 // ── Terminal lines ────────────────────────────────────────────────────────────
 const TERM_LINES = [
@@ -105,6 +106,9 @@ const STEPS = [
 export default function HomePage() {
   return (
     <div className="overflow-hidden">
+      {/* Lead-capture prompt — fires on a timed cadence + exit-intent so we
+          don't leave the homepage as a silent bounce. */}
+      <HomepagePromptOrchestrator />
 
       {/* ── Background dot grid ── */}
       <div

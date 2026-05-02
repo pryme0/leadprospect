@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { getStashedUtms } from '@/lib/utm';
 
 interface LeadCaptureModalProps {
   isOpen: boolean;
@@ -22,6 +23,15 @@ export interface LeadFormData {
   result_id: string;
   consented: boolean;
   lead_source?: string;
+  // First-touch attribution — read from sessionStorage on submit so
+  // tool-unlock leads carry the same campaign tags Amplitude already sees.
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  referrer?: string;
+  landing_path?: string;
 }
 
 const INCOME_GOALS = [
@@ -153,12 +163,20 @@ export default function LeadCaptureModal({
     setLoading(true);
     try {
       const fullPhone = `${dialCode}${phoneLocal.replace(/\D/g, '')}`;
+      const utms = getStashedUtms() || {};
       await onSubmit({
         ...formData,
         phone_number: fullPhone,
         source_tool: sourceTool,
         result_id: resultId,
         lead_source: leadSource,
+        utm_source: utms.utm_source,
+        utm_medium: utms.utm_medium,
+        utm_campaign: utms.utm_campaign,
+        utm_term: utms.utm_term,
+        utm_content: utms.utm_content,
+        referrer: utms.referrer,
+        landing_path: utms.landing_path,
       });
     } catch (err: any) {
       setSubmitError(

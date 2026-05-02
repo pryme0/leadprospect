@@ -87,6 +87,33 @@ export interface SignalStats {
   byIngestionCategory: { ingestion_category: string | null; count: number }[];
 }
 
+export interface QuickCaptureRequest {
+  first_name: string;
+  email: string;
+  phone_number: string;
+  consent_call: boolean;
+  consent_email: boolean;
+  consented: boolean;
+  lead_source?: string;
+  // First-touch attribution captured client-side from the URL the visitor
+  // arrived on. Persisted on the lead row + tagged into GHL so downstream
+  // automation knows which campaign / source delivered the lead.
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  referrer?: string;
+  landing_path?: string;
+}
+
+export const leadsApi = {
+  // Slim homepage modal capture — no timeline / income, just contact + per-
+  // channel consent. Hits POST /api/leads/quick-capture.
+  quickCapture: (data: QuickCaptureRequest) =>
+    api.post('/api/leads/quick-capture', data),
+};
+
 export const toolsApi = {
   // Cyber Path Finder
   submitCyberPathFinder: (data: CyberPathFinderRequest) =>

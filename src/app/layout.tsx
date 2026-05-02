@@ -5,6 +5,7 @@ import ConditionalFooter from '@/components/ConditionalFooter';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import Amplitude from '@/components/Amplitude';
 import TawkTo from '@/components/TawkTo';
+import UtmCapture from '@/components/UtmCapture';
 import {
   GoogleTagManagerHead,
   GoogleTagManagerNoscript,
@@ -85,6 +86,7 @@ export default function RootLayout({
         <GoogleTagManagerNoscript />
         <GoogleAnalytics />
         <Amplitude />
+        <UtmCapture />
         <TawkTo />
         <ConditionalNavbar />
         <main className="flex-1">{children}</main>
