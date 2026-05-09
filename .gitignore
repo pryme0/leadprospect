@@ -2,12 +2,20 @@
 node_modules/
 .pnp
 .pnp.js
+node_modules
 
 # Build output
 .next/
+.next
 out/
+out
 build/
+build
 dist/
+dist
+
+#Intellij Idea
+.idea
 
 # Environment files
 .env
