@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { adminApi } from '@/lib/api';
 import { useTenantTheme } from '@/lib/tenant-theme';
+import { getCurrentSbu } from '@/lib/sbu';
 
 interface Lead {
   id: string;
@@ -32,7 +33,10 @@ function sourceLabel(s: string | null | undefined): { label: string; tone: 'gold
   }
 }
 
-const TOOLS = ['', 'cyber-path-finder', 'career-assessment', 'resume-analyzer'];
+const TOOLS_BY_SBU: Record<string, string[]> = {
+  emc: ['cyber-path-finder', 'career-assessment', 'resume-analyzer'],
+  lightforth: ['resume-optimizer', 'interview-coach', 'job-search-planner'],
+};
 const INTENT_LEVELS = ['', 'HIGH_INTENT', 'MEDIUM_INTENT', 'LOW_INTENT'];
 
 function toolLabel(tool: string) {
@@ -41,6 +45,8 @@ function toolLabel(tool: string) {
 
 export default function LeadsPage() {
   const theme = useTenantTheme();
+  const sbu = getCurrentSbu() ?? 'emc';
+  const TOOLS = TOOLS_BY_SBU[sbu] ?? TOOLS_BY_SBU.emc;
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
