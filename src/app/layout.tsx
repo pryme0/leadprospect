@@ -2,35 +2,26 @@ import type { Metadata } from 'next';
 import './globals.css';
 import ConditionalNavbar from '@/components/ConditionalNav';
 import ConditionalFooter from '@/components/ConditionalFooter';
-import GoogleAnalytics from '@/components/GoogleAnalytics';
-import Amplitude from '@/components/Amplitude';
-import TawkTo from '@/components/TawkTo';
-import UtmCapture from '@/components/UtmCapture';
-import {
-  GoogleTagManagerHead,
-  GoogleTagManagerNoscript,
-} from '@/components/GoogleTagManager';
 
-const SITE_URL = 'https://emci.lie.thelixholdings.com';
+const SITE_URL = 'https://prospectgrid.demo';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'ExcelMindCyber — Free GRC Career Tools | Governance, Risk & Compliance',
-    template: '%s | ExcelMindCyber',
+    default: 'ProspectGrid — Lead Intelligence Platform for Business Growth',
+    template: '%s | ProspectGrid',
   },
   description:
-    'Launch your Governance, Risk & Compliance (GRC) career with free AI-powered tools. Get a personalized 90-day GRC roadmap, career readiness assessment, and resume gap analysis. Trusted by 2,000+ career switchers in the US and Canada.',
+    'Find, enrich, score, and route business leads from Google Ads, Facebook Ads, TikTok Ads, Instagram Ads, website forms, CRM data, and social buying signals.',
   keywords: [
-    'GRC career', 'governance risk compliance', 'cybersecurity career', 'GRC analyst',
-    'IT auditor career', 'risk analyst', 'compliance analyst', 'CRISC', 'CISA',
-    'ISO 27001', 'CompTIA Security+', 'cybersecurity career change', 'GRC roadmap',
-    'cybersecurity resume analyzer', 'career assessment cybersecurity', 'ExcelMindCyber',
-    'break into cybersecurity', 'GRC training', 'cybersecurity certification path',
+    'lead intelligence', 'lead generation', 'business leads', 'ad attribution',
+    'Google Ads leads', 'Facebook Ads leads', 'TikTok Ads leads', 'Instagram Ads leads',
+    'lead enrichment', 'lead scoring', 'sales intelligence', 'CRM enrichment',
+    'B2B lead generation', 'pipeline intelligence', 'ProspectGrid',
   ],
-  authors: [{ name: 'ExcelMindCyber', url: SITE_URL }],
-  creator: 'ExcelMindCyber',
-  publisher: 'ExcelMindCyber',
+  authors: [{ name: 'ProspectGrid', url: SITE_URL }],
+  creator: 'ProspectGrid',
+  publisher: 'ProspectGrid',
   robots: {
     index: true,
     follow: true,
@@ -40,25 +31,25 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: SITE_URL,
-    siteName: 'ExcelMindCyber',
-    title: 'ExcelMindCyber — Free GRC Career Tools',
+    siteName: 'ProspectGrid',
+    title: 'ProspectGrid — Lead Intelligence Platform',
     description:
-      'Launch your GRC career with free AI-powered tools: 90-day roadmap, career readiness quiz, and resume analyzer. Start your cybersecurity career transition today.',
+      'Unify ad platforms, website forms, CRM rows, and social signals into scored business leads your team can act on.',
     images: [
       {
-        url: '/emclogo.png',
+        url: '/icon-512.png',
         width: 219,
         height: 249,
-        alt: 'ExcelMindCyber Logo',
+        alt: 'ProspectGrid Logo',
       },
     ],
   },
   twitter: {
     card: 'summary',
-    title: 'ExcelMindCyber — Free GRC Career Tools',
+    title: 'ProspectGrid — Lead Intelligence Platform',
     description:
-      'Launch your GRC career with free AI tools: 90-day roadmap, career readiness quiz, and resume analyzer.',
-    images: ['/emclogo.png'],
+      'Find, enrich, score, and route business leads from ads, forms, CRM, and social buying signals.',
+    images: ['/icon-512.png'],
   },
   icons: {
     icon: [
@@ -77,17 +68,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        {/* GTM container loader — fires as soon as the page is interactive */}
-        <GoogleTagManagerHead />
-      </head>
       <body className="min-h-screen flex flex-col">
-        {/* GTM noscript fallback must be the FIRST child of <body> */}
-        <GoogleTagManagerNoscript />
-        <GoogleAnalytics />
-        <Amplitude />
-        <UtmCapture />
-        <TawkTo />
         <ConditionalNavbar />
         <main className="flex-1">{children}</main>
         <ConditionalFooter />

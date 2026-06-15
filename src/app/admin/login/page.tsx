@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { adminApi } from '@/lib/api';
-import { clearCurrentSbu } from '@/lib/sbu';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@prospectgrid.demo');
+  const [password, setPassword] = useState('demo-password');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,9 +25,8 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       const res = await adminApi.login({ email, password });
-      localStorage.setItem('emc_admin_token', res.data.token);
-      clearCurrentSbu();
-      router.replace('/admin/tenant-select');
+      localStorage.setItem('prospectgrid_admin_token', res.data.token);
+      router.replace('/admin');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid credentials.');
     } finally {
@@ -35,18 +34,18 @@ export default function AdminLoginPage() {
     }
   };
 
-  // Login is pre-tenant — render in EMCI's editorial-dark vocabulary by default.
+  // Login renders the ProspectGrid SaaS console shell before the workspace opens.
   return (
     <div
       className="relative min-h-screen overflow-hidden grid lg:grid-cols-[1.1fr,1fr]"
-      style={{ background: '#050a14' }}
+      style={{ background: '#112126' }}
     >
       {/* ── Left: editorial brand panel (desktop only) ── */}
       <aside className="relative hidden lg:flex flex-col justify-between p-10 overflow-hidden border-r border-white/[0.05]">
         {/* Ambient backdrop */}
         <div
-          className="pointer-events-none absolute -left-1/3 top-1/3 h-[700px] w-[700px] rounded-full blur-3xl opacity-[0.18]"
-          style={{ background: 'radial-gradient(circle, #0BAAEF 0%, transparent 70%)' }}
+          className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-70"
+          style={{ background: 'linear-gradient(90deg, transparent, #00CEC8, #EB4203, transparent)' }}
         />
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.04]"
@@ -60,13 +59,15 @@ export default function AdminLoginPage() {
 
         {/* Top — wordmark */}
         <div className="relative z-10 flex items-center gap-3">
-          <img src="/emclogo.png" alt="" className="h-8 w-8 object-contain" />
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-[11px] font-black text-white">
+            PG
+          </span>
           <div>
             <p
               className="text-[10px] tracking-[0.4em] uppercase text-white/40"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
-              LIE / Console
+              ProspectGrid / Console
             </p>
             <p className="text-white text-sm font-semibold tracking-tight leading-tight">
               Lead intelligence engine
@@ -80,7 +81,7 @@ export default function AdminLoginPage() {
             className="text-[10px] uppercase tracking-[0.4em] text-white/45 mb-5"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
-            <span className="text-[#0BAAEF]">●</span> &nbsp; Multi-tenant · multi-source
+              <span className="text-[#00CEC8]">●</span> &nbsp; Multi-source · organization-ready
           </p>
           <h1 className="font-bold text-white tracking-tight leading-[1.04]" style={{ fontSize: 'clamp(2.25rem, 4vw, 3.4rem)' }}>
             The signal layer
@@ -88,18 +89,18 @@ export default function AdminLoginPage() {
             beneath every lead.
           </h1>
           <p className="text-white/45 text-sm leading-relaxed mt-5 max-w-sm">
-            Twitter, Reddit, YouTube, and Google — refined by Claude into intent,
-            urgency, and pain points. One console for every workspace you run.
+              Ad sources, CRM records, enriched companies, scoring rules, and
+              routing queues in one self-contained SaaS workspace.
           </p>
 
           {/* Micro stats strip */}
           <div className="grid grid-cols-3 gap-px mt-10 max-w-sm" style={{ background: 'var(--t-fg-06)' }}>
             {[
-              { ord: '01', label: 'Sources', value: '4' },
-              { ord: '02', label: 'Tenants', value: '2' },
-              { ord: '03', label: 'Models', value: 'Claude' },
+              { ord: '01', label: 'Sources', value: '5' },
+              { ord: '02', label: 'Leads', value: '186' },
+              { ord: '03', label: 'Mode', value: 'Demo' },
             ].map((s) => (
-              <div key={s.ord} className="px-4 py-4" style={{ background: '#050a14' }}>
+              <div key={s.ord} className="px-4 py-4" style={{ background: '#112126' }}>
                 <span
                   className="text-[9px] tracking-[0.3em] tabular-nums text-white/30"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
@@ -131,19 +132,21 @@ export default function AdminLoginPage() {
       <main className="relative flex items-center justify-center p-6 sm:p-10">
         {/* Mobile-only ambient backdrop */}
         <div
-          className="pointer-events-none absolute inset-0 lg:hidden opacity-[0.10]"
-          style={{ background: 'radial-gradient(circle at 50% 30%, #0BAAEF 0%, transparent 60%)' }}
+          className="pointer-events-none absolute inset-x-0 top-0 h-px lg:hidden opacity-70"
+          style={{ background: 'linear-gradient(90deg, transparent, #00CEC8, #EB4203, transparent)' }}
         />
 
         <div className="relative w-full max-w-sm">
           {/* Mobile wordmark */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
-            <img src="/emclogo.png" alt="" className="h-7 w-7 object-contain" />
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-[10px] font-black text-white">
+              PG
+            </span>
             <p
               className="text-[10px] tracking-[0.4em] uppercase text-white/45"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
-              LIE / Console
+              ProspectGrid / Console
             </p>
           </div>
 
@@ -152,13 +155,14 @@ export default function AdminLoginPage() {
               className="text-[10px] uppercase tracking-[0.4em] text-white/40 mb-3"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
-              Sign in
+              Demo workspace
             </p>
             <h2 className="text-white font-bold text-3xl sm:text-4xl tracking-tight leading-[1.05]">
-              Welcome back.
+              Launch the console.
             </h2>
             <p className="text-white/45 text-sm mt-3">
-              Enter your admin credentials to access the console.
+              The app is wired to local mock data, so you can explore every screen
+              without a backend or API keys.
             </p>
           </div>
 
@@ -185,7 +189,7 @@ export default function AdminLoginPage() {
               label="Email"
               ord="01"
               type="email"
-              placeholder="admin@excelmindcyber.com"
+              placeholder="admin@prospectgrid.demo"
               value={email}
               onChange={setEmail}
               autoComplete="email"
@@ -217,10 +221,10 @@ export default function AdminLoginPage() {
               disabled={loading}
               className="group w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold tracking-tight transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                background: '#0BAAEF',
-                color: '#050a14',
+                background: '#00CEC8',
+                color: '#112126',
                 borderRadius: '8px',
-                boxShadow: '0 0 0 1px rgba(11,170,239,0.3), 0 12px 32px -12px rgba(11,170,239,0.5)',
+                boxShadow: '0 0 0 1px rgba(0,206,200,0.3), 0 12px 32px -12px rgba(0,206,200,0.5)',
               }}
             >
               {loading ? (
@@ -230,7 +234,7 @@ export default function AdminLoginPage() {
                 </>
               ) : (
                 <>
-                  <span>Continue</span>
+                  <span>Open demo workspace</span>
                   <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" d="M5 12h14m-6-7l7 7-7 7" />
                   </svg>
@@ -240,8 +244,10 @@ export default function AdminLoginPage() {
           </form>
 
           <p className="text-white/30 text-[11px] mt-8 leading-relaxed">
-            Sessions are secured with a JWT bearer. Lost access?{' '}
-            <span className="text-white/55">Contact the workspace owner.</span>
+            New organization?{' '}
+            <Link href="/signup" className="text-white/70 hover:text-white">
+              Create a ProspectGrid workspace.
+            </Link>
           </p>
         </div>
       </main>
@@ -285,7 +291,7 @@ function Field({
         className="relative transition-all"
         style={{
           background: 'var(--t-fg-02)',
-          borderBottom: `1px solid ${focused ? '#0BAAEF' : 'var(--t-fg-10)'}`,
+          borderBottom: `1px solid ${focused ? '#00CEC8' : 'var(--t-fg-10)'}`,
         }}
       >
         <input

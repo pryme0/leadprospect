@@ -6,26 +6,26 @@ import { leadsApi } from '@/lib/api';
 import { getStashedUtms } from '@/lib/utm';
 import { track } from '@/lib/analytics';
 
-// Compelling pitches — rotated by trigger so a returning visitor doesn't
-// see the same headline twice. Tone: specific outcome + reason to act now.
+// Compelling pitches rotated by trigger so a returning visitor does not see
+// the same headline twice. Tone: specific outcome + reason to act now.
 const PITCHES = [
   {
-    eyebrow: "Don't lose another month",
-    headline: 'Get your 90-day GRC roadmap before you spend on the wrong cert.',
+    eyebrow: "Don't lose another qualified account",
+    headline: 'See which ad clicks are turning into real business leads.',
     body:
-      "Most career-changers waste $2k+ on Security+ before realising they wanted GRC, not SOC. Drop your number and we'll send the right starting point — built around your background.",
+      "ProspectGrid connects campaign source, company enrichment, and routing status so your team can act on high-intent accounts while they are still warm.",
   },
   {
-    eyebrow: 'Real recruiters, not generic advice',
-    headline: 'Talk to someone who has actually placed people in cyber.',
+    eyebrow: 'Ad platforms plus CRM context',
+    headline: 'Turn Google, Meta, TikTok, and Instagram leads into one clean queue.',
     body:
-      "We're a recruiter-led team, not a course factory. 15-min call, no pitch — just the honest path from where you are to a $90k+ GRC role. Pick a channel below.",
+      "Send us your preferred channel and we will show how lead scoring, dedupe, suppression, and CRM routing fit your current acquisition stack.",
   },
   {
-    eyebrow: 'Before you close this tab',
-    headline: 'Lock in your free roadmap call.',
+    eyebrow: 'Before the lead goes cold',
+    headline: 'Get a source-aware routing preview.',
     body:
-      "If you've been stuck on which cert / which role / how to write the resume — this is what we fix in the call. No charge, no follow-up unless you want it.",
+      "Map every new prospect to the right sales, nurture, or agency workflow based on source, fit, intent, and account enrichment.",
   },
 ];
 
@@ -236,7 +236,7 @@ export default function HomepagePromptModal({
               className="mx-auto w-12 h-12 rounded-full flex items-center justify-center"
               style={{ background: 'rgba(11,170,239,0.15)' }}
             >
-              <svg className="w-6 h-6" fill="none" stroke="#0BAAEF" strokeWidth={2.5} viewBox="0 0 24 24">
+              <svg className="w-6 h-6" fill="none" stroke="#00CEC8" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
@@ -259,7 +259,7 @@ export default function HomepagePromptModal({
             <div className="mb-5">
               <p
                 className="text-[10px] font-bold uppercase tracking-[0.22em] mb-2"
-                style={{ color: '#0BAAEF' }}
+                style={{ color: '#00CEC8' }}
               >
                 {pitch.eyebrow}
               </p>
@@ -351,7 +351,7 @@ export default function HomepagePromptModal({
                     type="checkbox"
                     checked={form.consent_call}
                     onChange={(e) => update({ consent_call: e.target.checked })}
-                    className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#0BAAEF] focus:ring-[#0BAAEF]/30 cursor-pointer"
+                    className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#00CEC8] focus:ring-[#00CEC8]/30 cursor-pointer"
                   />
                   <span className="text-sm text-white/85">
                     OK to <span className="text-white font-semibold">call</span> me on this number
@@ -362,7 +362,7 @@ export default function HomepagePromptModal({
                     type="checkbox"
                     checked={form.consent_email}
                     onChange={(e) => update({ consent_email: e.target.checked })}
-                    className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#0BAAEF] focus:ring-[#0BAAEF]/30 cursor-pointer"
+                    className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#00CEC8] focus:ring-[#00CEC8]/30 cursor-pointer"
                   />
                   <span className="text-sm text-white/85">
                     OK to <span className="text-white font-semibold">email</span> me
@@ -377,11 +377,11 @@ export default function HomepagePromptModal({
                     type="checkbox"
                     checked={form.consented}
                     onChange={(e) => update({ consented: e.target.checked })}
-                    className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#0BAAEF] focus:ring-[#0BAAEF]/30 cursor-pointer"
+                    className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#00CEC8] focus:ring-[#00CEC8]/30 cursor-pointer"
                   />
                   <span className="text-xs text-brand-muted">
-                    I agree to be contacted by ExcelMindCyber about cybersecurity career resources.{' '}
-                    <Link href="/privacy" target="_blank" className="text-[#0BAAEF] underline">
+                    I agree to be contacted by ProspectGrid about lead intelligence resources.{' '}
+                    <Link href="/privacy" target="_blank" className="text-[#00CEC8] underline">
                       Privacy Policy
                     </Link>
                     <span className="text-brand-danger"> *</span>

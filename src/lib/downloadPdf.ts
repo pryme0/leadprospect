@@ -42,13 +42,13 @@ export async function downloadPdf(opts: PdfReportOptions): Promise<void> {
   const PAGE_H = 297;
   const MARGIN = 20;
   const CONTENT_W = PAGE_W - MARGIN * 2;
-  const ACCENT = [11, 170, 239] as [number, number, number];   // #0BAAEF brand-blue
-  const DARK  = [8, 15, 23]   as [number, number, number];    // #080f17
+  const ACCENT = [0, 206, 200] as [number, number, number];   // #00CEC8 brand cyan
+  const DARK  = [17, 33, 38]  as [number, number, number];    // #112126
   const GREY  = [100, 116, 139] as [number, number, number];  // slate-500
   const WHITE = [255, 255, 255] as [number, number, number];
 
-  // Load brand logo
-  const logoDataUrl = await loadImageAsDataUrl('/emclogo.png');
+  // Load brand icon
+  const logoDataUrl = await loadImageAsDataUrl('/icon-512.png');
 
   let y = 0;
 
@@ -78,7 +78,7 @@ export async function downloadPdf(opts: PdfReportOptions): Promise<void> {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(...DARK);
-    doc.text('EMC', MARGIN + 7, 16.5);
+    doc.text('PG', MARGIN + 8, 16.5);
   }
 
   // Title
@@ -210,7 +210,7 @@ export async function downloadPdf(opts: PdfReportOptions): Promise<void> {
 
     doc.setFontSize(7.5);
     doc.setTextColor(...GREY);
-    doc.text('ExcelMindCyber — Lead Intelligence Engine', footerTextX, PAGE_H - 4.5);
+    doc.text('ProspectGrid — Lead Intelligence Platform', footerTextX, PAGE_H - 4.5);
     doc.text(`Page ${i} of ${totalPages}`, PAGE_W - MARGIN, PAGE_H - 4.5, { align: 'right' });
   }
 

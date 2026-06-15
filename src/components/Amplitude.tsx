@@ -36,9 +36,8 @@ function ensureInitialized() {
 
 // Custom per-route page-view event names (route-based, host-independent).
 function eventNameForPath(pathname: string): string {
-  if (pathname.startsWith('/tools/cyber-path-finder')) return 'cyber_page_view';
-  if (pathname.startsWith('/tools/career-assessment')) return 'career_page_view';
-  if (pathname.startsWith('/tools/resume-analyzer')) return 'resume_page_view';
+  if (pathname.startsWith('/admin')) return 'workspace_page_view';
+  if (pathname.startsWith('/signup')) return 'signup_page_view';
   return 'page_view';
 }
 

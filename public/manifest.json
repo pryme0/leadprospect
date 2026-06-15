@@ -1,11 +1,11 @@
 {
-  "name": "ExcelMindCyber — GRC Career Tools",
-  "short_name": "ExcelMindCyber",
-  "description": "Free AI-powered GRC career tools: 90-day roadmap, career assessment, and resume analyzer.",
+  "name": "ProspectGrid — Lead Intelligence Platform",
+  "short_name": "ProspectGrid",
+  "description": "Find, enrich, score, and route business leads from ads, forms, CRM, and social buying signals.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#080f17",
-  "theme_color": "#0BAAEF",
+  "background_color": "#f7f9fc",
+  "theme_color": "#0f172a",
   "icons": [
     { "src": "/favicon-16.png", "sizes": "16x16", "type": "image/png" },
     { "src": "/favicon-32.png", "sizes": "32x32", "type": "image/png" },

@@ -12,7 +12,7 @@ export function formatInline(text: string): string {
     // Bold: **text**
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
     // Italic: *text* (but not ** which is bold)
-    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em class="text-[#0BAAEF]/80">$1</em>')
+    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em class="text-[#00CEC8]/80">$1</em>')
     // Strip any leftover stray * or ** that didn't pair
     .replace(/\*{1,2}/g, '')
     // Strip leftover # at start of line fragments
@@ -71,7 +71,7 @@ export default function MarkdownBody({ text }: { text: string }) {
         // h4: #### heading
         if (/^####\s+/.test(trimmed)) {
           return (
-            <p key={i} className="text-[#0BAAEF] font-semibold text-xs uppercase tracking-wide mt-3 mb-1">
+            <p key={i} className="text-[#00CEC8] font-semibold text-xs uppercase tracking-wide mt-3 mb-1">
               {formatInlineText(trimmed.replace(/^####\s+/, ''))}
             </p>
           );
@@ -81,7 +81,7 @@ export default function MarkdownBody({ text }: { text: string }) {
         if (/^\s{2,}[-*]/.test(line)) {
           return (
             <div key={i} className="flex items-start gap-2 pl-5">
-              <span className="text-[#0BAAEF]/50 mt-1.5 shrink-0 text-[10px]">◦</span>
+              <span className="text-[#00CEC8]/50 mt-1.5 shrink-0 text-[10px]">◦</span>
               <span className="text-brand-light/80 text-sm leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: formatInline(trimmed.replace(/^[-*]\s*/, '')) }} />
             </div>
@@ -92,7 +92,7 @@ export default function MarkdownBody({ text }: { text: string }) {
         if (/^[-*]\s/.test(trimmed)) {
           return (
             <div key={i} className="flex items-start gap-2">
-              <span className="text-[#0BAAEF] mt-1.5 shrink-0 text-xs">▸</span>
+              <span className="text-[#00CEC8] mt-1.5 shrink-0 text-xs">▸</span>
               <span className="text-brand-light text-sm leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: formatInline(trimmed.replace(/^[-*]\s+/, '')) }} />
             </div>
@@ -104,7 +104,7 @@ export default function MarkdownBody({ text }: { text: string }) {
         if (numMatch) {
           return (
             <div key={i} className="flex items-start gap-3">
-              <span className="text-[#0BAAEF] font-bold text-xs mt-1 shrink-0 w-4 text-right">{numMatch[1]}.</span>
+              <span className="text-[#00CEC8] font-bold text-xs mt-1 shrink-0 w-4 text-right">{numMatch[1]}.</span>
               <span className="text-brand-light text-sm leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: formatInline(numMatch[2]) }} />
             </div>

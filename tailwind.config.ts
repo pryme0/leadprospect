@@ -10,21 +10,19 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          dark: '#080e1c',
-          darker: '#050a14',
-          navy: '#0b1828',
-          slate: '#172235',
-          // Primary brand blue — matches EMC logo electric blue
-          accent: '#0BAAEF',
-          'accent-dim': '#0888CC',
-          // Lighter sky blue for gradients / secondary highlights
-          cyan: '#40C4FF',
-          'cyan-dim': '#1EA8E0',
-          blue: '#1e90ff',
-          warning: '#ff6b35',
+          dark: '#073B3A',
+          darker: '#112126',
+          navy: '#17373A',
+          slate: '#275256',
+          accent: '#00CEC8',
+          'accent-dim': '#009B98',
+          cyan: '#FCEFC3',
+          'cyan-dim': '#009B98',
+          blue: '#006B67',
+          warning: '#EB4203',
           danger: '#ff4757',
-          muted: '#8892b0',
-          light: '#ccd6f6',
+          muted: '#7b8f99',
+          light: '#E4FFFB',
         },
       },
       fontFamily: {
@@ -38,8 +36,8 @@ const config: Config = {
       },
       keyframes: {
         'pulse-glow': {
-          '0%, 100%': { boxShadow: '0 0 5px rgba(11, 170, 239, 0.3)' },
-          '50%': { boxShadow: '0 0 20px rgba(11, 170, 239, 0.6)' },
+          '0%, 100%': { boxShadow: '0 0 5px rgba(0, 206, 200, 0.3)' },
+          '50%': { boxShadow: '0 0 20px rgba(0, 206, 200, 0.6)' },
         },
         'fade-in': {
           '0%': { opacity: '0' },

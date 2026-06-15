@@ -1,6 +1,6 @@
 // Client-side UTM capture & retrieval. Amplitude's `defaultTracking.attribution`
 // already grabs utm_* values automatically into user_properties — this module
-// exists so OUR backend (lead row, GHL, automation) can also see them. We
+// exists so the lead record, CRM route, and source attribution can also see them. We
 // capture on first page load (when the visitor lands with utm_* in the URL)
 // and stash in sessionStorage so the values survive client-side route
 // changes within the same tab.
@@ -10,7 +10,7 @@
 // when they navigate to a clean URL. We DO overwrite if a new utm_source
 // shows up (e.g. they bounce out and come back via a different campaign).
 
-const STORAGE_KEY = 'emc_utm_v1';
+const STORAGE_KEY = 'prospectgrid_utm_v1';
 
 const UTM_KEYS = [
   'utm_source',

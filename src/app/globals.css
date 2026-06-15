@@ -46,15 +46,41 @@
   0%, 100% { transform: translateY(0px); }
   50%       { transform: translateY(-8px); }
 }
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
 
 /* ── Admin theme CSS variables ───────────────────────────────────────────── */
-/* Dark (default) */
+/* Light SaaS workspace (default) */
 :root,
+[data-theme="light"] {
+  --a-bg:        #F8FBFA;
+  --a-surface:   #ffffff;
+  --a-card:      #ffffff;
+  --a-card2:     #FFF3D3;
+  --a-border:    rgba(17,33,38,0.11);
+  --a-border2:   rgba(17,33,38,0.16);
+  --a-text:      #0f172a;
+  --a-text-80:   #1e293b;
+  --a-text-60:   #334155;
+  --a-text-50:   #475569;
+  --a-text-40:   #64748b;
+  --a-text-30:   #475569;
+  --a-text-25:   #64748b;
+  --a-text-20:   #64748b;
+  --a-hover:     rgba(0,0,0,0.02);
+  --a-hover2:    rgba(0,0,0,0.05);
+  --a-input-bg:  rgba(0,0,0,0.04);
+  color-scheme: light;
+}
+
+/* Dark */
 [data-theme="dark"] {
-  --a-bg:        #050a14;
-  --a-surface:   #0b1828;
-  --a-card:      #0d1e30;
-  --a-card2:     #0a1828;
+  --a-bg:        #0A1517;
+  --a-surface:   #112126;
+  --a-card:      #17373A;
+  --a-card2:     #21484B;
   --a-border:    rgba(255,255,255,0.05);
   --a-border2:   rgba(255,255,255,0.08);
   --a-text:      #ffffff;
@@ -70,63 +96,6 @@
   --a-input-bg:  rgba(255,255,255,0.04);
   color-scheme: dark;
 }
-
-/* Light */
-[data-theme="light"] {
-  --a-bg:        #f0f4f8;
-  --a-surface:   #ffffff;
-  --a-card:      #ffffff;
-  --a-card2:     #f8fafc;
-  --a-border:    rgba(0,0,0,0.08);
-  --a-border2:   rgba(0,0,0,0.10);
-  --a-text:      #0f172a;
-  --a-text-80:   #1e293b;
-  --a-text-60:   #334155;
-  --a-text-50:   #475569;
-  --a-text-40:   #64748b;
-  --a-text-30:   #94a3b8;
-  --a-text-25:   #94a3b8;
-  --a-text-20:   #cbd5e1;
-  --a-hover:     rgba(0,0,0,0.02);
-  --a-hover2:    rgba(0,0,0,0.05);
-  --a-input-bg:  rgba(0,0,0,0.04);
-  color-scheme: light;
-}
-
-/* ── SBU: Lightforth (deep-navy workspace) ─────────────────────────────── */
-/* Re-paints surfaces in deep navy so the brand's #0a2a60 + teal accent reads
-   as a single coherent system. Layered on top of [data-theme="dark"]; the
-   light-mode override below restores white surfaces. */
-[data-sbu="lightforth"] {
-  --a-bg:       #040b1f;
-  --a-surface:  #08152e;
-  --a-card:     #0c1d3d;
-  --a-card2:    #0a1834;
-  --a-border:   rgba(255,255,255,0.06);
-  --a-border2:  rgba(151,145,255,0.16);
-  --a-hover:    rgba(4,148,124,0.05);
-  --a-hover2:   rgba(4,148,124,0.10);
-  --a-input-bg: rgba(255,255,255,0.04);
-  color-scheme: dark;
-}
-
-/* Scrollbar — Lightforth (teal-tinted thumbs) */
-[data-sbu="lightforth"] ::-webkit-scrollbar-track { background: #04091a; }
-[data-sbu="lightforth"] ::-webkit-scrollbar-thumb { background: rgba(4,148,124,0.30); }
-[data-sbu="lightforth"] ::-webkit-scrollbar-thumb:hover { background: rgba(4,148,124,0.50); }
-
-/* Lightforth: rewire any literal-hex backgrounds inside the dashboard to
-   the tenant tokens so legacy Tailwind classes (e.g. bg-[#0d1e30]) follow
-   the workspace's palette without touching every component. */
-[data-sbu="lightforth"] .bg-\[\#080f17\]     { background-color: var(--a-bg) !important; }
-[data-sbu="lightforth"] .bg-\[\#050a14\]     { background-color: var(--a-bg) !important; }
-[data-sbu="lightforth"] .bg-\[\#0b1520\]     { background-color: var(--a-surface) !important; }
-[data-sbu="lightforth"] .bg-\[\#0b1828\]     { background-color: var(--a-surface) !important; }
-[data-sbu="lightforth"] .bg-\[\#0b1520\]\/80 { background-color: var(--a-surface) !important; }
-[data-sbu="lightforth"] .bg-\[\#0d1b2a\]     { background-color: var(--a-card) !important; }
-[data-sbu="lightforth"] .bg-\[\#0d1e30\]     { background-color: var(--a-card) !important; }
-[data-sbu="lightforth"] .bg-brand-darker     { background-color: var(--a-bg) !important; }
-[data-sbu="lightforth"] .bg-brand-navy       { background-color: var(--a-surface) !important; }
 
 /* Scrollbar themed */
 [data-theme="light"] ::-webkit-scrollbar-track { background: #f0f4f8; }
@@ -174,11 +143,43 @@
 [data-theme="light"] .admin-table tbody tr:hover { background-color: var(--a-hover) !important; }
 [data-theme="light"] .table-container { border-color: var(--a-border) !important; }
 
+/* True on-dark text, used for selected/light-mode elements that intentionally
+   sit on ink backgrounds while the rest of the workspace is light themed. */
+[data-theme="light"] .pg-on-dark,
+[data-theme="light"] .pg-on-dark .text-white,
+[data-theme="light"] .pg-on-dark .text-white\/80,
+[data-theme="light"] .pg-on-dark .text-white\/70,
+[data-theme="light"] .pg-on-dark .text-white\/60,
+[data-theme="light"] .pg-on-dark .text-white\/50,
+[data-theme="light"] .pg-on-dark .text-white\/40,
+[data-theme="light"] .pg-on-dark .text-white\/30,
+[data-theme="light"] .pg-on-dark .text-white\/25,
+[data-theme="light"] .pg-on-dark .text-white\/20 {
+  color: inherit !important;
+}
+[data-theme="light"] .pg-on-dark {
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .hover\:text-white:hover,
+[data-theme="light"] .group:hover .group-hover\:text-white {
+  color: #006B67 !important;
+}
+[data-theme="light"] .hover\:text-white\/80:hover,
+[data-theme="light"] .hover\:text-white\/70:hover,
+[data-theme="light"] .group:hover .group-hover\:text-white\/70 {
+  color: rgba(17,33,38,0.78) !important;
+}
+[data-theme="light"] .hover\:text-white\/60:hover,
+[data-theme="light"] .group:hover .group-hover\:text-white\/60 {
+  color: rgba(17,33,38,0.62) !important;
+}
+
 /* ── Brand accent token (used everywhere — change here to update all) ── */
 :root {
-  --brand-blue:     #0BAAEF;
-  --brand-blue-dim: #0888CC;
-  --brand-sky:      #40C4FF;
+  --brand-blue:     #00CEC8;
+  --brand-blue-dim: #009B98;
+  --brand-sky:      #EB4203;
 }
 
 /* ── Theme-aware foreground tokens ──────────────────────────────────────────
@@ -192,6 +193,7 @@
   --t-fg-95:    rgba(255,255,255,0.95);
   --t-fg-85:    rgba(255,255,255,0.85);
   --t-fg-70:    rgba(255,255,255,0.70);
+  --t-fg-60:    rgba(255,255,255,0.60);
   --t-fg-55:    rgba(255,255,255,0.55);
   --t-fg-45:    rgba(255,255,255,0.45);
   --t-fg-40:    rgba(255,255,255,0.40);
@@ -215,13 +217,14 @@
   --t-fg-95:    rgba(15,23,42,0.95);
   --t-fg-85:    rgba(15,23,42,0.85);
   --t-fg-70:    rgba(15,23,42,0.72);
-  --t-fg-55:    rgba(15,23,42,0.62);
-  --t-fg-45:    rgba(15,23,42,0.50);
-  --t-fg-40:    rgba(15,23,42,0.45);
-  --t-fg-35:    rgba(15,23,42,0.40);
-  --t-fg-30:    rgba(15,23,42,0.35);
-  --t-fg-25:    rgba(15,23,42,0.28);
-  --t-fg-15:    rgba(15,23,42,0.18);
+  --t-fg-60:    rgba(15,23,42,0.68);
+  --t-fg-55:    rgba(15,23,42,0.66);
+  --t-fg-45:    rgba(15,23,42,0.58);
+  --t-fg-40:    rgba(15,23,42,0.54);
+  --t-fg-35:    rgba(15,23,42,0.50);
+  --t-fg-30:    rgba(15,23,42,0.48);
+  --t-fg-25:    rgba(15,23,42,0.44);
+  --t-fg-15:    rgba(15,23,42,0.24);
   --t-fg-12:    rgba(15,23,42,0.14);
   --t-fg-10:    rgba(15,23,42,0.12);
   --t-fg-08:    rgba(15,23,42,0.10);
@@ -233,104 +236,52 @@
   --t-page-bg:  #f0f4f8;
 }
 
-/* Lightforth: re-paints the foreground scale on its true-black surface so
-   text and dividers stay legible. Light mode is not supported on the LF
-   tenant — its identity is achromatic black. */
-[data-theme="dark"][data-sbu="lightforth"] {
-  --t-fg:      #ffffff;
-}
-
-/* ── Tenant tokens ───────────────────────────────────────────────────────────
-   Per-tenant accent + radius + decorative tokens. Hooked off the
-   [data-sbu] attribute set on the admin shell. JavaScript surfaces
-   (Recharts, inline svg fills) read the same colors via the
-   useTenantTheme() hook in lib/tenant-theme.ts — keep both in sync. */
-
-[data-sbu="emc"] {
-  --t-accent:         #0BAAEF;
-  --t-accent-strong:  #0888CC;
-  --t-accent-soft:    rgba(11,170,239,0.15);
-  --t-accent-faint:   rgba(11,170,239,0.06);
-  --t-accent-on:      #ffffff;
-  --t-glow:           rgba(11,170,239,0.35);
+/* ── ProspectGrid workspace tokens ───────────────────────────────────────── */
+[data-workspace="prospectgrid"] {
+  --t-accent:         #00CEC8;
+  --t-accent-strong:  #009B98;
+  --t-accent-soft:    rgba(0,206,200,0.16);
+  --t-accent-faint:   rgba(0,206,200,0.07);
+  --t-accent-on:      #112126;
+  --t-glow:           rgba(0,206,200,0.32);
   --t-radius:         16px;
   --t-radius-lg:      20px;
   --t-radius-sm:      10px;
   --t-display-font:   'Inter', system-ui, sans-serif;
   --t-mono-font:      'JetBrains Mono', ui-monospace, monospace;
-  --t-grid-color:     rgba(11,170,239,0.05);
-  --t-card-shadow:    0 1px 0 rgba(11,170,239,0.06) inset;
-  --t-card-shadow-hover: 0 30px 80px -30px rgba(11,170,239,0.35);
+  --t-grid-color:     rgba(0,206,200,0.05);
+  --t-card-shadow:    0 1px 0 rgba(0,206,200,0.08) inset;
+  --t-card-shadow-hover: 0 30px 80px -30px rgba(0,206,200,0.30);
 }
 
-[data-sbu="lightforth"] {
-  --t-accent:         #04947c;
-  --t-accent-strong:  #005761;
-  --t-accent-soft:    rgba(4,148,124,0.18);
-  --t-accent-faint:   rgba(4,148,124,0.06);
-  --t-accent-on:      #ffffff;
-  --t-glow:           rgba(4,148,124,0.40);
+/* Light-mode workspace token overrides — recalibrate accent washes, glows, and
+   shadows so they read on a white surface instead of a dark one. */
+[data-theme="light"][data-workspace="prospectgrid"] {
+  --t-accent:         #009B98;
+  --t-accent-strong:  #006B67;
+  --t-accent-soft:    rgba(0,155,152,0.10);
+  --t-accent-faint:   rgba(0,155,152,0.04);
+  --t-glow:           rgba(0,155,152,0.18);
+  --t-grid-color:     rgba(0,155,152,0.04);
   --t-radius:         10px;
   --t-radius-lg:      14px;
-  --t-radius-sm:      6px;
-  --t-display-font:   'Inter', system-ui, sans-serif;
-  --t-mono-font:      'JetBrains Mono', ui-monospace, monospace;
-  --t-grid-color:     rgba(4,148,124,0.05);
-  --t-card-shadow:    0 1px 0 rgba(4,148,124,0.08) inset;
-  --t-card-shadow-hover: 0 30px 80px -30px rgba(4,148,124,0.40);
-  --t-spotlight:      #ff5e00;
-  --t-secondary-1:    #9791ff;
-  --t-secondary-2:    #ffcdb0;
+  --t-radius-sm:      8px;
+  --t-card-shadow:    0 1px 0 rgba(15,23,42,0.04) inset, 0 18px 44px -34px rgba(17,33,38,0.30);
+  --t-card-shadow-hover: 0 24px 48px -28px rgba(17,33,38,0.30);
 }
 
-/* Light-mode sbu token overrides — recalibrate accent washes, glows, and
-   shadows so they read on a white surface instead of a dark one. */
-[data-theme="light"][data-sbu="emc"] {
-  --t-accent:         #0888CC;
-  --t-accent-strong:  #0666A0;
-  --t-accent-soft:    rgba(11,170,239,0.10);
-  --t-accent-faint:   rgba(11,170,239,0.04);
-  --t-glow:           rgba(11,170,239,0.18);
-  --t-grid-color:     rgba(11,170,239,0.04);
-  --t-card-shadow:    0 1px 0 rgba(15,23,42,0.04) inset;
-  --t-card-shadow-hover: 0 24px 48px -24px rgba(11,170,239,0.20);
-}
+/* Selection follows the ProspectGrid accent. */
+[data-workspace="prospectgrid"] ::selection { background: rgba(0,206,200,0.30); color: #fff; }
+[data-theme="light"][data-workspace="prospectgrid"] ::selection { background: rgba(0,155,152,0.20); color: #0f172a; }
 
-[data-theme="light"][data-sbu="lightforth"] {
-  --a-bg:       #f5f7fa;
-  --a-surface:  #ffffff;
-  --a-card:     #ffffff;
-  --a-card2:    #f8fafc;
-  --a-border:   rgba(10,42,96,0.10);
-  --a-border2:  rgba(10,42,96,0.14);
-  --a-hover:    rgba(4,148,124,0.04);
-  --a-hover2:   rgba(4,148,124,0.08);
-
-  --t-accent:         #04947c;
-  --t-accent-strong:  #005761;
-  --t-accent-soft:    rgba(4,148,124,0.12);
-  --t-accent-faint:   rgba(4,148,124,0.04);
-  --t-accent-on:      #ffffff;
-  --t-glow:           rgba(4,148,124,0.20);
-  --t-grid-color:     rgba(4,148,124,0.05);
-  --t-card-shadow:    0 1px 0 rgba(15,23,42,0.04) inset;
-  --t-card-shadow-hover: 0 24px 48px -24px rgba(4,148,124,0.30);
-}
-
-/* Selection follows tenant accent */
-[data-sbu="emc"] ::selection      { background: rgba(11,170,239,0.30); color: #fff; }
-[data-sbu="lightforth"] ::selection { background: rgba(255,255,255,0.16); color: #fff; }
-[data-theme="light"][data-sbu="emc"] ::selection      { background: rgba(11,170,239,0.20); color: #0f172a; }
-[data-theme="light"][data-sbu="lightforth"] ::selection { background: rgba(0,0,0,0.10); color: #0f172a; }
-
-/* Tenant page-load motion: stagger children with attr [data-stagger] */
-@keyframes tenantFadeUp {
+/* Workspace page-load motion: stagger children with attr [data-stagger] */
+@keyframes workspaceFadeUp {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 [data-stagger] > * {
   opacity: 0;
-  animation: tenantFadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: workspaceFadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 [data-stagger] > *:nth-child(1) { animation-delay: 0.00s; }
 [data-stagger] > *:nth-child(2) { animation-delay: 0.06s; }
@@ -353,7 +304,7 @@
     color: #ffffff;
   }
   .btn-primary:hover:not(:disabled) { background-color: var(--brand-blue-dim); }
-  .btn-primary:focus { box-shadow: 0 0 0 2px rgba(11,170,239,0.4); }
+  .btn-primary:focus { box-shadow: 0 0 0 2px rgba(0,206,200,0.4); }
 
   .btn-secondary {
     @apply px-6 py-3 font-semibold rounded-lg transition-all duration-200
@@ -361,8 +312,8 @@
     border: 1px solid var(--brand-blue);
     color: var(--brand-blue);
   }
-  .btn-secondary:hover { background-color: rgba(11,170,239,0.1); }
-  .btn-secondary:focus { box-shadow: 0 0 0 2px rgba(11,170,239,0.3); }
+  .btn-secondary:hover { background-color: rgba(0,206,200,0.1); }
+  .btn-secondary:focus { box-shadow: 0 0 0 2px rgba(0,206,200,0.3); }
 
   .btn-danger {
     @apply px-6 py-3 bg-brand-danger text-white font-semibold rounded-lg
@@ -378,7 +329,7 @@
   }
   .input-field:focus {
     border-color: var(--brand-blue);
-    box-shadow: 0 0 0 1px rgba(11,170,239,0.3);
+    box-shadow: 0 0 0 1px rgba(0,206,200,0.3);
   }
 
   .select-field {
@@ -389,7 +340,7 @@
   }
   .select-field:focus {
     border-color: var(--brand-blue);
-    box-shadow: 0 0 0 1px rgba(11,170,239,0.3);
+    box-shadow: 0 0 0 1px rgba(0,206,200,0.3);
   }
 
   /* Cards */
@@ -397,12 +348,12 @@
     @apply bg-brand-navy border border-brand-slate rounded-xl p-6
            transition-all duration-300;
   }
-  .card:hover { border-color: rgba(11,170,239,0.3); }
+  .card:hover { border-color: rgba(0,206,200,0.3); }
 
   .card-glow {
     @apply card;
   }
-  .card-glow:hover { box-shadow: 0 8px 32px rgba(11,170,239,0.1); }
+  .card-glow:hover { box-shadow: 0 8px 32px rgba(0,206,200,0.1); }
 
   .stat-card {
     @apply bg-brand-navy border border-brand-slate rounded-xl p-6;
@@ -495,7 +446,7 @@
   /* badge-blue = brand blue accent */
   .badge-blue {
     @apply badge;
-    background-color: rgba(11,170,239,0.15);
+    background-color: rgba(0,206,200,0.15);
     color: var(--brand-blue);
   }
 

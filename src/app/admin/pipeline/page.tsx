@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '@/lib/api';
-import { useTenantTheme } from '@/lib/tenant-theme';
+import { useWorkspaceTheme } from '@/lib/workspace-theme';
 
 interface Signal {
   id: string;
@@ -55,23 +55,21 @@ function timeAgo(date: Date): string {
 }
 
 const PLATFORMS = [
-  { id: 'twitter', label: 'Twitter / X', desc: '6 search queries · Apify + Bearer fallback' },
-  { id: 'reddit', label: 'Reddit', desc: '5 subreddits · RapidAPI + public JSON' },
-  { id: 'youtube', label: 'YouTube', desc: 'Video comments · Apify + Data API' },
-  { id: 'linkedin', label: 'LinkedIn', desc: 'Posts, comments, profiles · Apify' },
-  { id: 'instagram', label: 'Instagram', desc: 'Hashtag posts · Apify' },
+  { id: 'google', label: 'Google Ads', desc: 'Search terms, campaigns, and conversion events' },
+  { id: 'linkedin', label: 'LinkedIn Ads', desc: 'Company intent, job roles, and buying committees' },
+  { id: 'instagram', label: 'Instagram Ads', desc: 'Lead forms, retargeting audiences, and DMs' },
+  { id: 'tiktok', label: 'TikTok Ads', desc: 'Short-form campaign leads and territory demand' },
 ] as const;
 
 type Platform = typeof PLATFORMS[number]['id'];
 
 export default function PipelinePage() {
-  const theme = useTenantTheme();
+  const theme = useWorkspaceTheme();
   const [ingestStatus, setIngestStatus] = useState<Record<Platform, IngestStatus>>({
-    twitter: { running: false, lastCount: null, lastRun: null, error: null },
-    reddit: { running: false, lastCount: null, lastRun: null, error: null },
-    youtube: { running: false, lastCount: null, lastRun: null, error: null },
+    google: { running: false, lastCount: null, lastRun: null, error: null },
     linkedin: { running: false, lastCount: null, lastRun: null, error: null },
     instagram: { running: false, lastCount: null, lastRun: null, error: null },
+    tiktok: { running: false, lastCount: null, lastRun: null, error: null },
   });
 
   const [classifyStatus, setClassifyStatus] = useState<ClassifyStatus>({
@@ -175,115 +173,85 @@ export default function PipelinePage() {
   };
 
   const sourceColor = (s: string) => theme.platform[s] || theme.chart[3];
+  const highIntentCount = signals.filter((signal) => signal.intent_level === 'HIGH_INTENT').length;
+  const processedCount = signals.filter((signal) => signal.processed).length;
 
   return (
-    <div className="space-y-10 max-w-[1480px] mx-auto">
+    <div className="space-y-7 max-w-[1280px] mx-auto">
       {/* Header */}
-      <header>
-        <p
-          className="text-[10px] uppercase tracking-[0.3em] text-white/35 mb-2 flex items-center gap-2.5"
-          style={{ fontFamily: theme.fontMono }}
-        >
-          <span className="text-white/55">02</span>
-          <span className="block h-px w-6" style={{ background: 'var(--t-accent-soft)' }} />
-          <span>Pipeline</span>
-        </p>
-        <h1 className="text-white font-bold text-3xl tracking-tight leading-[1.05]">
-          The signal pipeline.
-        </h1>
-        <p className="text-white/45 text-sm mt-2 max-w-xl">
-          Trigger ingestion, kick off classification, and watch signals flow through the system in real time.
-        </p>
+      <header
+        className="grid gap-5 lg:grid-cols-[minmax(0,1fr),auto]"
+        style={{
+          background: 'var(--a-card)',
+          border: '1px solid var(--a-border)',
+          borderRadius: 'var(--t-radius-lg)',
+          padding: '20px 24px',
+          boxShadow: 'var(--t-card-shadow)',
+        }}
+      >
+        <div>
+          <p
+            className="mb-2 text-[9px] font-bold uppercase tracking-[0.3em]"
+            style={{ color: theme.accent, fontFamily: theme.fontMono }}
+          >
+            05 · Signal pipeline
+          </p>
+          <h1 className="text-[26px] font-black leading-tight tracking-tight" style={{ color: 'var(--t-fg-95)' }}>
+            Source and scoring pipeline
+          </h1>
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed" style={{ color: 'var(--t-fg-60)' }}>
+            Monitor each lead source, run scoring when needed, and inspect the latest signals before they enter routing.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <HeaderStat label="Feed" value={signals.length} theme={theme} />
+          <HeaderStat label="Scored" value={processedCount} theme={theme} />
+          <HeaderStat label="High intent" value={highIntentCount} theme={theme} tone="hot" />
+        </div>
       </header>
 
       {/* MODULE 01 — INGESTION */}
       <section>
-        <SectionHeader ord="01" title="Ingestion" subtitle="Pulls from social platforms · auto-runs every 10 min" theme={theme} />
+        <SectionHeader ord="01" title="Source ingestion" subtitle="Auto-runs every 10 minutes. Manual runs are for fresh campaign pulls." theme={theme} />
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3" data-stagger>
+        <div className="overflow-hidden" style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)', borderRadius: 'var(--t-radius-lg)' }}>
+          <div className="grid grid-cols-[minmax(190px,1fr),130px,120px,130px,110px] items-center border-b px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ borderColor: 'var(--a-border)', color: 'var(--t-fg-35)', fontFamily: theme.fontMono }}>
+            <span>Source</span>
+            <span>Status</span>
+            <span className="text-right">Last pull</span>
+            <span className="text-right">Records</span>
+            <span className="text-right">Action</span>
+          </div>
           {PLATFORMS.map((p) => {
             const st = ingestStatus[p.id];
             const color = sourceColor(p.id);
             return (
-              <div
-                key={p.id}
-                className="relative flex flex-col gap-4 p-5 overflow-hidden"
-                style={{
-                  background: 'var(--a-card)',
-                  border: '1px solid var(--a-border)',
-                  borderRadius: 'var(--t-radius-lg)',
-                }}
-              >
-                <span
-                  className="absolute top-0 left-0 h-[2px] w-full"
-                  style={{ background: `linear-gradient(90deg, ${color} 0%, transparent 60%)`, opacity: 0.6 }}
-                />
-                <div className="flex items-start gap-3">
-                  <span
-                    className="h-2 w-2 rounded-full mt-1.5 shrink-0"
-                    style={{ background: color, boxShadow: `0 0 12px ${color}80` }}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-white font-semibold text-sm tracking-tight capitalize">{p.label}</p>
-                    <p className="text-white/40 text-[11px] mt-0.5 leading-snug">{p.desc}</p>
+              <div key={p.id} className="grid grid-cols-[minmax(190px,1fr),130px,120px,130px,110px] items-center border-b px-4 py-3 last:border-b-0" style={{ borderColor: 'var(--a-border)' }}>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+                    <p className="truncate text-sm font-semibold" style={{ color: 'var(--t-fg-95)' }}>{p.label}</p>
                   </div>
+                  <p className="mt-0.5 truncate text-xs" style={{ color: 'var(--t-fg-60)' }}>{p.desc}</p>
+                  {st.error && <p className="mt-1 text-xs text-red-400">{st.error}</p>}
                 </div>
-
-                <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em]" style={{ fontFamily: theme.fontMono }}>
-                  <span className="text-white/30">
-                    {st.lastRun
-                      ? <>Last run · <span className="text-white/70">{timeAgo(st.lastRun)} ago</span>{st.lastCount !== null && <span className="ml-1.5" style={{ color }}>+{st.lastCount}</span>}</>
-                      : <>Idle</>}
-                  </span>
-                  <span className="text-white/30 inline-flex items-center gap-1.5">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="absolute inline-flex h-full w-full animate-ping opacity-50 rounded-full" style={{ background: color }} />
-                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: color }} />
-                    </span>
-                    Auto · 10m
-                  </span>
-                </div>
-
-                {st.error && (
-                  <div
-                    className="px-3 py-2 text-[11px] flex items-start gap-2"
-                    style={{
-                      background: 'rgba(239,68,68,0.06)',
-                      border: '1px solid rgba(239,68,68,0.20)',
-                      color: '#fca5a5',
-                      borderRadius: 'var(--t-radius-sm)',
-                    }}
+                <StatusPill running={st.running} theme={theme} />
+                <span className="text-right text-xs tabular-nums" style={{ color: 'var(--t-fg-60)', fontFamily: theme.fontMono }}>
+                  {st.lastRun ? `${timeAgo(st.lastRun)} ago` : 'Idle'}
+                </span>
+                <span className="text-right text-sm font-semibold tabular-nums" style={{ color: st.lastCount ? color : 'var(--t-fg-35)', fontFamily: theme.fontMono }}>
+                  {st.lastCount !== null ? `+${st.lastCount}` : '—'}
+                </span>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => triggerIngest(p.id)}
+                    disabled={st.running}
+                    className="inline-flex min-h-9 items-center justify-center rounded-lg px-3 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ background: 'var(--t-accent-soft)', color: theme.accent, border: '1px solid var(--t-accent-soft)', fontFamily: theme.fontMono }}
                   >
-                    {st.error}
-                  </div>
-                )}
-
-                <button
-                  onClick={() => triggerIngest(p.id)}
-                  disabled={st.running}
-                  className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-xs uppercase tracking-[0.18em] font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/[0.04]"
-                  style={{
-                    fontFamily: theme.fontMono,
-                    border: '1px solid var(--a-border2)',
-                    color: st.running ? 'var(--t-fg-55)' : theme.accent,
-                    borderRadius: 'var(--t-radius-sm)',
-                  }}
-                >
-                  {st.running ? (
-                    <>
-                      <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      Running
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <circle cx="12" cy="12" r="9" />
-                      </svg>
-                      Run now
-                    </>
-                  )}
-                </button>
+                    {st.running ? 'Running' : 'Run'}
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -292,43 +260,38 @@ export default function PipelinePage() {
 
       {/* MODULE 02 — CLASSIFICATION */}
       <section>
-        <SectionHeader ord="02" title="Classification" subtitle="Claude reads each signal · auto-runs every 5 min · batch of 50" theme={theme} />
+        <SectionHeader ord="02" title="Lead scoring" subtitle="Scores each signal for fit, urgency, and routing priority · batch of 50" theme={theme} />
 
         <div
-          className="relative grid lg:grid-cols-[1.4fr,1fr] gap-6 p-6 overflow-hidden"
+          className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr),auto]"
           style={{
             background: 'var(--a-card)',
             border: '1px solid var(--a-border)',
             borderRadius: 'var(--t-radius-lg)',
           }}
         >
-          <span
-            className="absolute top-0 left-0 h-[2px] w-full"
-            style={{ background: `linear-gradient(90deg, ${theme.accent} 0%, transparent 70%)`, opacity: 0.5 }}
-          />
-
           <div>
             <p
-              className="text-[10px] uppercase tracking-[0.28em] text-white/40 mb-3"
-              style={{ fontFamily: theme.fontMono }}
+              className="mb-2 text-[10px] uppercase tracking-[0.24em]"
+              style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}
             >
               Pending classification
             </p>
             <p
-              className="text-white font-bold tabular-nums leading-none"
-              style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)', letterSpacing: '-0.04em', color: theme.intent.medium }}
+              className="font-bold tabular-nums leading-none"
+              style={{ fontSize: '36px', letterSpacing: '-0.02em', color: theme.intent.medium }}
             >
               {unprocessedCount !== null ? unprocessedCount.toLocaleString() : '—'}
             </p>
-            <p className="text-white/45 text-sm mt-3 max-w-md">
-              Signals waiting for Claude to score intent, urgency, and pain points.
+            <p className="mt-2 max-w-xl text-sm leading-6" style={{ color: 'var(--t-fg-60)' }}>
+              Signals waiting for scoring across intent, urgency, and routing blockers.
               Triggers automatically — manual run only when you need fresh data now.
             </p>
 
             {classifyStatus.lastRun && (
               <div className="flex items-center gap-2 mt-5 text-[10px] uppercase tracking-[0.22em]" style={{ fontFamily: theme.fontMono }}>
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: theme.accent }} />
-                <span className="text-white/40">Last run · {timeAgo(classifyStatus.lastRun)} ago</span>
+                <span style={{ color: 'var(--t-fg-40)' }}>Last run · {timeAgo(classifyStatus.lastRun)} ago</span>
                 {classifyStatus.lastCount !== null && (
                   <span style={{ color: theme.accent }}>· {classifyStatus.lastCount} classified</span>
                 )}
@@ -350,16 +313,15 @@ export default function PipelinePage() {
             )}
           </div>
 
-          <div className="flex flex-col justify-end items-end">
+          <div className="flex items-center justify-start lg:justify-end">
             <button
               onClick={triggerClassify}
               disabled={classifyStatus.running || unprocessedCount === 0}
-              className="inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold tracking-tight transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex min-h-11 items-center gap-2 px-5 text-sm font-semibold tracking-tight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background: theme.accent,
                 color: theme.accentOn,
                 borderRadius: 'var(--t-radius-sm)',
-                boxShadow: `0 12px 32px -12px ${theme.glow}`,
               }}
             >
               {classifyStatus.running ? (
@@ -372,7 +334,7 @@ export default function PipelinePage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  Run batch now
+                  Score batch now
                 </>
               )}
             </button>
@@ -390,8 +352,8 @@ export default function PipelinePage() {
           right={
             <button
               onClick={fetchSignals}
-              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.22em] text-white/45 hover:text-white transition-colors"
-              style={{ fontFamily: theme.fontMono }}
+              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.22em] transition-colors hover:opacity-100"
+              style={{ color: 'var(--t-fg-45)', fontFamily: theme.fontMono }}
               title="Refresh"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -411,7 +373,7 @@ export default function PipelinePage() {
             borderRadius: 'var(--t-radius)',
           }}
         >
-          <span className="text-[10px] uppercase tracking-[0.25em] text-white/40 mr-2" style={{ fontFamily: theme.fontMono }}>
+          <span className="text-[10px] uppercase tracking-[0.25em] mr-2" style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}>
             Source
           </span>
           {(['all', ...PLATFORMS.map((p) => p.id)] as const).map((s) => (
@@ -426,7 +388,7 @@ export default function PipelinePage() {
             </SegmentBtn>
           ))}
           <div className="hidden sm:block w-px h-5 mx-2" style={{ background: 'var(--a-border2)' }} />
-          <span className="text-[10px] uppercase tracking-[0.25em] text-white/40 mr-2" style={{ fontFamily: theme.fontMono }}>
+          <span className="text-[10px] uppercase tracking-[0.25em] mr-2" style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}>
             State
           </span>
           {([
@@ -479,13 +441,13 @@ export default function PipelinePage() {
             }}
           >
             <div className="h-px w-12" style={{ background: 'var(--a-border2)' }} />
-            <p className="text-white/35 text-sm">No signals yet</p>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-white/25" style={{ fontFamily: theme.fontMono }}>
+            <p className="text-sm" style={{ color: 'var(--t-fg-35)' }}>No signals yet</p>
+            <p className="text-[10px] uppercase tracking-[0.25em]" style={{ color: 'var(--t-fg-25)', fontFamily: theme.fontMono }}>
               Trigger an ingestion above
             </p>
           </div>
         ) : (
-          <div className="grid xl:grid-cols-2 gap-3" data-stagger>
+          <div className="space-y-2" data-stagger>
             {signals.map((s) => (
               <SignalCard
                 key={s.id}
@@ -502,11 +464,11 @@ export default function PipelinePage() {
         {!signalsLoading && feedTotal > FEED_PAGE_SIZE && (
           <div className="flex items-center justify-between mt-5">
             <p
-              className="text-[10px] uppercase tracking-[0.25em] text-white/40 tabular-nums"
+              className="text-[10px] uppercase tracking-[0.25em] tabular-nums"
               style={{ fontFamily: theme.fontMono }}
             >
               Page {String(feedPage).padStart(2, '0')} / {String(Math.ceil(feedTotal / FEED_PAGE_SIZE)).padStart(2, '0')}
-              <span className="text-white/25 ml-2">· {feedTotal.toLocaleString()} total</span>
+              <span className="ml-2" style={{ color: 'var(--t-fg-25)' }}>· {feedTotal.toLocaleString()} total</span>
             </p>
             <div className="flex gap-2">
               <PaginationButton
@@ -549,23 +511,55 @@ function SectionHeader({
   ord: string;
   title: string;
   subtitle?: string;
-  theme: ReturnType<typeof useTenantTheme>;
+  theme: ReturnType<typeof useWorkspaceTheme>;
   right?: React.ReactNode;
 }) {
   return (
     <div className="flex items-end justify-between gap-4 mb-4">
       <div className="flex items-baseline gap-3">
-        <span className="text-[10px] tracking-[0.3em] text-white/35 tabular-nums" style={{ fontFamily: theme.fontMono }}>
+        <span className="tabular-nums text-[10px] tracking-[0.3em]" style={{ color: 'var(--t-fg-35)', fontFamily: theme.fontMono }}>
           {ord}
         </span>
         <span className="block h-px w-6" style={{ background: 'var(--t-accent-soft)' }} />
         <div>
-          <h2 className="text-white font-semibold text-sm tracking-tight">{title}</h2>
-          {subtitle && <p className="text-white/35 text-[11px] mt-0.5">{subtitle}</p>}
+          <h2 className="text-sm font-semibold tracking-tight" style={{ color: 'var(--t-fg-95)' }}>{title}</h2>
+          {subtitle && <p className="mt-0.5 text-[11px]" style={{ color: 'var(--t-fg-35)' }}>{subtitle}</p>}
         </div>
       </div>
       {right}
     </div>
+  );
+}
+
+function HeaderStat({
+  label, value, theme, tone,
+}: {
+  label: string;
+  value: number;
+  theme: ReturnType<typeof useWorkspaceTheme>;
+  tone?: 'hot';
+}) {
+  return (
+    <div className="rounded-lg px-3 py-2" style={{ background: 'var(--a-hover2)', border: '1px solid var(--a-border)' }}>
+      <p className="text-[9px] uppercase tracking-[0.18em]" style={{ color: 'var(--t-fg-45)', fontFamily: theme.fontMono }}>{label}</p>
+      <p className="mt-1 text-xl font-bold tabular-nums" style={{ color: tone === 'hot' ? theme.intent.high : 'var(--t-fg-95)', fontFamily: theme.fontMono }}>{value.toLocaleString()}</p>
+    </div>
+  );
+}
+
+function StatusPill({ running, theme }: { running: boolean; theme: ReturnType<typeof useWorkspaceTheme> }) {
+  return (
+    <span
+      className="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]"
+      style={{
+        background: running ? 'rgba(255,156,95,0.14)' : 'rgba(16,185,129,0.12)',
+        color: running ? theme.intent.medium : '#10b981',
+        fontFamily: theme.fontMono,
+      }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: running ? theme.intent.medium : '#10b981' }} />
+      {running ? 'Running' : 'Ready'}
+    </span>
   );
 }
 
@@ -575,7 +569,7 @@ function SegmentBtn({
   children: React.ReactNode;
   active: boolean;
   onClick: () => void;
-  theme: ReturnType<typeof useTenantTheme>;
+  theme: ReturnType<typeof useWorkspaceTheme>;
   dot?: string;
 }) {
   return (
@@ -584,7 +578,7 @@ function SegmentBtn({
       className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] font-medium transition-colors capitalize"
       style={{
         fontFamily: theme.fontMono,
-        background: active ? 'var(--t-accent-soft)' : 'var(--t-fg-02)',
+        background: active ? 'var(--t-accent-soft)' : 'var(--a-hover2)',
         color: active ? theme.accent : 'var(--t-fg-55)',
         border: `1px solid ${active ? 'var(--t-accent-soft)' : 'var(--a-border2)'}`,
         borderRadius: 'var(--t-radius-sm)',
@@ -602,13 +596,13 @@ function PaginationButton({
   children: React.ReactNode;
   onClick: () => void;
   disabled: boolean;
-  theme: ReturnType<typeof useTenantTheme>;
+  theme: ReturnType<typeof useWorkspaceTheme>;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/[0.04]"
+      className="px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       style={{
         fontFamily: theme.fontMono,
         border: '1px solid var(--a-border2)',
@@ -626,7 +620,7 @@ function ToneBadge({
 }: {
   children: React.ReactNode;
   tone: 'accent' | 'green' | 'gold' | 'blue' | 'red';
-  theme: ReturnType<typeof useTenantTheme>;
+  theme: ReturnType<typeof useWorkspaceTheme>;
   title?: string;
 }) {
   const map: Record<string, { bg: string; fg: string }> = {
@@ -652,23 +646,21 @@ function ToneBadge({
   );
 }
 
-function IntentBadge({ level, theme }: { level: string | null; theme: ReturnType<typeof useTenantTheme> }) {
+function IntentBadge({ level, theme }: { level: string | null; theme: ReturnType<typeof useWorkspaceTheme> }) {
   if (!level) return <ToneBadge tone="blue" theme={theme}>Unclassified</ToneBadge>;
   const tone: 'red' | 'gold' | 'blue' =
     level === 'HIGH_INTENT' ? 'red' : level === 'MEDIUM_INTENT' ? 'gold' : 'blue';
   return <ToneBadge tone={tone} theme={theme}>{level.replace('_INTENT', '').toLowerCase()}</ToneBadge>;
 }
 
-function UrgencyMeter({ score, theme }: { score: number; theme: ReturnType<typeof useTenantTheme> }) {
+function UrgencyMeter({ score, theme }: { score: number; theme: ReturnType<typeof useWorkspaceTheme> }) {
   const color = score >= 70 ? theme.intent.high : score >= 40 ? theme.intent.medium : theme.intent.low;
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--t-fg-06)' }}>
-        <div className="h-full rounded-full" style={{ width: `${Math.min(100, score)}%`, background: color }} />
-      </div>
-      <span className="text-xs font-bold tabular-nums w-7 text-right" style={{ color, fontFamily: theme.fontMono }}>
+    <div className="flex items-baseline justify-end gap-1">
+      <span className="text-2xl font-bold tabular-nums leading-none" style={{ color, fontFamily: theme.fontMono }}>
         {score}
       </span>
+      <span className="text-[10px] uppercase tracking-[0.12em]" style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}>urg</span>
     </div>
   );
 }
@@ -677,7 +669,7 @@ function SignalCard({
   signal, theme, selected, onSelect, onClassify,
 }: {
   signal: Signal;
-  theme: ReturnType<typeof useTenantTheme>;
+  theme: ReturnType<typeof useWorkspaceTheme>;
   selected: boolean;
   onSelect: () => void;
   onClassify: () => void;
@@ -686,80 +678,41 @@ function SignalCard({
   return (
     <div
       onClick={onSelect}
-      className="cursor-pointer transition-all p-5 hover:-translate-y-0.5"
+      className="grid cursor-pointer gap-4 p-4 transition-colors md:grid-cols-[180px,minmax(0,1fr),110px,110px]"
       style={{
         background: selected ? 'var(--t-accent-faint)' : 'var(--a-card)',
         border: `1px solid ${selected ? 'var(--t-accent-soft)' : 'var(--a-border)'}`,
-        borderRadius: 'var(--t-radius-lg)',
+        borderRadius: 'var(--t-radius)',
       }}
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color, boxShadow: `0 0 8px ${color}80` }} />
           <span
-            className="text-[10px] uppercase tracking-[0.2em] capitalize text-white/55"
-            style={{ fontFamily: theme.fontMono }}
+            className="text-[10px] uppercase tracking-[0.2em] capitalize"
+            style={{ color: 'var(--t-fg-55)', fontFamily: theme.fontMono }}
           >
             {signal.source}
           </span>
-          <span className="text-white/20">·</span>
-          <span className="text-white/60 text-xs truncate min-w-0">
-            {signal.name || (!/^ACoAA/i.test(signal.username || '') ? `@${signal.username}` : 'LinkedIn user')}
-          </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <IntentBadge level={signal.intent_level} theme={theme} />
-          {!signal.processed && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onClassify(); }}
-              className="text-[10px] uppercase tracking-[0.18em] font-semibold px-2 py-0.5 transition-colors hover:bg-white/[0.05]"
-              style={{
-                fontFamily: theme.fontMono,
-                background: 'var(--t-accent-soft)',
-                color: theme.accent,
-                border: '1px solid var(--t-accent-soft)',
-                borderRadius: 'var(--t-radius-sm)',
-              }}
-            >
-              Classify
-            </button>
-          )}
-        </div>
+        <p className="mt-2 truncate text-sm font-semibold" style={{ color: 'var(--t-fg-95)' }}>
+          {signal.name || (!/^ACoAA/i.test(signal.username || '') ? `@${signal.username}` : 'LinkedIn user')}
+        </p>
+        <p className="mt-1 text-xs tabular-nums" style={{ color: 'var(--t-fg-45)', fontFamily: theme.fontMono }}>
+          {new Date(signal.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+        </p>
       </div>
 
-      <p className="text-white/80 text-sm leading-relaxed line-clamp-2 mb-3">{signal.content}</p>
-
-      {signal.summary && (
-        <p
-          className="text-[12px] italic mb-3 px-3 py-2 leading-relaxed"
-          style={{
-            color: theme.accent,
-            background: 'var(--t-accent-faint)',
-            borderLeft: `2px solid ${theme.accent}`,
-          }}
-        >
-          {signal.summary}
-        </p>
-      )}
-
-      {signal.processed && signal.urgency_score != null && (
-        <div className="mb-3">
-          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1.5" style={{ fontFamily: theme.fontMono }}>
-            <span>Urgency</span>
-            <span>{signal.intent_category || ''}</span>
-          </div>
-          <UrgencyMeter score={signal.urgency_score} theme={theme} />
-        </div>
-      )}
-
-      {signal.pain_points?.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-3">
+      <div className="min-w-0">
+        <p className="line-clamp-2 text-sm leading-6" style={{ color: 'var(--t-fg-85)' }}>{signal.summary || signal.content}</p>
+        {signal.pain_points?.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
           {signal.pain_points.slice(0, 3).map((p, i) => (
             <span
               key={i}
               className="text-[10px] px-2 py-0.5"
               style={{
-                background: 'var(--t-fg-04)',
+                background: 'var(--a-hover2)',
                 border: '1px solid var(--a-border2)',
                 color: 'var(--t-fg-70)',
                 borderRadius: 'var(--t-radius-sm)',
@@ -770,9 +723,9 @@ function SignalCard({
           ))}
           {signal.pain_points.length > 3 && (
             <span
-              className="text-[10px] px-2 py-0.5 text-white/40"
+              className="text-[10px] px-2 py-0.5"
               style={{
-                background: 'var(--t-fg-04)',
+                background: 'var(--a-hover2)',
                 border: '1px solid var(--a-border2)',
                 borderRadius: 'var(--t-radius-sm)',
                 fontFamily: theme.fontMono,
@@ -782,26 +735,23 @@ function SignalCard({
             </span>
           )}
         </div>
-      )}
+        )}
+      </div>
 
-      <div
-        className="flex items-center justify-between pt-3 text-[10px] uppercase tracking-[0.18em] text-white/35"
-        style={{ fontFamily: theme.fontMono, borderTop: '1px solid var(--a-border)' }}
-      >
-        <span className="tabular-nums">
-          {new Date(signal.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-        </span>
-        {signal.url && (
-          <a
-            href={signal.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="hover:text-white transition-colors"
-            style={{ color: theme.accent }}
+      <div className="flex items-center justify-start md:justify-end">
+        {signal.processed && signal.urgency_score != null ? <UrgencyMeter score={signal.urgency_score} theme={theme} /> : <ToneBadge tone="gold" theme={theme}>Pending</ToneBadge>}
+      </div>
+
+      <div className="flex items-center justify-start gap-2 md:justify-end">
+        <IntentBadge level={signal.intent_level} theme={theme} />
+        {!signal.processed && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onClassify(); }}
+            className="min-h-8 rounded-md px-2 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors"
+            style={{ fontFamily: theme.fontMono, background: 'var(--t-accent-soft)', color: theme.accent, border: '1px solid var(--t-accent-soft)' }}
           >
-            Source ↗
-          </a>
+            Classify
+          </button>
         )}
       </div>
     </div>
@@ -812,7 +762,7 @@ function DetailDrawer({
   signal, theme, onClose, onClassify,
 }: {
   signal: Signal;
-  theme: ReturnType<typeof useTenantTheme>;
+  theme: ReturnType<typeof useWorkspaceTheme>;
   onClose: () => void;
   onClassify: () => void;
 }) {
@@ -823,7 +773,7 @@ function DetailDrawer({
   const title = signal.enriched_title;
   const linkedin = signal.enriched_linkedin_url;
   const enrichedVia = signal.enriched_via;
-  const ghlId = signal.ghl_contact_id;
+  const CRMId = signal.ghl_contact_id;
   const isEnriched = enrichedVia && enrichedVia !== 'none' && enrichedVia !== null;
   const sourceColor = theme.platform[signal.source] || theme.chart[3];
 
@@ -844,15 +794,16 @@ function DetailDrawer({
           {/* Header */}
           <div className="flex items-center justify-between">
             <p
-              className="text-[10px] uppercase tracking-[0.3em] text-white/45"
-              style={{ fontFamily: theme.fontMono }}
+              className="text-[10px] uppercase tracking-[0.3em]"
+              style={{ color: 'var(--t-fg-45)', fontFamily: theme.fontMono }}
             >
               Signal · detail
             </p>
             <button
               onClick={onClose}
-              className="text-white/40 hover:text-white transition-colors"
+              className="transition-colors"
               aria-label="Close"
+              style={{ color: 'var(--t-fg-40)' }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24">
                 <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
@@ -865,7 +816,7 @@ function DetailDrawer({
               <span
                 className="inline-flex items-center gap-2 px-2 py-1 text-[10px] uppercase tracking-[0.22em] font-semibold capitalize"
                 style={{
-                  background: 'var(--t-fg-04)',
+                  background: 'var(--a-hover2)',
                   border: '1px solid var(--a-border2)',
                   borderRadius: 'var(--t-radius-sm)',
                   fontFamily: theme.fontMono,
@@ -880,12 +831,12 @@ function DetailDrawer({
                 ? <ToneBadge tone="green" theme={theme}>Classified</ToneBadge>
                 : <ToneBadge tone="gold" theme={theme}>Pending</ToneBadge>}
             </div>
-            <h3 className="text-white font-bold text-xl tracking-tight">
+            <h3 className="text-xl font-bold tracking-tight" style={{ color: 'var(--t-fg-95)' }}>
               {displayName || `@${signal.username}` || 'LinkedIn user'}
             </h3>
             <p
-              className="text-white/40 text-[11px] mt-1.5 tabular-nums tracking-[0.15em]"
-              style={{ fontFamily: theme.fontMono }}
+              className="mt-1.5 text-[11px] tabular-nums tracking-[0.15em]"
+              style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}
             >
               {(signal.timestamp ? new Date(signal.timestamp) : new Date(signal.created_at))
                 .toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
@@ -936,7 +887,7 @@ function DetailDrawer({
                 )}
                 {(company || title) && (
                   <Row label="Role" theme={theme}>
-                    <span className="text-white/85">
+                    <span style={{ color: 'var(--t-fg-85)' }}>
                       {[title, company].filter(Boolean).join(' · ')}
                     </span>
                   </Row>
@@ -954,9 +905,9 @@ function DetailDrawer({
                     </a>
                   </Row>
                 )}
-                {ghlId && (
-                  <Row label="GHL ID" theme={theme}>
-                    <span className="text-white/85" style={{ fontFamily: theme.fontMono }}>{ghlId}</span>
+                {CRMId && (
+                  <Row label="CRM ID" theme={theme}>
+                    <span style={{ color: 'var(--t-fg-85)', fontFamily: theme.fontMono }}>{CRMId}</span>
                   </Row>
                 )}
               </dl>
@@ -967,30 +918,30 @@ function DetailDrawer({
           <div
             className="p-4"
             style={{
-              background: 'var(--t-fg-02)',
+              background: 'var(--a-hover2)',
               border: '1px solid var(--a-border)',
               borderRadius: 'var(--t-radius)',
             }}
           >
-            <p className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap">{signal.content}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--t-fg-85)' }}>{signal.content}</p>
           </div>
 
           {/* Classification */}
           {signal.processed ? (
             <div className="space-y-4">
               <p
-                className="text-[10px] uppercase tracking-[0.28em] text-white/45 font-semibold"
-                style={{ fontFamily: theme.fontMono }}
+                className="text-[10px] font-semibold uppercase tracking-[0.28em]"
+                style={{ color: 'var(--t-fg-45)', fontFamily: theme.fontMono }}
               >
                 AI classification
               </p>
 
               <div>
-                <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.22em] text-white/40 mb-1.5" style={{ fontFamily: theme.fontMono }}>
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.22em] mb-1.5" style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}>
                   <span>Urgency</span>
                   <span style={{ fontFamily: theme.fontMono }}>
-                    <span className="text-white/70 font-bold tabular-nums">{signal.urgency_score}</span>
-                    <span className="text-white/30">/100</span>
+                    <span className="font-bold tabular-nums" style={{ color: 'var(--t-fg-70)' }}>{signal.urgency_score}</span>
+                    <span style={{ color: 'var(--t-fg-30)' }}>/100</span>
                   </span>
                 </div>
                 <UrgencyMeter score={signal.urgency_score} theme={theme} />
@@ -998,15 +949,15 @@ function DetailDrawer({
 
               {signal.intent_category && (
                 <Row label="Category" theme={theme}>
-                  <span className="text-white font-medium">{signal.intent_category}</span>
+                  <span className="font-medium" style={{ color: 'var(--t-fg-95)' }}>{signal.intent_category}</span>
                 </Row>
               )}
 
               {signal.summary && (
                 <div>
                   <p
-                    className="text-[10px] uppercase tracking-[0.22em] text-white/40 mb-1.5"
-                    style={{ fontFamily: theme.fontMono }}
+                    className="text-[10px] uppercase tracking-[0.22em] mb-1.5"
+                    style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}
                   >
                     Summary
                   </p>
@@ -1026,8 +977,8 @@ function DetailDrawer({
               {signal.pain_points?.length > 0 && (
                 <div>
                   <p
-                    className="text-[10px] uppercase tracking-[0.22em] text-white/40 mb-2"
-                    style={{ fontFamily: theme.fontMono }}
+                    className="text-[10px] uppercase tracking-[0.22em] mb-2"
+                    style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}
                   >
                     Pain points
                   </p>
@@ -1037,7 +988,7 @@ function DetailDrawer({
                         key={i}
                         className="text-[11px] px-2.5 py-1"
                         style={{
-                          background: 'var(--t-fg-03)',
+                          background: 'var(--a-hover2)',
                           border: '1px solid var(--a-border2)',
                           color: 'var(--t-fg-85)',
                           borderRadius: '999px',
@@ -1052,8 +1003,8 @@ function DetailDrawer({
 
               {signal.classified_at && (
                 <p
-                  className="text-[10px] uppercase tracking-[0.22em] text-white/30"
-                  style={{ fontFamily: theme.fontMono }}
+                  className="text-[10px] uppercase tracking-[0.22em]"
+                  style={{ color: 'var(--t-fg-30)', fontFamily: theme.fontMono }}
                 >
                   Classified · {new Date(signal.classified_at).toLocaleString()}
                 </p>
@@ -1061,7 +1012,7 @@ function DetailDrawer({
             </div>
           ) : (
             <div className="text-center py-6 space-y-3">
-              <p className="text-white/55 text-sm">Not yet classified.</p>
+              <p className="text-sm" style={{ color: 'var(--t-fg-55)' }}>Not yet classified.</p>
               <button
                 onClick={onClassify}
                 className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold tracking-tight"
@@ -1075,7 +1026,7 @@ function DetailDrawer({
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                Classify with Claude
+                Score this signal
               </button>
             </div>
           )}
@@ -1105,13 +1056,13 @@ function Row({
 }: {
   label: string;
   children: React.ReactNode;
-  theme: ReturnType<typeof useTenantTheme>;
+  theme: ReturnType<typeof useWorkspaceTheme>;
 }) {
   return (
     <div className="grid grid-cols-[68px,1fr] gap-3 items-baseline">
       <dt
-        className="text-[10px] uppercase tracking-[0.22em] text-white/40"
-        style={{ fontFamily: theme.fontMono }}
+        className="text-[10px] uppercase tracking-[0.22em]"
+        style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}
       >
         {label}
       </dt>

@@ -4,12 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
-  SbuId,
-  SbuConfig,
-  getCurrentSbu,
-  getSbuConfig,
-  clearCurrentSbu,
-} from '@/lib/sbu';
+  WorkspaceConfig,
+  getWorkspaceConfig,
+} from '@/lib/workspace';
 
 interface NavLink {
   href: string;
@@ -24,7 +21,7 @@ const navGroups: { title: string; items: NavLink[] }[] = [
     title: 'Workbench',
     items: [
       {
-        href: '/admin', label: 'Dashboard', ord: '01',
+        href: '/admin', label: 'Command Center', ord: '01',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <path strokeLinecap="round" d="M3 13l9-9 9 9M5 11v9a1 1 0 001 1h12a1 1 0 001-1v-9" />
@@ -32,7 +29,7 @@ const navGroups: { title: string; items: NavLink[] }[] = [
         ),
       },
       {
-        href: '/admin/pipeline', label: 'Pipeline', ord: '02', badge: 'Live',
+        href: '/admin/pipeline', label: 'Lead Pipeline', ord: '02', badge: 'Live',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -40,7 +37,7 @@ const navGroups: { title: string; items: NavLink[] }[] = [
         ),
       },
       {
-        href: '/admin/explore', label: 'Explore', ord: '03',
+        href: '/admin/explore', label: 'Source Explorer', ord: '03',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" />
@@ -53,7 +50,7 @@ const navGroups: { title: string; items: NavLink[] }[] = [
     title: 'Data',
     items: [
       {
-        href: '/admin/signals', label: 'Signals', ord: '04',
+        href: '/admin/signals', label: 'Buying Signals', ord: '04',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <path strokeLinecap="round" d="M3 12h3l3-9 6 18 3-9h3" />
@@ -61,7 +58,7 @@ const navGroups: { title: string; items: NavLink[] }[] = [
         ),
       },
       {
-        href: '/admin/leads', label: 'Leads', ord: '05',
+        href: '/admin/leads', label: 'Lead Queue', ord: '05',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <circle cx="9" cy="8" r="3" />
@@ -70,10 +67,19 @@ const navGroups: { title: string; items: NavLink[] }[] = [
         ),
       },
       {
-        href: '/admin/outreach', label: 'Outreach', ord: '06', badge: 'New',
+        href: '/admin/outreach', label: 'Routing Desk', ord: '06', badge: 'New',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l9 6 9-6M3 8v10a2 2 0 002 2h14a2 2 0 002-2V8M3 8l9-5 9 5" />
+          </svg>
+        ),
+      },
+      {
+        href: '/admin/email', label: 'Email Desk', ord: '07',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16v12H4z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 7l8 6 8-6" />
           </svg>
         ),
       },
@@ -83,7 +89,7 @@ const navGroups: { title: string; items: NavLink[] }[] = [
     title: 'Org',
     items: [
       {
-        href: '/admin/users', label: 'Users', ord: '07',
+        href: '/admin/users', label: 'Team', ord: '08',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <circle cx="9" cy="8" r="3" />
@@ -92,7 +98,15 @@ const navGroups: { title: string; items: NavLink[] }[] = [
         ),
       },
       {
-        href: '/admin/settings', label: 'Settings', ord: '08',
+        href: '/admin/integrations', label: 'Integrations', ord: '09',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 8h8M8 16h8M4 12h16M7 4h10a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7a3 3 0 013-3z" />
+          </svg>
+        ),
+      },
+      {
+        href: '/admin/settings', label: 'Settings', ord: '10',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <circle cx="12" cy="12" r="3" />
@@ -105,34 +119,32 @@ const navGroups: { title: string; items: NavLink[] }[] = [
 ];
 
 const PAGE_TITLES: Record<string, string> = {
-  '/admin': 'Dashboard',
-  '/admin/pipeline': 'Signal Pipeline',
-  '/admin/explore': 'Explore',
-  '/admin/signals': 'Signals',
-  '/admin/leads': 'Leads',
-  '/admin/outreach': 'Outreach',
-  '/admin/users': 'Users',
+  '/admin': 'Command Center',
+  '/admin/pipeline': 'Lead Pipeline',
+  '/admin/explore': 'Source Explorer',
+  '/admin/signals': 'Buying Signals',
+  '/admin/leads': 'Lead Queue',
+  '/admin/outreach': 'Routing Desk',
+  '/admin/email': 'Email Desk',
+  '/admin/users': 'Team',
+  '/admin/integrations': 'Integrations',
   '/admin/settings': 'Settings',
 };
 
-function BrandMark({ sbu }: { sbu: SbuConfig }) {
-  const isLF = sbu.id === 'lightforth';
-  if (sbu.logoSrc) {
-    return <img src={sbu.logoSrc} alt={`${sbu.name} logo`} className="h-7 w-7 object-contain shrink-0" />;
-  }
+function BrandMark({ workspace }: { workspace: WorkspaceConfig }) {
   return (
     <div
       className="flex h-7 w-7 items-center justify-center text-[10px] font-bold shrink-0"
       style={{
-        background: isLF ? '#000' : 'rgba(11,170,239,0.12)',
-        color: isLF ? '#fff' : '#0BAAEF',
-        border: isLF ? '1px solid var(--t-fg-15)' : '1px solid rgba(11,170,239,0.25)',
+        background: 'rgba(0,206,200,0.12)',
+        color: '#00CEC8',
+        border: '1px solid rgba(0,206,200,0.25)',
         borderRadius: 'var(--t-radius-sm)',
         fontFamily: "'JetBrains Mono', monospace",
         letterSpacing: '0.02em',
       }}
     >
-      {sbu.initials}
+      {workspace.initials}
     </div>
   );
 }
@@ -142,18 +154,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [authed, setAuthed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [sbu, setSbu] = useState<SbuId | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
   useEffect(() => {
-    const saved = localStorage.getItem('emc_theme') as 'dark' | 'light' | null;
-    if (saved) setTheme(saved);
+    localStorage.setItem('prospectgrid_theme', 'light');
+    setTheme('light');
   }, []);
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
-    localStorage.setItem('emc_theme', next);
+    localStorage.setItem('prospectgrid_theme', next);
   };
 
   useEffect(() => {
@@ -161,53 +172,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       setAuthed(true);
       return;
     }
-    const token = localStorage.getItem('emc_admin_token');
+    const token = localStorage.getItem('prospectgrid_admin_token');
     if (!token) {
       router.replace('/admin/login');
       return;
     }
     setAuthed(true);
-    const t = getCurrentSbu();
-    setSbu(t);
-    if (!t && pathname !== '/admin/tenant-select') {
-      router.replace('/admin/tenant-select');
-    }
   }, [pathname, router]);
 
   if (!authed) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-brand-darker">
-        <span className="loading-spinner w-8 h-8 border-[#0BAAEF]" />
+      <div className="flex items-center justify-center min-h-screen" style={{ background: '#F8FBFA' }}>
+        <span className="loading-spinner w-8 h-8 border-[#00CEC8]" />
       </div>
     );
   }
 
-  if (pathname === '/admin/login' || pathname === '/admin/tenant-select') {
+  if (pathname === '/admin/login') {
     return <>{children}</>;
   }
 
-  if (!sbu) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-brand-darker">
-        <span className="loading-spinner w-8 h-8 border-[#0BAAEF]" />
-      </div>
-    );
-  }
-
-  const sbuConfig = getSbuConfig(sbu);
-  const isLF = sbu === 'lightforth';
+  const workspaceConfig = getWorkspaceConfig();
 
   const handleLogout = () => {
-    localStorage.removeItem('emc_admin_token');
-    clearCurrentSbu();
+    localStorage.removeItem('prospectgrid_admin_token');
     router.replace('/admin/login');
   };
-  const handleSwitchSbu = () => {
-    clearCurrentSbu();
-    router.replace('/admin/tenant-select');
-  };
 
-  const pageTitle = PAGE_TITLES[pathname] || 'Admin';
+  const pageTitle = pathname.startsWith('/admin/integrations/')
+    ? 'Integration Detail'
+    : PAGE_TITLES[pathname] || 'Admin';
   const segments = pathname.split('/').filter(Boolean);
 
   return (
@@ -215,7 +209,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       className="flex h-screen overflow-hidden"
       style={{ background: 'var(--a-bg)' }}
       data-theme={theme}
-      data-sbu={sbu}
+      data-workspace="prospectgrid"
     >
       {/* mobile overlay */}
       {sidebarOpen && (
@@ -228,29 +222,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* ── Sidebar ── */}
       <aside
         className={`
-          fixed lg:static z-50 inset-y-0 left-0 w-[248px]
+          fixed lg:static z-50 inset-y-0 left-0 w-[286px]
           flex flex-col border-r
           transition-transform duration-300 ease-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
         style={{
-          background: 'var(--a-surface)',
+          background: theme === 'light' ? '#ffffff' : 'var(--a-surface)',
           borderColor: 'var(--a-border)',
         }}
       >
         {/* Brand */}
         <div className="px-5 pt-6 pb-5 border-b" style={{ borderColor: 'var(--a-border)' }}>
           <Link href="/" className="flex items-center gap-3 group">
-            <BrandMark sbu={sbuConfig} />
+            <BrandMark workspace={workspaceConfig} />
             <div className="min-w-0">
-              <p className="text-white font-semibold text-[13px] leading-tight truncate tracking-tight">
-                {sbuConfig.name}
+              <p className="text-white font-semibold text-[15px] leading-tight truncate tracking-tight">
+                {workspaceConfig.name}
               </p>
               <p
-                className="text-white/35 text-[9px] leading-tight uppercase mt-0.5 tracking-[0.2em]"
-                style={{ fontFamily: 'var(--t-mono-font)' }}
+                className="text-[10px] leading-tight mt-1"
+                style={{ color: 'var(--t-fg-35)', fontFamily: 'var(--t-mono-font)' }}
               >
-                {sbuConfig.tagline}
+                {workspaceConfig.tagline}
               </p>
             </div>
           </Link>
@@ -261,7 +255,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {navGroups.map((group) => (
             <div key={group.title}>
               <p
-                className="px-3 mb-2 text-[9px] font-semibold uppercase tracking-[0.3em] text-white/30"
+                className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/30"
                 style={{ fontFamily: 'var(--t-mono-font)' }}
               >
                 {group.title}
@@ -274,39 +268,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       key={link.href}
                       href={link.href}
                       onClick={() => setSidebarOpen(false)}
-                      className="group relative flex items-center gap-3 px-3 py-2 text-[13px] transition-colors"
+                      className="group relative flex items-center gap-3 px-3 py-2.5 text-[13px] transition-colors"
                       style={{
-                        background: active ? 'var(--t-accent-soft)' : 'transparent',
-                        color: active ? 'var(--t-accent)' : 'var(--t-fg-55)',
+                        background: active ? (theme === 'light' ? '#112126' : 'var(--t-accent-soft)') : 'transparent',
+                        color: active ? (theme === 'light' ? '#FCEFC3' : 'var(--t-accent)') : 'var(--t-fg-55)',
                         borderRadius: 'var(--t-radius-sm)',
                       }}
                     >
                       {active && (
                         <span
                           className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px]"
-                          style={{ background: 'var(--t-accent)' }}
+                          style={{ background: theme === 'light' ? '#00CEC8' : 'var(--t-accent)' }}
                         />
                       )}
                       <span
                         className="text-[9px] tracking-[0.1em] tabular-nums shrink-0"
                         style={{
                           fontFamily: 'var(--t-mono-font)',
-                          color: active ? 'var(--t-accent)' : 'var(--t-fg-25)',
+                          color: active ? (theme === 'light' ? '#00CEC8' : 'var(--t-accent)') : 'var(--t-fg-25)',
                           minWidth: 18,
                         }}
                       >
                         {link.ord}
                       </span>
                       <span className="h-4 w-4 shrink-0">{link.icon}</span>
-                      <span className="flex-1 truncate group-hover:text-white transition-colors">
+                      <span className="flex-1 truncate transition-colors group-hover:opacity-100" style={{ opacity: active ? 1 : 0.82 }}>
                         {link.label}
                       </span>
                       {link.badge && (
                         <span
                           className="text-[9px] font-semibold px-1.5 py-0.5 uppercase tracking-wider"
                           style={{
-                            background: 'var(--t-accent-soft)',
-                            color: 'var(--t-accent)',
+                            background: active && theme === 'light' ? 'rgba(0,206,200,0.16)' : 'var(--t-accent-soft)',
+                            color: active && theme === 'light' ? '#00CEC8' : 'var(--t-accent)',
                             borderRadius: 'var(--t-radius-sm)',
                             fontFamily: 'var(--t-mono-font)',
                           }}
@@ -345,28 +339,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Workspace footer */}
         <div className="px-3 py-3 border-t space-y-1" style={{ borderColor: 'var(--a-border)' }}>
-          <button
-            onClick={handleSwitchSbu}
-            title="Switch workspace"
-            className="w-full flex items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-white/[0.03]"
+          <div
+            className="w-full flex items-center gap-3 px-3 py-2 text-left"
             style={{ borderRadius: 'var(--t-radius-sm)' }}
           >
-            <BrandMark sbu={sbuConfig} />
+            <BrandMark workspace={workspaceConfig} />
             <div className="min-w-0 flex-1">
               <p className="text-white/80 text-xs font-medium truncate leading-tight">
-                {sbuConfig.shortName}
+                {workspaceConfig.shortName}
               </p>
               <p
                 className="text-white/30 text-[9px] uppercase tracking-[0.2em] mt-0.5 leading-tight"
                 style={{ fontFamily: 'var(--t-mono-font)' }}
               >
-                Switch workspace
+                Organization workspace
               </p>
             </div>
-            <svg className="h-3 w-3 text-white/30" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-            </svg>
-          </button>
+          </div>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2 text-[13px] text-white/40 hover:text-red-400 hover:bg-red-400/[0.06] transition-colors"
@@ -383,8 +372,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header
-          className="h-14 border-b flex items-center px-4 sm:px-7 gap-4 shrink-0 backdrop-blur"
-          style={{ background: 'var(--a-surface)', borderColor: 'var(--a-border)' }}
+          className="h-16 border-b flex items-center px-4 sm:px-7 gap-4 shrink-0"
+          style={{ background: theme === 'light' ? 'rgba(255,254,248,0.94)' : 'var(--a-surface)', borderColor: 'var(--a-border)' }}
         >
           <button
             onClick={() => setSidebarOpen(true)}
@@ -399,10 +388,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 min-w-0" aria-label="Breadcrumb">
             <span
-              className="text-[10px] uppercase tracking-[0.3em] text-white/35 hidden sm:inline"
-              style={{ fontFamily: 'var(--t-mono-font)' }}
+              className="text-[10px] uppercase tracking-[0.3em] hidden sm:inline"
+              style={{ color: 'var(--t-fg-35)', fontFamily: 'var(--t-mono-font)' }}
             >
-              {sbuConfig.shortName}
+              {workspaceConfig.shortName}
             </span>
             <span className="text-white/20 hidden sm:inline">/</span>
             {segments.slice(0, -1).map((s, i) => (
@@ -437,7 +426,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className="text-[9px] font-semibold tracking-[0.25em] uppercase"
                 style={{ color: 'var(--t-accent)', fontFamily: 'var(--t-mono-font)' }}
               >
-                Live
+                Synced
               </span>
             </div>
 
@@ -460,9 +449,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
 
             {/* Workspace pill */}
-            <button
-              onClick={handleSwitchSbu}
-              title="Switch workspace"
+            <div
               className="flex items-center gap-2 pl-3 pr-2 py-1.5 hover:bg-white/[0.04] transition-colors"
               style={{
                 border: '1px solid var(--a-border2)',
@@ -477,11 +464,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   Workspace
                 </p>
                 <p className="text-white text-[11px] font-semibold leading-tight">
-                  {sbuConfig.shortName}
+                  {workspaceConfig.shortName}
                 </p>
               </div>
-              <BrandMark sbu={sbuConfig} />
-            </button>
+              <BrandMark workspace={workspaceConfig} />
+            </div>
           </div>
         </header>
 
@@ -489,25 +476,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           className="flex-1 overflow-y-auto relative"
           style={{ background: 'var(--a-bg)' }}
         >
-          {/* Workspace ambient backdrop — only on EMC; Lightforth stays pure black */}
-          {!isLF && (
-            <>
-              <div
-                className="pointer-events-none absolute -left-1/4 top-0 h-[600px] w-[600px] rounded-full opacity-[0.10] blur-3xl"
-                style={{ background: 'radial-gradient(circle, var(--t-accent) 0%, transparent 70%)' }}
-              />
-              <div
-                className="pointer-events-none absolute inset-0 opacity-[0.025]"
-                style={{
-                  backgroundImage:
-                    'radial-gradient(circle at 1px 1px, var(--t-fg-55) 1px, transparent 0)',
-                  backgroundSize: '32px 32px',
-                  maskImage: 'radial-gradient(ellipse at top, black 30%, transparent 70%)',
-                }}
-              />
-            </>
-          )}
-          <div className="relative px-4 sm:px-7 py-6 sm:py-8">
+          <div className="relative px-4 sm:px-7 py-5 sm:py-7">
             {children}
           </div>
         </main>

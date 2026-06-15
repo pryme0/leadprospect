@@ -9,7 +9,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
 } from 'recharts';
-import { useTenantTheme, TenantPalette } from '@/lib/tenant-theme';
+import { useWorkspaceTheme, WorkspacePalette } from '@/lib/workspace-theme';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,8 +55,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     >
       {label && (
         <p
-          className="text-white/45 text-[10px] mb-1.5 uppercase tracking-[0.18em]"
-          style={{ fontFamily: 'var(--t-mono-font)' }}
+          className="mb-1.5 text-[10px] uppercase tracking-[0.18em]"
+          style={{ color: 'var(--t-fg-45)', fontFamily: 'var(--t-mono-font)' }}
         >
           {label}
         </p>
@@ -64,7 +64,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: p.color || p.fill }} />
-          <span className="text-white/55">{p.name}</span>
+          <span style={{ color: 'var(--t-fg-55)' }}>{p.name}</span>
           <span className="text-white font-semibold tabular-nums ml-auto">
             {p.value?.toLocaleString()}
           </span>
@@ -125,11 +125,12 @@ interface KpiProps {
 function Kpi({ ord, label, value, sub, trend, accent, href }: KpiProps) {
   const inner = (
     <div
-      className="group relative px-5 py-5 h-full flex flex-col gap-3 transition-all"
+      className="group relative px-5 py-4 h-full flex flex-col gap-3 transition-all"
       style={{
         background: 'var(--a-card)',
         border: '1px solid var(--a-border)',
-        borderRadius: 'var(--t-radius)',
+        borderRadius: 'var(--t-radius-sm)',
+        boxShadow: 'var(--t-card-shadow)',
       }}
     >
       <div className="flex items-baseline justify-between">
@@ -156,14 +157,14 @@ function Kpi({ ord, label, value, sub, trend, accent, href }: KpiProps) {
       </div>
       <div className="flex flex-col gap-1">
         <span
-          className="text-2xl font-bold tracking-tight tabular-nums leading-none"
+          className="text-[28px] font-bold tracking-tight tabular-nums leading-none"
           style={{ color: accent || '#fff' }}
         >
           {value}
         </span>
         <MonoLabel>{label}</MonoLabel>
         {sub && (
-          <span className="text-white/35 text-[11px] mt-0.5">{sub}</span>
+          <span className="text-[11px] mt-0.5" style={{ color: 'var(--t-fg-35)' }}>{sub}</span>
         )}
       </div>
       {href && (
@@ -196,8 +197,8 @@ function SectionHeader({
     <div className="flex items-end justify-between gap-4 mb-4">
       <div className="flex items-baseline gap-3 min-w-0">
         <span
-          className="text-[10px] tracking-[0.3em] text-white/35 tabular-nums"
-          style={{ fontFamily: 'var(--t-mono-font)' }}
+          className="tabular-nums text-[10px] tracking-[0.3em]"
+          style={{ color: 'var(--t-fg-35)', fontFamily: 'var(--t-mono-font)' }}
         >
           {ord}
         </span>
@@ -205,7 +206,7 @@ function SectionHeader({
         <div className="min-w-0">
           <h2 className="text-white font-semibold text-sm tracking-tight">{title}</h2>
           {subtitle && (
-            <p className="text-white/35 text-[11px] mt-0.5">{subtitle}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--t-fg-35)' }}>{subtitle}</p>
           )}
         </div>
       </div>
@@ -228,18 +229,186 @@ function ChartFrame({
       style={{
         background: 'var(--a-card)',
         border: '1px solid var(--a-border)',
-        borderRadius: 'var(--t-radius-lg)',
+        borderRadius: 'var(--t-radius-sm)',
+        boxShadow: 'var(--t-card-shadow)',
       }}
       className="p-5 flex flex-col"
     >
       <div className="mb-4">
-        <p className="text-white font-semibold text-[13px] tracking-tight">{title}</p>
+        <p className="text-white font-semibold text-[14px] tracking-tight">{title}</p>
         {subtitle && (
           <MonoLabel className="mt-1 block">{subtitle}</MonoLabel>
         )}
       </div>
       <div className="flex-1">{children}</div>
     </div>
+  );
+}
+
+function FlowCard({
+  ord,
+  title,
+  metric,
+  detail,
+  items,
+  accent,
+}: {
+  ord: string;
+  title: string;
+  metric: string;
+  detail: string;
+  items: string[];
+  accent: string;
+}) {
+  return (
+    <div
+      className="p-5"
+      style={{
+        background: 'var(--a-card)',
+        border: '1px solid var(--a-border)',
+        borderRadius: 'var(--t-radius-sm)',
+        boxShadow: 'var(--t-card-shadow)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <span
+          className="text-[10px] uppercase tracking-[0.24em]"
+          style={{ color: 'var(--t-fg-35)', fontFamily: 'var(--t-mono-font)' }}
+        >
+          {ord}
+        </span>
+        <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
+      </div>
+      <p className="mt-5 text-white/60 text-[12px] font-medium uppercase tracking-[0.16em]" style={{ fontFamily: 'var(--t-mono-font)' }}>
+        {title}
+      </p>
+      <p className="mt-2 text-white font-bold tabular-nums leading-none" style={{ fontSize: 'clamp(2rem, 4vw, 3.2rem)', letterSpacing: '-0.04em' }}>
+        {metric}
+      </p>
+      <p className="mt-2 text-sm" style={{ color: 'var(--t-fg-45)' }}>{detail}</p>
+      <div className="mt-5 space-y-2">
+        {items.map((item) => (
+          <div key={item} className="flex items-center gap-2 text-sm text-white/70">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OperatingBoard({
+  metrics,
+  stats,
+  theme,
+  adSpend,
+  setAdSpend,
+}: {
+  metrics: DashboardMetrics;
+  stats: SignalStats | null;
+  theme: WorkspacePalette;
+  adSpend: string;
+  setAdSpend: (value: string) => void;
+}) {
+  const crmRate = Math.round((metrics.ghl_sync_rate || 0) * 100);
+  const spend = Number(adSpend || 0);
+  const costPerLead = spend > 0 && metrics.leads_captured > 0 ? `$${Math.round(spend / metrics.leads_captured)}` : 'Set spend';
+
+  return (
+    <section className="grid xl:grid-cols-[1.1fr,0.9fr] gap-5">
+      <div
+        className="pg-on-dark p-5 sm:p-6"
+        style={{
+          background: '#112126',
+          color: '#f8fff0',
+          borderRadius: 'var(--t-radius-lg)',
+          border: '1px solid rgba(16,21,16,0.18)',
+          boxShadow: '0 28px 70px -42px rgba(16,21,16,0.55)',
+        }}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-white/45" style={{ fontFamily: theme.fontMono }}>
+              Today&apos;s operating board
+            </p>
+            <h2 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-white">
+              Intake, score, route, measure.
+            </h2>
+            <p className="mt-2 text-white/50 text-sm max-w-xl">
+              ProspectGrid is tracking source quality, intent, CRM readiness, and routing delays from one workspace.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg bg-white/[0.06] border border-white/10 px-3 py-2">
+            <span className="h-2 w-2 rounded-full" style={{ background: theme.accent }} />
+            <span className="text-[10px] uppercase tracking-[0.2em] text-white/65" style={{ fontFamily: theme.fontMono }}>
+              Demo data live
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-7 grid sm:grid-cols-3 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10">
+          {[
+            { label: 'Signals sourced', value: metrics.total_signals.toLocaleString() },
+            { label: 'Qualified leads', value: metrics.leads_captured.toLocaleString() },
+            { label: 'CRM readiness', value: `${crmRate}%` },
+          ].map((item) => (
+            <div key={item.label} className="bg-[#112126] px-4 py-5">
+              <p className="text-white font-bold text-3xl tracking-tight tabular-nums">{item.value}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/45" style={{ fontFamily: theme.fontMono }}>
+                {item.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        className="p-5 sm:p-6"
+        style={{
+          background: 'var(--a-card)',
+          border: '1px solid var(--a-border)',
+          borderRadius: 'var(--t-radius-lg)',
+          boxShadow: 'var(--t-card-shadow)',
+        }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-base font-semibold" style={{ color: 'var(--t-fg-95)' }}>Source economics</p>
+            <p className="mt-1 text-sm" style={{ color: 'var(--t-fg-45)' }}>Add monthly spend to see blended cost per qualified lead.</p>
+          </div>
+          <span className="text-[10px] uppercase tracking-[0.2em]" style={{ color: 'var(--t-fg-35)', fontFamily: theme.fontMono }}>
+            Optional
+          </span>
+        </div>
+        <label className="mt-5 block">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-white/40" style={{ fontFamily: theme.fontMono }}>
+            Monthly ad spend
+          </span>
+          <input
+            value={adSpend}
+            onChange={(e) => {
+              const next = e.target.value.replace(/[^\d]/g, '');
+              localStorage.setItem('prospectgrid_ad_spend', next);
+              setAdSpend(next);
+            }}
+            placeholder="12000"
+            inputMode="numeric"
+            className="mt-2 w-full border px-4 py-3 text-2xl font-bold tabular-nums outline-none"
+            style={{
+              background: 'var(--a-card2)',
+              borderColor: 'var(--a-border2)',
+              borderRadius: 'var(--t-radius-sm)',
+              color: 'var(--a-text)',
+            }}
+          />
+        </label>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <Kpi ord="01" label="Cost / lead" value={costPerLead} accent={theme.accentStrong} />
+          <Kpi ord="02" label="Pending route" value={(stats?.automationPending ?? 0).toLocaleString()} accent={theme.intent.medium} />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -277,7 +446,7 @@ function pctDelta(a: number, b: number): number {
   return Math.round(((a - b) / b) * 100);
 }
 
-function PipelineSection({ stats, theme }: { stats: SignalStats; theme: TenantPalette }) {
+function PipelineSection({ stats, theme }: { stats: SignalStats; theme: WorkspacePalette }) {
   const router = useRouter();
   const processedPct = stats.total > 0 ? Math.round((stats.processed / stats.total) * 100) : 0;
   const emailPct = stats.total > 0 ? Math.round((stats.withEmail / stats.total) * 100) : 0;
@@ -314,22 +483,22 @@ function PipelineSection({ stats, theme }: { stats: SignalStats; theme: TenantPa
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6" data-stagger>
         <Kpi ord="01" label="Total" value={stats.total.toLocaleString()} accent={theme.chart[1]} href={buildSignalsHref({})} />
         <Kpi ord="02" label="Processed" value={stats.processed.toLocaleString()} sub={`${processedPct}% classified`} accent={theme.accent} href={buildSignalsHref({ processed: 'true' })} />
-        <Kpi ord="03" label="Pending" value={stats.pending.toLocaleString()} sub="awaiting Claude" accent={theme.intent.medium} href={buildSignalsHref({ processed: 'false' })} />
+        <Kpi ord="03" label="Pending" value={stats.pending.toLocaleString()} sub="awaiting scoring" accent={theme.intent.medium} href={buildSignalsHref({ processed: 'false' })} />
         <Kpi ord="04" label="With email" value={stats.withEmail.toLocaleString()} sub={`${emailPct}% reachable`} accent={theme.chart[2]} href={buildSignalsHref({ has_email: 'true' })} />
         <Kpi
           ord="05"
-          label="Sent · today"
+          label="Routed · today"
           value={(stats.automationSentToday ?? 0).toLocaleString()}
           sub={`yesterday ${(stats.automationSentYesterday ?? 0).toLocaleString()} · ${stats.automationSent.toLocaleString()} all-time`}
           trend={pctDelta(stats.automationSentToday ?? 0, stats.automationSentYesterday ?? 0)}
           accent="#10b981"
           href={buildSignalsHref({ automation_sent: 'true' })}
         />
-        <Kpi ord="06" label="Automation pending" value={stats.automationPending.toLocaleString()} sub="HIGH/MED, queued" accent={theme.chart[6] || theme.accent} href={buildSignalsHref({ automation_sent: 'false', intent_level: 'HIGH_INTENT' })} />
+        <Kpi ord="06" label="Routing pending" value={stats.automationPending.toLocaleString()} sub="HIGH/MED intent, queued" accent={theme.chart[6] || theme.accent} href={buildSignalsHref({ automation_sent: 'false', intent_level: 'HIGH_INTENT' })} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
-        <ChartFrame title="Intent level" subtitle="Classified by Claude — click a slice to filter">
+        <ChartFrame title="Intent level" subtitle="Scored by buying intent — click a slice to filter">
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
@@ -355,7 +524,7 @@ function PipelineSection({ stats, theme }: { stats: SignalStats; theme: TenantPa
           </ResponsiveContainer>
         </ChartFrame>
 
-        <ChartFrame title="Intent category" subtitle="Prospect typing — click a bar to filter">
+        <ChartFrame title="Intent category" subtitle="Account fit and buying-stage groups">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={intentCategoryData} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="2 4" stroke={theme.grid} horizontal={false} />
@@ -375,7 +544,7 @@ function PipelineSection({ stats, theme }: { stats: SignalStats; theme: TenantPa
           </ResponsiveContainer>
         </ChartFrame>
 
-        <ChartFrame title="Ingestion category" subtitle="Pre-classifier regex bucket">
+        <ChartFrame title="Ingestion category" subtitle="Source bucket assigned at capture">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={ingestionCategoryData} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="2 4" stroke={theme.grid} horizontal={false} />
@@ -402,14 +571,14 @@ function PipelineSection({ stats, theme }: { stats: SignalStats; theme: TenantPa
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function AdminDashboardPage() {
-  const theme = useTenantTheme();
+  const theme = useWorkspaceTheme();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [stats, setStats] = useState<SignalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [adSpend, setAdSpend] = useState<string>(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('emc_ad_spend') || '';
+    if (typeof window !== 'undefined') return localStorage.getItem('prospectgrid_ad_spend') || '';
     return '';
   });
 
@@ -507,9 +676,12 @@ export default function AdminDashboardPage() {
   const leadsByDay = (metrics.leads_by_day || []).map((d) => ({ ...d, date: formatDate(d.date) }));
 
   const shortenTool = (t: string) =>
-    t.replace('cyber-path-finder', 'Path Finder')
-     .replace('career-assessment', 'Assessment')
-     .replace('resume-analyzer', 'Resume');
+    t.replace('google-ads', 'Google Ads')
+     .replace('meta-ads', 'Meta Ads')
+     .replace('crm-import', 'CRM Import')
+     .replace('source-routing', 'Source Routing')
+     .replace('dedupe-preview', 'Dedupe')
+     .replace('account-expansion', 'Expansion');
   const toolData = (metrics.leads_by_tool || []).map((t) => ({ ...t, tool: shortenTool(t.tool) }));
 
   const todayCount = signalsByDay[signalsByDay.length - 1]?.count ?? 0;
@@ -517,22 +689,20 @@ export default function AdminDashboardPage() {
   const dayDelta = yesterdayCount > 0 ? Math.round(((todayCount - yesterdayCount) / yesterdayCount) * 100) : 0;
 
   return (
-    <div className="space-y-10 max-w-[1480px] mx-auto">
+    <div className="space-y-7 max-w-[1480px] mx-auto">
       {/* ── Hero ── */}
-      <header className="grid lg:grid-cols-[1fr,auto] gap-6 items-end pb-2">
+      <header className="grid lg:grid-cols-[1fr,auto] gap-6 items-end pb-1">
         <div>
           <MonoLabel>
             {new Date().toLocaleDateString('en-US', {
               weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
             })}
           </MonoLabel>
-          <h1 className="text-white font-bold text-3xl sm:text-4xl tracking-tight leading-[1.05] mt-2">
-            Lead intelligence,
-            <br className="hidden sm:block" />
-            <span style={{ color: theme.accent }}>at a glance.</span>
+          <h1 className="mt-2 text-3xl font-black tracking-tight leading-[1.05] sm:text-4xl" style={{ color: 'var(--t-fg-95)' }}>
+            Revenue source operations.
           </h1>
-          <p className="text-white/45 text-sm mt-3 max-w-md">
-            Live signals from social, refined by Claude into intent, urgency, and pain points.
+          <p className="mt-3 max-w-xl text-sm" style={{ color: 'var(--t-fg-45)' }}>
+            A workspace for turning ad traffic, CRM imports, website forms, and social intent into scored leads and routed opportunities.
             Updated {lastRefresh.toLocaleTimeString()}.
           </p>
         </div>
@@ -576,9 +746,44 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      {/* ── Hero metric: today vs yesterday, LinkedIn focus ── */}
+      <OperatingBoard
+        metrics={metrics}
+        stats={stats}
+        theme={theme}
+        adSpend={adSpend}
+        setAdSpend={setAdSpend}
+      />
+
+      <section className="grid md:grid-cols-3 gap-3">
+        <FlowCard
+          ord="01"
+          title="Source intake"
+          metric={today.linkedin_signals.toLocaleString()}
+          detail="New source signals today across ads, forms, CRM, and social intent."
+          items={['Google and Meta lead forms', 'Website demo requests', 'CRM and CSV imports']}
+          accent={theme.accentStrong}
+        />
+        <FlowCard
+          ord="02"
+          title="Fit scoring"
+          metric={today.linkedin_high_intent.toLocaleString()}
+          detail="High-intent accounts ready for owner assignment or enrichment."
+          items={['Company fit', 'Buying stage', 'Duplicate risk']}
+          accent={theme.intent.high}
+        />
+        <FlowCard
+          ord="03"
+          title="Route queue"
+          metric={(stats?.automationPending ?? 0).toLocaleString()}
+          detail="Qualified leads waiting on CRM owner, playbook, or retry."
+          items={['Hot account route', 'Nurture route', 'Research queue']}
+          accent={theme.intent.medium}
+        />
+      </section>
+
+      {/* ── Hero metric: today vs yesterday, source focus ── */}
       <section className="grid lg:grid-cols-[1.4fr,1fr] gap-6">
-        {/* Big number + sparkline — today's LinkedIn signals */}
+        {/* Big number + sparkline — today's source signals */}
         <div
           className="relative p-7 overflow-hidden"
           style={{
@@ -589,7 +794,7 @@ export default function AdminDashboardPage() {
         >
           <div className="flex items-start justify-between">
             <div>
-              <MonoLabel>LinkedIn signals · today</MonoLabel>
+              <MonoLabel>Source signals · today</MonoLabel>
               <p className="text-white font-bold mt-2 leading-none tabular-nums" style={{ fontSize: 'clamp(3rem, 6vw, 5rem)', letterSpacing: '-0.04em' }}>
                 {today.linkedin_signals.toLocaleString()}
               </p>
@@ -635,7 +840,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Side KPI stack — every card is today vs yesterday, LinkedIn-focused */}
+        {/* Side KPI stack: every card is today vs yesterday and source-quality focused. */}
         <div className="grid grid-cols-2 gap-3 content-start">
           <Kpi
             ord="02" label="High intent · today"
@@ -675,7 +880,7 @@ export default function AdminDashboardPage() {
       <section>
         <SectionHeader ord="04" title="Trends" subtitle="Daily ingestion + capture velocity" />
         <div className="grid lg:grid-cols-2 gap-4">
-          <ChartFrame title="Signals collected" subtitle="Daily ingestion volume">
+          <ChartFrame title="Signals sourced" subtitle="Daily source volume">
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={signalsByDay} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
@@ -721,7 +926,7 @@ export default function AdminDashboardPage() {
       <section>
         <SectionHeader ord="05" title="Mix" subtitle="Where signals come from, where leads convert" />
         <div className="grid lg:grid-cols-2 gap-4">
-          <ChartFrame title="Signals by platform" subtitle="Source breakdown">
+          <ChartFrame title="Signals by source" subtitle="Channel quality mix">
             {platformData.length === 0 ? (
               <EmptyState label="No platform data yet" />
             ) : (
@@ -753,7 +958,7 @@ export default function AdminDashboardPage() {
             )}
           </ChartFrame>
 
-          <ChartFrame title="Leads by tool" subtitle="Which tool converts most">
+          <ChartFrame title="Leads by source" subtitle="Which source creates qualified businesses">
             {toolData.length === 0 ? (
               <EmptyState label="No leads yet" />
             ) : (
@@ -780,7 +985,7 @@ export default function AdminDashboardPage() {
       {/* ── Pain points (editorial list) ── */}
       {(metrics.top_pain_points || []).length > 0 && (
         <section>
-          <SectionHeader ord="06" title="Top pain points" subtitle="Most-cited barriers across all classified signals" />
+          <SectionHeader ord="06" title="Top routing blockers" subtitle="Operational blockers across sourced leads" />
           <div
             className="px-2 py-2"
             style={{
@@ -807,8 +1012,8 @@ export default function AdminDashboardPage() {
                       {String(i + 1).padStart(2, '0')}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-white/85 text-sm leading-snug truncate">{item.point}</p>
-                      <div className="mt-2 h-[3px] bg-white/[0.04] rounded-full overflow-hidden">
+                      <p className="text-sm leading-snug truncate" style={{ color: 'var(--t-fg-85)' }}>{item.point}</p>
+                      <div className="mt-2 h-[3px] rounded-full overflow-hidden" style={{ background: 'var(--t-fg-04)' }}>
                         <div
                           className="h-full rounded-full transition-all duration-700"
                           style={{ width: `${pct}%`, background: color, opacity: 0.85 }}
@@ -816,8 +1021,8 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                     <span
-                      className="text-white/55 text-sm tabular-nums"
-                      style={{ fontFamily: theme.fontMono }}
+                      className="text-sm tabular-nums"
+                      style={{ color: 'var(--t-fg-55)', fontFamily: theme.fontMono }}
                     >
                       {item.count.toLocaleString()}
                     </span>
@@ -833,14 +1038,14 @@ export default function AdminDashboardPage() {
       <section>
         <SectionHeader ord="07" title="Health" subtitle="Sync, urgency mix, and unit economics" />
         <div className="grid lg:grid-cols-3 gap-4">
-          {/* GHL sync */}
+          {/* CRM routing */}
           <div
             className="p-5 flex flex-col gap-4"
             style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)', borderRadius: 'var(--t-radius-lg)' }}
           >
             <div>
-              <p className="text-white font-semibold text-[13px] tracking-tight">GHL sync</p>
-              <MonoLabel className="block mt-1">GoHighLevel CRM health</MonoLabel>
+              <p className="text-white font-semibold text-[13px] tracking-tight">CRM routing</p>
+              <MonoLabel className="block mt-1">Routing and CRM delivery health</MonoLabel>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-white font-bold tabular-nums" style={{ fontSize: '2.2rem', letterSpacing: '-0.03em' }}>
@@ -909,7 +1114,7 @@ export default function AdminDashboardPage() {
               value={adSpend}
               onChange={(e) => {
                 setAdSpend(e.target.value);
-                localStorage.setItem('emc_ad_spend', e.target.value);
+                localStorage.setItem('prospectgrid_ad_spend', e.target.value);
               }}
               className="w-full bg-transparent border px-4 py-2.5 text-white text-sm focus:outline-none placeholder:text-white/25 transition-colors"
               style={{
@@ -943,7 +1148,7 @@ export default function AdminDashboardPage() {
             { label: 'Signals today', value: todayCount.toLocaleString(), color: theme.chart[1] },
             { label: 'High intent rate', value: `${highIntentPct}%`, color: theme.intent.high },
             { label: 'Top platform', value: platformData.sort((a, b) => b.count - a.count)[0]?.platform ?? '—', color: theme.intent.medium },
-            { label: 'Top tool', value: toolData.sort((a, b) => b.count - a.count)[0]?.tool ?? '—', color: theme.accent },
+            { label: 'Top source', value: toolData.sort((a, b) => b.count - a.count)[0]?.tool ?? '—', color: theme.accent },
           ].map((item, i) => (
             <div
               key={i}

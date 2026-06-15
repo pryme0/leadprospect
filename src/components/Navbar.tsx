@@ -7,23 +7,26 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/tools/cyber-path-finder', label: 'Cyber Path Finder' },
-    { href: '/tools/career-assessment', label: 'Career Assessment' },
-    { href: '/tools/resume-analyzer', label: 'Resume Analyzer' },
+    { href: '/', label: 'Workspace' },
+    { href: '/signup', label: 'Sign up' },
+    { href: '/admin/signals', label: 'Signals' },
+    { href: '/admin/leads', label: 'Leads' },
+    { href: '/admin/integrations', label: 'Integrations' },
   ];
 
   return (
-    <nav className="sticky top-0 z-50 glass border-b border-brand-slate/50">
+    <nav className="sticky top-0 z-50 border-b border-[#d4e7ee] bg-[#f7fbff]/92 backdrop-blur">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand */}
           <Link href="/" className="flex items-center gap-3 group">
-            <img src="/emclogo.png" alt="EMC Logo" className="w-9 h-9 object-contain shrink-0" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#b8dce6] bg-white text-[13px] font-black tracking-tight text-[#112126] shadow-sm">
+              PG
+            </span>
             <div className="hidden sm:block">
-              <span className="text-white font-bold text-lg">ExcelMindCyber</span>
-              <span className="hidden md:inline text-brand-muted text-xs ml-2">
-                Your Cybersecurity Career Starts Here
+              <span className="text-[#112126] font-bold text-lg">ProspectGrid</span>
+              <span className="hidden md:inline text-[#607783] text-xs ml-2">
+                Lead intelligence platform
               </span>
             </div>
           </Link>
@@ -34,17 +37,23 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="px-4 py-2 text-sm text-brand-muted hover:text-[#0BAAEF] transition-colors rounded-lg hover:bg-brand-slate/30"
+                className="px-4 py-2 text-sm font-medium text-[#4b6470] hover:text-[#112126] transition-colors rounded-lg hover:bg-[#e8f6fa]"
               >
                 {link.label}
               </Link>
             ))}
+            <Link
+              href="/signup"
+              className="ml-2 px-4 py-2 text-sm font-semibold text-white rounded-lg bg-[#009B98] hover:bg-[#112126] transition-colors"
+            >
+              Create workspace
+            </Link>
           </div>
 
           {/* Mobile toggle */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden p-2 text-brand-muted hover:text-white transition-colors"
+            className="md:hidden p-2 text-[#4b6470] hover:text-[#112126] transition-colors"
             aria-label="Toggle menu"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,7 +74,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="block px-4 py-3 text-brand-muted hover:text-[#0BAAEF] hover:bg-brand-slate/30 rounded-lg transition-colors"
+                className="block px-4 py-3 text-[#4b6470] hover:text-[#112126] hover:bg-[#e8f6fa] rounded-lg transition-colors"
               >
                 {link.label}
               </Link>

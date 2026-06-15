@@ -43,11 +43,11 @@ const INCOME_GOALS = [
 ];
 
 const TIMELINES = [
-  'Immediately — I need a career change now',
-  'Within the next 3 months',
-  'Within the next 3–6 months',
-  'Within the next 6–12 months',
-  'Just exploring for now',
+  'Immediately - route high-intent leads now',
+  'Within the next 30 days',
+  'Within the next quarter',
+  'This year',
+  'Just exploring lead intelligence',
 ];
 
 // Common country dialing codes — US + Canada first (primary market), then others.
@@ -337,7 +337,7 @@ export default function LeadCaptureModal({
           {/* Timeline */}
           <div>
             <label className="label-text">
-              How soon do you want to get into cybersecurity? <span className="text-brand-danger">*</span>
+              How soon do you want to route qualified leads? <span className="text-brand-danger">*</span>
             </label>
             <select
               className="select-field"
@@ -377,15 +377,15 @@ export default function LeadCaptureModal({
                 type="checkbox"
                 checked={formData.consented}
                 onChange={(e) => handleChange('consented', e.target.checked)}
-                className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#0BAAEF] focus:ring-[#0BAAEF]/30 cursor-pointer"
+                className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#00CEC8] focus:ring-[#00CEC8]/30 cursor-pointer"
               />
               <span className="text-sm text-brand-muted">
-                I agree to be contacted via email/SMS by ExcelMindCyber about cybersecurity career
-                resources and opportunities.{' '}
+                I agree to be contacted via email/SMS by ProspectGrid about lead intelligence
+                resources, product updates, and demo follow-up.{' '}
                 <Link
                   href="/privacy"
                   target="_blank"
-                  className="text-[#0BAAEF] hover:text-[#0BAAEF]-dim underline"
+                  className="text-[#00CEC8] hover:text-[#00CEC8]-dim underline"
                 >
                   Privacy Policy
                 </Link>

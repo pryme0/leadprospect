@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { adminApi } from '@/lib/api';
+import { INTEGRATIONS } from '@/lib/integrations';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -19,7 +21,7 @@ interface AdminProfile {
   role: string;
 }
 
-type Tab = 'profile' | 'integrations' | 'ghl' | 'account';
+type Tab = 'profile' | 'integrations' | 'crm' | 'account';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -57,7 +59,7 @@ function Input({ value, onChange, placeholder, type = 'text', disabled = false }
       onChange={(e) => onChange?.(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
-      className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#0BAAEF]/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border"
+      className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#00CEC8]/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border"
       style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
     />
   );
@@ -71,7 +73,7 @@ function SaveButton({ onClick, saving, saved }: { onClick: () => void; saving: b
       className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all border ${
         saved
           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-          : 'bg-[#0BAAEF]/10 border-[#0BAAEF]/30 text-[#0BAAEF] hover:bg-[#0BAAEF]/15'
+          : 'bg-[#00CEC8]/10 border-[#00CEC8]/30 text-[#00CEC8] hover:bg-[#00CEC8]/15'
       } disabled:opacity-50`}
     >
       {saving ? (
@@ -107,9 +109,9 @@ export default function SettingsPage() {
 
   // Org profile — persisted in localStorage
   const [org, setOrg] = useState<OrgProfile>({
-    company_name: 'ExcelMindCyber',
-    website: 'https://excelmindcyber.com',
-    contact_email: 'admin@excelmindcyber.com',
+    company_name: 'ProspectGrid',
+    website: 'https://prospectgrid.demo',
+    contact_email: 'admin@prospectgrid.demo',
     timezone: 'America/New_York',
     logo_url: '',
   });
@@ -118,37 +120,26 @@ export default function SettingsPage() {
 
   // Admin profile — read from localStorage token + display settings
   const [admin, setAdmin] = useState<AdminProfile>({
-    display_name: 'Thelix Holdings',
-    email: 'admin@thelixholdings.com',
+    display_name: 'ProspectGrid Operator',
+    email: 'admin@prospectgrid.demo',
     role: 'Admin',
   });
   const [adminSaving, setAdminSaving] = useState(false);
   const [adminSaved, setAdminSaved] = useState(false);
 
-  // GHL fields — read-only display (from env)
-  const GHL_FIELDS = [
-    { label: 'Urgency Score Field', key: 'GHL_URGENCY_FIELD_ID' },
-    { label: 'Income Range Field', key: 'GHL_INCOME_RANGE_FIELD_ID' },
-    { label: 'Current Job Field', key: 'GHL_CURRENT_JOB_FIELD_ID' },
-    { label: 'Resume S3 Key Field', key: 'GHL_RESUME_S3_KEY_FIELD_ID' },
+  // CRM fields — read-only display (from env)
+  const CRM_FIELDS = [
+    { label: 'Lead Score Field', key: 'CRM_LEAD_SCORE_FIELD_ID' },
+    { label: 'Pipeline Value Field', key: 'CRM_PIPELINE_VALUE_FIELD_ID' },
+    { label: 'Source Channel Field', key: 'CRM_SOURCE_CHANNEL_FIELD_ID' },
+    { label: 'Import File Key Field', key: 'CRM_IMPORT_FILE_KEY_FIELD_ID' },
   ];
 
-  const GHL_WORKFLOWS = [
-    { label: 'High Intent Workflow', key: 'GHL_WORKFLOW_HIGH_INTENT', color: 'text-red-400' },
-    { label: 'Medium Intent Workflow', key: 'GHL_WORKFLOW_MEDIUM_INTENT', color: 'text-yellow-400' },
-    { label: 'Low Intent Workflow', key: 'GHL_WORKFLOW_LOW_INTENT', color: 'text-[#0BAAEF]' },
-    { label: 'Default Workflow', key: 'GHL_WORKFLOW_DEFAULT', color: 'text-white/50' },
-  ];
-
-  const INTEGRATIONS = [
-    { label: 'GoHighLevel CRM', key: 'GHL_API_KEY', description: 'CRM sync for lead capture', icon: '🎯' },
-    { label: 'Anthropic (Claude AI)', key: 'ANTHROPIC_API_KEY', description: 'Signal classification + tool AI', icon: '🤖' },
-    { label: 'OpenAI (Fallback)', key: 'OPENAI_API_KEY', description: 'AI fallback when Claude unavailable', icon: '⚡' },
-    { label: 'Twitter / X', key: 'TWITTER_BEARER_TOKEN', description: 'Signal ingestion from Twitter', icon: '𝕏' },
-    { label: 'YouTube Data API', key: 'YOUTUBE_API_KEY', description: 'Signal ingestion from YouTube comments', icon: '▶' },
-    { label: 'AWS S3', key: 'AWS_ACCESS_KEY_ID', description: 'Resume file storage', icon: '☁' },
-    { label: 'RapidAPI (Reddit)', key: 'RAPIDAPI_KEY', description: 'Enhanced Reddit signal ingestion', icon: '🔴' },
-    { label: 'Apify', key: 'APIFY_API_KEY', description: 'Twitter & YouTube scraping fallback', icon: '🕷' },
+  const CRM_WORKFLOWS = [
+    { label: 'Hot Account Route', key: 'CRM_ROUTE_HIGH_INTENT', color: 'text-red-400' },
+    { label: 'Nurture Route', key: 'CRM_ROUTE_MEDIUM_INTENT', color: 'text-yellow-400' },
+    { label: 'Research Route', key: 'CRM_ROUTE_LOW_INTENT', color: 'text-[#00CEC8]' },
+    { label: 'Default Route', key: 'CRM_ROUTE_DEFAULT', color: 'text-white/50' },
   ];
 
   const TIMEZONES = [
@@ -159,11 +150,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     // Load saved org profile
-    const saved = localStorage.getItem('emc_org_profile');
+    const saved = localStorage.getItem('prospectgrid_org_profile');
     if (saved) {
       try { setOrg(JSON.parse(saved)); } catch {}
     }
-    const savedAdmin = localStorage.getItem('emc_admin_profile');
+    const savedAdmin = localStorage.getItem('prospectgrid_admin_profile');
     if (savedAdmin) {
       try { setAdmin(JSON.parse(savedAdmin)); } catch {}
     }
@@ -175,7 +166,7 @@ export default function SettingsPage() {
 
   const saveOrg = () => {
     setOrgSaving(true);
-    localStorage.setItem('emc_org_profile', JSON.stringify(org));
+    localStorage.setItem('prospectgrid_org_profile', JSON.stringify(org));
     setTimeout(() => {
       setOrgSaving(false);
       setOrgSaved(true);
@@ -185,7 +176,7 @@ export default function SettingsPage() {
 
   const saveAdmin = () => {
     setAdminSaving(true);
-    localStorage.setItem('emc_admin_profile', JSON.stringify(admin));
+    localStorage.setItem('prospectgrid_admin_profile', JSON.stringify(admin));
     setTimeout(() => {
       setAdminSaving(false);
       setAdminSaved(true);
@@ -194,18 +185,29 @@ export default function SettingsPage() {
   };
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key: 'profile', label: 'Organisation', icon: '🏢' },
-    { key: 'account', label: 'Admin Account', icon: '👤' },
-    { key: 'integrations', label: 'Integrations', icon: '🔌' },
-    { key: 'ghl', label: 'GoHighLevel', icon: '🎯' },
+    { key: 'profile', label: 'Organization', icon: 'Org' },
+    { key: 'account', label: 'Admin Account', icon: 'Me' },
+    { key: 'integrations', label: 'Integrations', icon: '↔' },
+    { key: 'crm', label: 'CRM Routes', icon: '→' },
   ];
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div>
-        <h1 className="text-white font-bold text-xl">Settings</h1>
-        <p className="text-white/30 text-xs mt-0.5">Manage your organisation profile, integrations, and account preferences</p>
+      <div
+        style={{
+          background: 'var(--a-card)',
+          border: '1px solid var(--a-border)',
+          borderRadius: 'var(--t-radius-lg)',
+          padding: '18px 24px',
+          boxShadow: 'var(--t-card-shadow)',
+        }}
+      >
+        <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.3em]" style={{ color: 'var(--t-accent)', fontFamily: 'var(--t-mono-font)' }}>
+          07 · Workspace controls
+        </p>
+        <h1 className="text-[22px] font-black tracking-tight" style={{ color: 'var(--t-fg-95)' }}>Settings</h1>
+        <p className="mt-0.5 text-sm" style={{ color: 'var(--t-fg-40)' }}>Manage organization details, ad sources, CRM routes, and account preferences</p>
       </div>
 
       {/* Tabs */}
@@ -227,22 +229,22 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* ── ORGANISATION PROFILE TAB ── */}
+      {/* ── ORGANIZATION PROFILE TAB ── */}
       {tab === 'profile' && (
         <div className="space-y-4">
-          <Section title="Organisation Profile" subtitle="Your company details used across the dashboard and reports">
+          <Section title="Organization Profile" subtitle="Your company details used across the dashboard and reports">
             <Field label="Company Name" hint="Displayed in the admin sidebar">
               <Input
                 value={org.company_name}
                 onChange={(v) => setOrg({ ...org, company_name: v })}
-                placeholder="e.g. ExcelMindCyber"
+                placeholder="e.g. ProspectGrid"
               />
             </Field>
             <Field label="Website" hint="Public-facing website URL">
               <Input
                 value={org.website}
                 onChange={(v) => setOrg({ ...org, website: v })}
-                placeholder="https://excelmindcyber.com"
+                placeholder="https://prospectgrid.demo"
                 type="url"
               />
             </Field>
@@ -250,7 +252,7 @@ export default function SettingsPage() {
               <Input
                 value={org.contact_email}
                 onChange={(v) => setOrg({ ...org, contact_email: v })}
-                placeholder="admin@excelmindcyber.com"
+                placeholder="admin@prospectgrid.demo"
                 type="email"
               />
             </Field>
@@ -258,7 +260,7 @@ export default function SettingsPage() {
               <select
                 value={org.timezone}
                 onChange={(e) => setOrg({ ...org, timezone: e.target.value })}
-                className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#0BAAEF]/40 transition-colors border"
+                className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#00CEC8]/40 transition-colors border"
                 style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
               >
                 {TIMEZONES.map((tz) => (
@@ -296,21 +298,21 @@ export default function SettingsPage() {
               <Input
                 value={admin.display_name}
                 onChange={(v) => setAdmin({ ...admin, display_name: v })}
-                placeholder="e.g. Thelix Holdings"
+                placeholder="e.g. ProspectGrid Operator"
               />
             </Field>
             <Field label="Admin Email" hint="Login email — change via server environment variable ADMIN_EMAIL">
               <Input
                 value={admin.email}
                 onChange={(v) => setAdmin({ ...admin, email: v })}
-                placeholder="admin@thelixholdings.com"
+                placeholder="admin@prospectgrid.demo"
                 type="email"
               />
             </Field>
             <Field label="Role" hint="Access level — currently fixed to Admin">
               <div className="flex items-center gap-2">
                 <Input value="Admin" disabled />
-                <span className="text-xs px-2.5 py-1.5 rounded-lg bg-[#0BAAEF]/10 text-[#0BAAEF] border border-[#0BAAEF]/20 whitespace-nowrap">
+                <span className="text-xs px-2.5 py-1.5 rounded-lg bg-[#00CEC8]/10 text-[#00CEC8] border border-[#00CEC8]/20 whitespace-nowrap">
                   Full Access
                 </span>
               </div>
@@ -325,7 +327,7 @@ export default function SettingsPage() {
               <div>
                 <p className="text-white/70 text-sm font-medium">Password changes require server access</p>
                 <p className="text-white/30 text-xs mt-1">
-                  Update <code className="text-[#0BAAEF] bg-[#0BAAEF]/10 px-1 py-0.5 rounded text-[10px]">ADMIN_PASSWORD</code> in your <code className="text-[#0BAAEF] bg-[#0BAAEF]/10 px-1 py-0.5 rounded text-[10px]">.env</code> file and restart the backend to change your password.
+                  Update <code className="text-[#00CEC8] bg-[#00CEC8]/10 px-1 py-0.5 rounded text-[10px]">ADMIN_PASSWORD</code> in your <code className="text-[#00CEC8] bg-[#00CEC8]/10 px-1 py-0.5 rounded text-[10px]">.env</code> file and restart the backend to change your password.
                 </p>
               </div>
             </div>
@@ -343,7 +345,7 @@ export default function SettingsPage() {
             <Field label="Sign Out" hint="Invalidates your local session token">
               <button
                 onClick={() => {
-                  localStorage.removeItem('emc_admin_token');
+                  localStorage.removeItem('prospectgrid_admin_token');
                   window.location.href = '/admin/login';
                 }}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/15 transition-colors"
@@ -365,28 +367,44 @@ export default function SettingsPage() {
       {/* ── INTEGRATIONS TAB ── */}
       {tab === 'integrations' && (
         <div className="space-y-4">
-          <Section title="API Integrations" subtitle="All integrations are configured via environment variables on the server">
-            <div className="space-y-0">
+          <Section title="Source Integrations" subtitle="Open each connector to inspect pulled data, mappings, outcomes, and sync controls">
+            <div className="grid md:grid-cols-2 gap-3">
               {INTEGRATIONS.map((integration) => (
-                <div key={integration.key} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
+                <Link
+                  key={integration.key}
+                  href={`/admin/integrations/${integration.id}`}
+                  className="group flex items-center justify-between gap-4 p-4 border transition-colors"
+                  style={{
+                    background: 'var(--a-card2)',
+                    borderColor: 'var(--a-border)',
+                    borderRadius: 'var(--t-radius-sm)',
+                    boxShadow: 'var(--t-card-shadow)',
+                  }}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center text-lg shrink-0">
+                    <div
+                      className="w-10 h-10 rounded-lg border flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{ background: `${integration.accent}12`, borderColor: `${integration.accent}30`, color: integration.accent }}
+                    >
                       {integration.icon}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-white/80 text-sm font-medium">{integration.label}</p>
                       <p className="text-white/30 text-xs">{integration.description}</p>
+                      <code className="mt-2 block text-white/25 text-[10px] font-mono">{integration.key}</code>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <code className="text-white/20 text-[10px] font-mono hidden sm:block">{integration.key}</code>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
                     {integrationStatus === null ? (
                       <span className="inline-block w-20 h-6 rounded-full bg-white/5 animate-pulse" />
                     ) : (
                       <StatusDot ok={integrationStatus[integration.key] === true} />
                     )}
+                    <span className="text-[10px] uppercase tracking-[0.18em] transition-colors" style={{ color: 'var(--t-fg-35)' }}>
+                      Open
+                    </span>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </Section>
@@ -416,33 +434,33 @@ export default function SettingsPage() {
           </Section>
 
           <div className="rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-4 flex items-start gap-3">
-            <span className="text-yellow-400 text-lg shrink-0">⚠</span>
+            <span className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-yellow-400/50 text-yellow-400 text-[10px] leading-[14px] text-center">!</span>
             <div>
               <p className="text-yellow-400 text-sm font-medium">Changing API keys requires server restart</p>
               <p className="text-white/40 text-xs mt-1">
-                Edit your <code className="text-[#0BAAEF] bg-[#0BAAEF]/10 px-1 py-0.5 rounded text-[10px]">.env</code> file on the server and restart with <code className="text-[#0BAAEF] bg-[#0BAAEF]/10 px-1 py-0.5 rounded text-[10px]">npm run start:dev</code> to apply changes.
+                Edit your <code className="text-[#00CEC8] bg-[#00CEC8]/10 px-1 py-0.5 rounded text-[10px]">.env</code> file on the server and restart with <code className="text-[#00CEC8] bg-[#00CEC8]/10 px-1 py-0.5 rounded text-[10px]">npm run start:dev</code> to apply changes.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── GOHIGHLEVEL TAB ── */}
-      {tab === 'ghl' && (
+      {/* ── CRM ROUTES TAB ── */}
+      {tab === 'crm' && (
         <div className="space-y-4">
-          <Section title="GoHighLevel Connection" subtitle="CRM integration configuration">
-            <Field label="API Version" hint="Using GHL REST API v1 (location JWT)">
+          <Section title="CRM Connection" subtitle="Destination routing for qualified leads">
+            <Field label="Route Layer" hint="Lead routing adapter used by connected CRMs">
               <div className="flex items-center gap-2">
-                <span className="text-xs px-2.5 py-1.5 rounded-lg bg-[#0BAAEF]/10 text-[#0BAAEF] border border-[#0BAAEF]/20 font-mono">
-                  rest.gohighlevel.com/v1
+                <span className="text-xs px-2.5 py-1.5 rounded-lg bg-[#00CEC8]/10 text-[#00CEC8] border border-[#00CEC8]/20 font-mono">
+                  ProspectGrid Routing API v1
                 </span>
               </div>
             </Field>
-            <Field label="Location ID" hint="Your GHL sub-account location ID">
+            <Field label="Workspace ID" hint="Demo workspace used for local CRM routing">
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border" style={{ background: 'var(--a-hover)', borderColor: 'var(--a-border2)' }}>
-                <code className="text-white/50 text-sm font-mono tracking-wide">GOurOpNFFOsJjzv6wz0h</code>
+                <code className="text-white/50 text-sm font-mono tracking-wide">pg_demo_workspace_01</code>
                 <button
-                  onClick={() => navigator.clipboard.writeText('GOurOpNFFOsJjzv6wz0h')}
+                  onClick={() => navigator.clipboard.writeText('pg_demo_workspace_01')}
                   className="ml-auto text-white/30 hover:text-white/60 transition-colors"
                   title="Copy"
                 >
@@ -454,15 +472,15 @@ export default function SettingsPage() {
             </Field>
           </Section>
 
-          <Section title="Custom Fields" subtitle="GHL custom field IDs mapped from lead data">
+          <Section title="Custom Fields" subtitle="CRM custom field IDs mapped from lead data">
             <div className="space-y-0">
-              {GHL_FIELDS.map((f) => (
+              {CRM_FIELDS.map((f) => (
                 <div key={f.key} className="flex items-center justify-between py-3.5 border-b border-white/5 last:border-0">
                   <div>
                     <p className="text-white/70 text-sm">{f.label}</p>
                     <code className="text-white/25 text-[10px] font-mono">{f.key}</code>
                   </div>
-                  <span className="text-xs px-2.5 py-1 rounded-lg bg-white/5 text-[#0BAAEF] border border-white/8 font-mono">
+                  <span className="text-xs px-2.5 py-1 rounded-lg bg-white/5 text-[#00CEC8] border border-white/8 font-mono">
                     Configured
                   </span>
                 </div>
@@ -470,9 +488,9 @@ export default function SettingsPage() {
             </div>
           </Section>
 
-          <Section title="Automation Workflows" subtitle="Intent-based GHL workflows triggered on lead creation">
+          <Section title="Routing Playbooks" subtitle="Intent-based CRM routes triggered on lead creation">
             <div className="space-y-0">
-              {GHL_WORKFLOWS.map((w) => (
+              {CRM_WORKFLOWS.map((w) => (
                 <div key={w.key} className="flex items-center justify-between py-3.5 border-b border-white/5 last:border-0">
                   <div>
                     <p className={`text-sm font-medium ${w.color}`}>{w.label}</p>
@@ -486,13 +504,13 @@ export default function SettingsPage() {
             </div>
           </Section>
 
-          <Section title="Sync Behaviour" subtitle="How leads are synced to GoHighLevel">
+          <Section title="Sync Behaviour" subtitle="How qualified leads are synced to CRM">
             <div className="space-y-3">
               {[
-                { label: 'Sync timing', value: 'Immediate — within 5 seconds of form submission' },
+                { label: 'Sync timing', value: 'Immediate — within 5 seconds of capture or import' },
                 { label: 'Retry attempts', value: '3 attempts with exponential backoff (2s → 4s → 8s)' },
-                { label: 'Queue', value: 'BullMQ ghl-sync queue — monitored at /admin/queues' },
-                { label: 'Deduplication', value: 'GHL returns 422 on duplicate email — stored as existing contact' },
+                { label: 'Queue', value: 'CRM routing queue with retry and failed-job visibility' },
+                { label: 'Deduplication', value: 'Email, domain, and CRM record checks before creating a new contact' },
               ].map((item) => (
                 <div key={item.label} className="flex items-start justify-between gap-6 py-3 border-b border-white/5 last:border-0">
                   <p className="text-white/40 text-sm shrink-0">{item.label}</p>
@@ -505,13 +523,13 @@ export default function SettingsPage() {
           <div className="flex justify-between items-center p-4 rounded-xl border" style={{ background: 'var(--a-hover)', borderColor: 'var(--a-border)' }}>
             <div>
               <p className="text-white/60 text-sm font-medium">Bull Board Queue Monitor</p>
-              <p className="text-white/30 text-xs">View live GHL sync jobs, retries, and failed jobs</p>
+              <p className="text-white/30 text-xs">View live CRM routing jobs, retries, and failed jobs</p>
             </div>
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/admin/queues`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#0BAAEF]/10 border border-[#0BAAEF]/30 text-[#0BAAEF] hover:bg-[#0BAAEF]/15 transition-colors whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#00CEC8]/10 border border-[#00CEC8]/30 text-[#00CEC8] hover:bg-[#00CEC8]/15 transition-colors whitespace-nowrap"
             >
               Open Queue Monitor ↗
             </a>

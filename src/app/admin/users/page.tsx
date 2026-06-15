@@ -49,7 +49,7 @@ function UserModal({
     } finally { setSaving(false); }
   };
 
-  const inp = "w-full border border-white/8 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#0BAAEF]/50 transition-colors [background:var(--a-input-bg)]";
+  const inp = "w-full border border-white/8 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#00CEC8]/50 transition-colors [background:var(--a-input-bg)]";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -72,18 +72,18 @@ function UserModal({
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-white/35 text-[11px] font-semibold uppercase tracking-wider mb-1.5">Name</label>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--t-fg-35)' }}>Name</label>
               <input value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" className={inp} />
             </div>
             <div>
-              <label className="block text-white/35 text-[11px] font-semibold uppercase tracking-wider mb-1.5">Email</label>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--t-fg-35)' }}>Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@co.com"
                 disabled={mode === 'edit'} className={`${inp} disabled:opacity-40 disabled:cursor-not-allowed`} />
             </div>
           </div>
 
           <div>
-            <label className="block text-white/35 text-[11px] font-semibold uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--t-fg-35)' }}>
               Password {mode === 'edit' && <span className="text-white/20 font-normal normal-case tracking-normal">— leave blank to keep current</span>}
             </label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)}
@@ -91,11 +91,11 @@ function UserModal({
           </div>
 
           <div>
-            <label className="block text-white/35 text-[11px] font-semibold uppercase tracking-wider mb-2">Role</label>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--t-fg-35)' }}>Role</label>
             <div className="grid grid-cols-2 gap-2.5">
               {(['admin', 'viewer'] as Role[]).map(r => {
                 const on = role === r;
-                const ac = r === 'admin' ? '#f97316' : '#40C4FF';
+                const ac = r === 'admin' ? '#f97316' : '#EB4203';
                 return (
                   <button key={r} onClick={() => setRole(r)}
                     className="p-4 rounded-xl border text-left transition-all duration-150"
@@ -124,7 +124,7 @@ function UserModal({
             <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm text-white/35 hover:text-white/60 border border-white/8 transition-all">Cancel</button>
             <button onClick={submit} disabled={saving}
               className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-[#050d14] transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ flex: 2, background: 'linear-gradient(135deg,#0BAAEF,#40C4FF)' }}>
+              style={{ flex: 2, background: 'linear-gradient(135deg,#00CEC8,#EB4203)' }}>
               {saving ? <><span className="w-3.5 h-3.5 border-2 border-[#050d14]/30 border-t-[#050d14] rounded-full animate-spin" />Saving...</> : mode === 'create' ? 'Invite User' : 'Save Changes'}
             </button>
           </div>
@@ -175,20 +175,32 @@ export default function UsersPage() {
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-2xl border text-sm font-medium shadow-2xl"
-          style={{ background: toast.ok ? 'rgba(11,170,239,0.08)' : 'rgba(239,68,68,0.08)', borderColor: toast.ok ? 'rgba(11,170,239,0.25)' : 'rgba(239,68,68,0.25)', color: toast.ok ? '#0BAAEF' : '#f87171' }}>
+          style={{ background: toast.ok ? 'rgba(0,206,200,0.08)' : 'rgba(239,68,68,0.08)', borderColor: toast.ok ? 'rgba(0,206,200,0.25)' : 'rgba(239,68,68,0.25)', color: toast.ok ? '#00CEC8' : '#f87171' }}>
           {toast.ok ? '✓' : '✗'} {toast.msg}
         </div>
       )}
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      <div
+        className="flex items-center justify-between"
+        style={{
+          background: 'var(--a-card)',
+          border: '1px solid var(--a-border)',
+          borderRadius: 'var(--t-radius-lg)',
+          padding: '18px 24px',
+          boxShadow: 'var(--t-card-shadow)',
+        }}
+      >
         <div>
-          <h1 className="text-white font-bold text-xl">Team Access</h1>
-          <p className="text-white/30 text-sm mt-0.5">Manage dashboard users and their permissions</p>
+          <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.3em]" style={{ color: 'var(--t-accent)', fontFamily: 'var(--t-mono-font)' }}>
+            06 · Team access
+          </p>
+          <h1 className="text-[22px] font-black tracking-tight" style={{ color: 'var(--t-fg-95)' }}>Users</h1>
+          <p className="mt-0.5 text-sm" style={{ color: 'var(--t-fg-40)' }}>Manage dashboard users and their permissions</p>
         </div>
         <button onClick={() => setModal({ mode: 'create' })}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-[#050d14] hover:opacity-90 transition-opacity"
-          style={{ background: 'linear-gradient(135deg,#0BAAEF,#40C4FF)' }}>
+          style={{ background: 'linear-gradient(135deg,#00CEC8,#EB4203)' }}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
           Invite User
         </button>
@@ -203,9 +215,9 @@ export default function UsersPage() {
           {/* Summary chips */}
           <div className="flex items-center gap-3">
             {[
-              { label: 'Total', val: users.length, color: '#0BAAEF' },
+              { label: 'Total', val: users.length, color: '#00CEC8' },
               { label: 'Admins', val: users.filter(u => u.role === 'admin').length, color: '#f97316' },
-              { label: 'Viewers', val: users.filter(u => u.role === 'viewer').length, color: '#40C4FF' },
+              { label: 'Viewers', val: users.filter(u => u.role === 'viewer').length, color: '#EB4203' },
               { label: 'Active', val: users.filter(u => u.is_active).length, color: '#34d399' },
             ].map(c => (
               <div key={c.label} className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/5"
@@ -232,7 +244,7 @@ export default function UsersPage() {
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="w-7 h-7 border-2 border-white/8 border-t-[#0BAAEF] rounded-full animate-spin" />
+                <div className="w-7 h-7 border-2 border-white/8 border-t-[#00CEC8] rounded-full animate-spin" />
               </div>
             ) : users.length === 0 ? (
               <div className="text-center py-20">
@@ -243,7 +255,7 @@ export default function UsersPage() {
             ) : (
               <div className="divide-y divide-white/[0.04]">
                 {users.map(u => {
-                  const ac = u.role === 'admin' ? '#f97316' : '#40C4FF';
+                  const ac = u.role === 'admin' ? '#f97316' : '#EB4203';
                   const initials = u.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
                   return (
                     <div key={u.id} className="grid gap-4 px-6 py-4 items-center hover:bg-white/[0.015] transition-colors"
@@ -279,14 +291,14 @@ export default function UsersPage() {
 
                       {/* Joined */}
                       <div>
-                        <p className="text-white/35 text-xs">{new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                        <p className="text-xs" style={{ color: 'var(--t-fg-35)' }}>{new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                       </div>
 
                       {/* Actions */}
                       <div className="flex items-center justify-end gap-0.5">
                         <button onClick={() => handleToggle(u)} title={u.is_active ? 'Deactivate' : 'Activate'}
                           className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-white/5"
-                          style={{ color: u.is_active ? '#0BAAEF' : 'rgba(255,255,255,0.18)' }}>
+                          style={{ color: u.is_active ? '#00CEC8' : 'rgba(255,255,255,0.18)' }}>
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </button>
                         <button onClick={() => setModal({ mode: 'edit', user: u })} title="Edit"
@@ -309,7 +321,7 @@ export default function UsersPage() {
         {/* Right — Role reference sidebar */}
         <div className="w-64 shrink-0 flex flex-col gap-3">
           {(['admin', 'viewer'] as Role[]).map(role => {
-            const ac = role === 'admin' ? '#f97316' : '#40C4FF';
+            const ac = role === 'admin' ? '#f97316' : '#EB4203';
             const count = users.filter(u => u.role === role).length;
             return (
               <div key={role} className="rounded-2xl border p-5"
@@ -331,7 +343,7 @@ export default function UsersPage() {
                 </div>
                 <ul className="space-y-2">
                   {ROLE_PERMS[role].map(p => (
-                    <li key={p} className="flex items-start gap-2 text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <li key={p} className="flex items-start gap-2 text-[11px]" style={{ color: 'var(--t-fg-40)' }}>
                       <span className="mt-0.5 shrink-0" style={{ color: ac }}>✓</span>
                       {p}
                     </li>
@@ -342,8 +354,8 @@ export default function UsersPage() {
           })}
 
           {/* Help note */}
-          <div className="rounded-xl border border-white/5 p-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <p className="text-white/25 text-[11px] leading-relaxed">
+          <div className="rounded-xl border p-4" style={{ background: 'var(--t-fg-02)', borderColor: 'var(--a-border)' }}>
+            <p className="text-[11px] leading-relaxed" style={{ color: 'var(--t-fg-25)' }}>
               Invited users log in using the same admin login page. Deactivating a user revokes access without deleting their account.
             </p>
           </div>

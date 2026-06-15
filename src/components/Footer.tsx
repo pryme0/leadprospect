@@ -1,58 +1,56 @@
 import Link from 'next/link';
 
 const TOOLS = [
-  { label: 'Cyber Path Finder', href: '/tools/cyber-path-finder' },
-  { label: 'Career Assessment', href: '/tools/career-assessment' },
-  { label: 'Resume Analyzer', href: '/tools/resume-analyzer' },
+  { label: 'Dashboard',  href: '/admin'          },
+  { label: 'Signals',    href: '/admin/signals'   },
+  { label: 'Leads',      href: '/admin/leads'     },
+  { label: 'Outreach',   href: '/admin/outreach'  },
 ];
 
 const LEGAL = [
-  { label: 'Privacy Policy', href: '/privacy' },
-  { label: 'Contact', href: 'mailto:contact@excelmindcyber.com' },
+  { label: 'Privacy Policy', href: '/privacy'                       },
+  { label: 'Contact',        href: 'mailto:hello@prospectgrid.demo' },
 ];
 
 export default function Footer() {
   return (
-    <footer className="relative mt-auto border-t border-white/5 overflow-hidden"
-      style={{ background: 'linear-gradient(180deg, #050a14 0%, #030810 100%)' }}>
-
-      {/* Subtle top glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-px"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(11,170,239,0.3), rgba(64,196,255,0.15), transparent)' }} />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+    <footer className="relative mt-auto overflow-hidden border-t border-[#d4e7ee] bg-[#112126] text-white">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
 
         {/* Main grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+        <div className="mb-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
 
           {/* Brand column */}
           <div className="lg:col-span-2">
-            <Link href="/" className="inline-flex items-center gap-3 mb-4 group">
-              <img src="/emclogo.png" alt="EMC Logo" className="w-10 h-10 object-contain shrink-0" />
+            <Link href="/" className="mb-4 inline-flex items-center gap-3 group">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white text-sm font-black tracking-tight text-[#112126]">
+                PG
+              </span>
               <div>
-                <p className="text-white font-bold text-base leading-tight">ExcelMindCyber</p>
-                <p className="text-white/30 text-xs leading-tight">A Thelix Holdings Company</p>
+                <p className="font-bold text-base leading-tight text-white">ProspectGrid</p>
+                <p className="text-xs leading-tight text-white/40">Lead intelligence platform</p>
               </div>
             </Link>
-            <p className="text-white/35 text-sm leading-relaxed max-w-xs mb-5">
-              Free, AI-powered career tools to help anyone break into cybersecurity — regardless of background or location.
+            <p className="mb-5 max-w-xs text-sm leading-relaxed text-white/60">
+              Find, enrich, score, and route business leads from ad platforms,
+              websites, CRM data, and social buying signals.
             </p>
-            {/* Status pill */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs"
-              style={{ background: 'rgba(11,170,239,0.06)', borderColor: 'rgba(11,170,239,0.2)', color: 'rgba(11,170,239,0.8)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#0BAAEF] animate-pulse" />
-              All systems operational
+            <div
+              className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs"
+              style={{ background: 'rgba(0,206,200,0.10)', borderColor: 'rgba(0,206,200,0.22)', color: '#FCEFC3' }}
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00CEC8]" />
+              Running on local demo data
             </div>
           </div>
 
           {/* Tools column */}
           <div>
-            <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-4">Tools</p>
+            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-white/30">Workspace</p>
             <ul className="space-y-2.5">
               {TOOLS.map((t) => (
                 <li key={t.href}>
-                  <Link href={t.href}
-                    className="text-white/40 hover:text-[#0BAAEF] text-sm transition-colors">
+                  <Link href={t.href} className="text-sm text-white/60 transition-colors hover:text-[#FCEFC3]">
                     {t.label}
                   </Link>
                 </li>
@@ -62,12 +60,11 @@ export default function Footer() {
 
           {/* Company column */}
           <div>
-            <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-4">Company</p>
+            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-white/30">Company</p>
             <ul className="space-y-2.5">
               {LEGAL.map((l) => (
                 <li key={l.href}>
-                  <a href={l.href}
-                    className="text-white/40 hover:text-[#0BAAEF] text-sm transition-colors">
+                  <a href={l.href} className="text-sm text-white/60 transition-colors hover:text-[#FCEFC3]">
                     {l.label}
                   </a>
                 </li>
@@ -77,15 +74,15 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-white/20 text-xs">
-            &copy; {new Date().getFullYear()} ExcelMindCyber. All rights reserved.
+        <div className="flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row">
+          <p className="text-xs text-white/30">
+            &copy; {new Date().getFullYear()} ProspectGrid. All rights reserved.
           </p>
-          <div className="flex items-center gap-1.5 text-white/15 text-xs">
+          <div className="flex items-center gap-1.5 text-xs text-white/30">
             <span>Powered by</span>
-            <span className="text-white/30 font-semibold">Thelix Holdings</span>
-            <span className="w-4 h-4 bg-gradient-to-br from-[#0BAAEF] to-[#40C4FF] rounded flex items-center justify-center text-[#050b12] font-black text-[8px]">
-              TH
+            <span className="font-semibold text-white/70">ProspectGrid Labs</span>
+            <span className="flex h-4 w-4 items-center justify-center rounded border border-white/15 bg-white text-[8px] font-black text-[#112126]">
+              PG
             </span>
           </div>
         </div>

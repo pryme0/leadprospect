@@ -53,16 +53,16 @@ export default function AnalysisLoader({ hints, title, subtitle, icon }: Analysi
           {/* Outer ring spin */}
           <svg className="absolute inset-0 w-16 h-16 animate-spin" viewBox="0 0 64 64" fill="none">
             <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="2"
-              strokeDasharray="30 146" strokeLinecap="round" className="text-[#0BAAEF]" />
+              strokeDasharray="30 146" strokeLinecap="round" className="text-[#00CEC8]" />
           </svg>
           {/* Inner ring counter-spin */}
           <svg className="absolute inset-0 w-16 h-16" style={{ animation: 'spin 2s linear infinite reverse' }}
             viewBox="0 0 64 64" fill="none">
             <circle cx="32" cy="32" r="20" stroke="currentColor" strokeWidth="1.5"
-              strokeDasharray="15 110" strokeLinecap="round" className="text-[#40C4FF]/60" />
+              strokeDasharray="15 110" strokeLinecap="round" className="text-[#FCEFC3]/60" />
           </svg>
           {/* Center icon */}
-          <div className="absolute inset-0 flex items-center justify-center text-[#0BAAEF]">
+          <div className="absolute inset-0 flex items-center justify-center text-[#00CEC8]">
             {icon ?? (
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -87,7 +87,7 @@ export default function AnalysisLoader({ hints, title, subtitle, icon }: Analysi
         </div>
         <div className="h-1.5 bg-brand-slate rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-[#0BAAEF] to-[#40C4FF] rounded-full transition-all duration-500 ease-out"
+            className="h-full bg-gradient-to-r from-[#00CEC8] to-[#FCEFC3] rounded-full transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -95,8 +95,8 @@ export default function AnalysisLoader({ hints, title, subtitle, icon }: Analysi
 
       {/* Rotating hint */}
       <div className="min-h-[56px] flex items-start gap-3 p-3.5 bg-brand-slate/30 rounded-xl border border-brand-slate/40">
-        <div className="w-5 h-5 rounded-full bg-[#0BAAEF]/20 flex items-center justify-center shrink-0 mt-0.5">
-          <svg className="w-3 h-3 text-[#0BAAEF]" fill="currentColor" viewBox="0 0 20 20">
+        <div className="w-5 h-5 rounded-full bg-[#00CEC8]/20 flex items-center justify-center shrink-0 mt-0.5">
+          <svg className="w-3 h-3 text-[#00CEC8]" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
           </svg>
         </div>
@@ -121,7 +121,7 @@ export default function AnalysisLoader({ hints, title, subtitle, icon }: Analysi
               {i < 3 && (
                 <div className="absolute top-2.5 left-1/2 w-full h-0.5 bg-brand-slate">
                   <div
-                    className="h-full bg-[#0BAAEF] transition-all duration-700"
+                    className="h-full bg-[#00CEC8] transition-all duration-700"
                     style={{ width: pct >= thresholds[i + 1] ? '100%' : current ? '50%' : '0%' }}
                   />
                 </div>
@@ -129,9 +129,9 @@ export default function AnalysisLoader({ hints, title, subtitle, icon }: Analysi
               {/* Dot */}
               <div className={`relative z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-500 ${
                 active && !current
-                  ? 'bg-[#0BAAEF] border-[#0BAAEF]'
+                  ? 'bg-[#00CEC8] border-[#00CEC8]'
                   : current
-                  ? 'bg-brand-darker border-[#0BAAEF] animate-pulse'
+                  ? 'bg-brand-darker border-[#00CEC8] animate-pulse'
                   : 'bg-brand-darker border-brand-slate'
               }`}>
                 {active && !current && (
@@ -140,7 +140,7 @@ export default function AnalysisLoader({ hints, title, subtitle, icon }: Analysi
                   </svg>
                 )}
               </div>
-              <span className={`text-[10px] mt-1.5 font-medium ${active ? 'text-[#0BAAEF]' : 'text-brand-muted'}`}>
+              <span className={`text-[10px] mt-1.5 font-medium ${active ? 'text-[#00CEC8]' : 'text-brand-muted'}`}>
                 {step}
               </span>
             </div>

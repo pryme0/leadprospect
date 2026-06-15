@@ -13,8 +13,8 @@ import { captureUtmsFromUrl } from '@/lib/utm';
 //   - Stops permanently for 30 days after a successful submit.
 //
 // Storage key (localStorage):
-//   emc_homepage_prompt_state = JSON { submittedAt: number | null, dismissedCount: number }
-const STATE_KEY = 'emc_homepage_prompt_state';
+//   prospectgrid_homepage_prompt_state = JSON { submittedAt: number | null, dismissedCount: number }
+const STATE_KEY = 'prospectgrid_homepage_prompt_state';
 const SUBMITTED_TTL_DAYS = 30;
 const TRIGGER_DELAYS_MS = [30_000, 90_000, 180_000];
 
