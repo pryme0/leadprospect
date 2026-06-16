@@ -1,18 +1,29 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [authed, setAuthed] = useState(false);
 
-  const navLinks = [
+  // Auth is the presence of the admin token in localStorage (set on
+  // login/signup). Read it after mount to avoid an SSR hydration mismatch.
+  useEffect(() => {
+    setAuthed(Boolean(localStorage.getItem('prospectgrid_admin_token')));
+  }, []);
+
+  // Workspace-only links stay hidden until the visitor is authenticated.
+  const publicLinks = [
     { href: '/', label: 'Workspace' },
     { href: '/signup', label: 'Sign up' },
+  ];
+  const authedLinks = [
     { href: '/admin/signals', label: 'Signals' },
     { href: '/admin/leads', label: 'Leads' },
     { href: '/admin/integrations', label: 'Integrations' },
   ];
+  const navLinks = authed ? [...publicLinks, ...authedLinks] : publicLinks;
 
   return (
     <nav className="sticky top-0 z-50 border-b border-[#d4e7ee] bg-[#f7fbff]/92 backdrop-blur">

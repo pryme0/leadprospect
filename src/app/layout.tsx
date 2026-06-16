@@ -1,7 +1,11 @@
 import type { Metadata } from 'next';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import ConditionalNavbar from '@/components/ConditionalNav';
 import ConditionalFooter from '@/components/ConditionalFooter';
+
+const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
+const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], display: 'swap', variable: '--font-jetbrains' });
 
 const SITE_URL = 'https://prospectgrid.demo';
 
@@ -64,7 +68,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="min-h-screen flex flex-col">
         <ConditionalNavbar />
         <main className="flex-1">{children}</main>
