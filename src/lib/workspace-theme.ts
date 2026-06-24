@@ -26,42 +26,76 @@ export interface WorkspacePalette {
 const DARK: WorkspacePalette = {
   id: 'prospectgrid',
   mode: 'dark',
-  accent: '#00CEC8',
-  accentStrong: '#009B98',
-  accentSoft: 'rgba(0,206,200,0.16)',
-  accentFaint: 'rgba(0,206,200,0.07)',
-  accentOn: '#112126',
-  glow: 'rgba(0,206,200,0.32)',
-  radius: { sm: 12, md: 18, lg: 26 },
-  chart: ['#00CEC8', '#FF9C5F', '#EB4203', '#FCEFC3', '#38bdf8', '#a78bfa', '#10b981', '#f472b6', '#84cc16', '#22d3ee', '#facc15'],
-  intent: { high: '#EB4203', medium: '#FF9C5F', low: '#00CEC8', none: 'rgba(255,255,255,0.18)' },
-  platform: {
-    google: '#4f46e5',
-    facebook: '#1877f2',
-    meta: '#1877f2',
-    instagram: '#db2777',
-    tiktok: '#111827',
-    linkedin: '#0a66c2',
-    twitter: '#38bdf8',
-    reddit: '#f97316',
-    youtube: '#f43f5e',
+  accent:       '#2563EB',
+  accentStrong: '#1D4ED8',
+  accentSoft:   'rgba(37,99,235,0.16)',
+  accentFaint:  'rgba(37,99,235,0.07)',
+  accentOn:     '#0B132B',
+  glow:         'rgba(37,99,235,0.32)',
+  radius: { sm: 10, md: 14, lg: 18 },
+  chart: [
+    '#2563EB', // blue
+    '#38BDF8', // sky
+    '#22C55E', // green
+    '#F59E0B', // amber
+    '#EF4444', // red
+    '#8B5CF6', // violet
+    '#EC4899', // pink
+    '#10B981', // emerald
+    '#F97316', // orange
+    '#06B6D4', // cyan
+    '#A3E635', // lime
+  ],
+  intent: {
+    high:   '#EF4444',
+    medium: '#F59E0B',
+    low:    '#22C55E',
+    none:   'rgba(255,255,255,0.18)',
   },
-  axis: 'rgba(255,255,255,0.30)',
-  grid: 'rgba(255,255,255,0.04)',
+  platform: {
+    google:    '#4285F4',
+    facebook:  '#1877F2',
+    meta:      '#1877F2',
+    instagram: '#E1306C',
+    tiktok:    '#010101',
+    linkedin:  '#0A66C2',
+    twitter:   '#38BDF8',
+    reddit:    '#F97316',
+    youtube:   '#EF4444',
+  },
+  axis:        'rgba(255,255,255,0.28)',
+  grid:        'rgba(255,255,255,0.04)',
   fontDisplay: "'Inter', system-ui, sans-serif",
-  fontMono: "'JetBrains Mono', ui-monospace, monospace",
+  fontMono:    "'JetBrains Mono', ui-monospace, monospace",
 };
 
 const LIGHT: WorkspacePalette = {
   ...DARK,
-  mode: 'light',
-  accent: '#009B98',
-  accentStrong: '#006B67',
-  accentSoft: 'rgba(0,155,152,0.12)',
-  accentFaint: 'rgba(0,155,152,0.05)',
-  glow: 'rgba(0,155,152,0.20)',
-  chart: ['#009B98', '#FF9C5F', '#EB4203', '#ca8a04', '#0284c7', '#7c3aed', '#059669', '#be185d', '#65a30d', '#0891b2', '#a16207'],
-  intent: { high: '#EB4203', medium: '#FF9C5F', low: '#009B98', none: 'rgba(15,23,42,0.18)' },
+  mode:         'light',
+  accent:       '#2563EB',
+  accentStrong: '#1D4ED8',
+  accentSoft:   'rgba(37,99,235,0.10)',
+  accentFaint:  'rgba(37,99,235,0.05)',
+  glow:         'rgba(37,99,235,0.18)',
+  chart: [
+    '#2563EB',
+    '#0EA5E9',
+    '#16A34A',
+    '#D97706',
+    '#DC2626',
+    '#7C3AED',
+    '#DB2777',
+    '#059669',
+    '#EA580C',
+    '#0891B2',
+    '#65A30D',
+  ],
+  intent: {
+    high:   '#DC2626',
+    medium: '#D97706',
+    low:    '#16A34A',
+    none:   'rgba(15,23,42,0.18)',
+  },
   axis: 'rgba(15,23,42,0.45)',
   grid: 'rgba(15,23,42,0.06)',
 };

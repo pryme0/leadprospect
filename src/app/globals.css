@@ -75,12 +75,12 @@
 
 /* Dark */
 [data-theme="dark"] {
-  --a-bg:        #0A1517;
-  --a-surface:   #112126;
-  --a-card:      #17373A;
-  --a-card2:     #21484B;
-  --a-border:    rgba(255,255,255,0.05);
-  --a-border2:   rgba(255,255,255,0.08);
+  --a-bg:        #080D1A;
+  --a-surface:   #0C1424;
+  --a-card:      #0F1929;
+  --a-card2:     #141E35;
+  --a-border:    rgba(255,255,255,0.06);
+  --a-border2:   rgba(255,255,255,0.10);
   --a-text:      #ffffff;
   --a-text-80:   rgba(255,255,255,0.80);
   --a-text-60:   rgba(255,255,255,0.60);
