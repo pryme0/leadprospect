@@ -9,6 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        /* ── Legacy brand tokens (admin workspace depends on these) ── */
         brand: {
           dark: '#073B3A',
           darker: '#112126',
@@ -24,10 +25,31 @@ const config: Config = {
           muted: '#7b8f99',
           light: '#E4FFFB',
         },
+        /* ── ProspectGrid marketing design tokens ── */
+        pg: {
+          navy:       '#0B132B',
+          blue:       '#2563EB',
+          'blue-dark':'#1D4ED8',
+          cyan:       '#38BDF8',
+          success:    '#22C55E',
+          'gray-50':  '#F8FAFC',
+          'gray-100': '#F1F5F9',
+          'gray-200': '#E2E8F0',
+          'gray-300': '#CBD5E1',
+          'gray-400': '#94A3B8',
+          'gray-500': '#64748B',
+          'gray-700': '#334155',
+          'gray-900': '#0F172A',
+        },
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
         mono: ['var(--font-jetbrains)', 'JetBrains Mono', 'monospace'],
+      },
+      boxShadow: {
+        'pg-card': '0 4px 20px rgba(15,23,42,0.08)',
+        'pg-card-hover': '0 20px 60px rgba(15,23,42,0.12)',
+        'pg-cta': '0 20px 60px rgba(37,99,235,0.28)',
       },
       animation: {
         'pulse-glow': 'pulse-glow 2s ease-in-out infinite',

@@ -136,9 +136,9 @@ function BrandMark({ workspace }: { workspace: WorkspaceConfig }) {
     <div
       className="flex h-7 w-7 items-center justify-center text-[10px] font-bold shrink-0"
       style={{
-        background: 'rgba(0,206,200,0.12)',
-        color: '#00CEC8',
-        border: '1px solid rgba(0,206,200,0.25)',
+        background: 'rgba(37,99,235,0.12)',
+        color: '#2563EB',
+        border: '1px solid rgba(37,99,235,0.25)',
         borderRadius: 'var(--t-radius-sm)',
         fontFamily: "'JetBrains Mono', monospace",
         letterSpacing: '0.02em',
@@ -183,7 +183,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!authed) {
     return (
       <div className="flex items-center justify-center min-h-screen" style={{ background: '#F8FBFA' }}>
-        <span className="loading-spinner w-8 h-8 border-[#00CEC8]" />
+        <span className="loading-spinner w-8 h-8 border-[#2563EB]" />
       </div>
     );
   }
@@ -270,22 +270,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       onClick={() => setSidebarOpen(false)}
                       className="group relative flex items-center gap-3 px-3 py-2.5 text-[13px] transition-colors"
                       style={{
-                        background: active ? (theme === 'light' ? '#112126' : 'var(--t-accent-soft)') : 'transparent',
-                        color: active ? (theme === 'light' ? '#FCEFC3' : 'var(--t-accent)') : 'var(--t-fg-55)',
+                        background: active ? (theme === 'light' ? '#0B132B' : 'var(--t-accent-soft)') : 'transparent',
+                        color: active ? (theme === 'light' ? '#ffffff' : 'var(--t-accent)') : 'var(--t-fg-55)',
                         borderRadius: 'var(--t-radius-sm)',
                       }}
                     >
                       {active && (
                         <span
                           className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px]"
-                          style={{ background: theme === 'light' ? '#00CEC8' : 'var(--t-accent)' }}
+                          style={{ background: '#2563EB' }}
                         />
                       )}
                       <span
                         className="text-[9px] tracking-[0.1em] tabular-nums shrink-0"
                         style={{
                           fontFamily: 'var(--t-mono-font)',
-                          color: active ? (theme === 'light' ? '#00CEC8' : 'var(--t-accent)') : 'var(--t-fg-25)',
+                          color: active ? '#2563EB' : 'var(--t-fg-25)',
                           minWidth: 18,
                         }}
                       >
@@ -299,8 +299,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <span
                           className="text-[9px] font-semibold px-1.5 py-0.5 uppercase tracking-wider"
                           style={{
-                            background: active && theme === 'light' ? 'rgba(0,206,200,0.16)' : 'var(--t-accent-soft)',
-                            color: active && theme === 'light' ? '#00CEC8' : 'var(--t-accent)',
+                            background: 'var(--t-accent-soft)',
+                            color: 'var(--t-accent)',
                             borderRadius: 'var(--t-radius-sm)',
                             fontFamily: 'var(--t-mono-font)',
                           }}

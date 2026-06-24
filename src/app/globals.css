@@ -161,7 +161,7 @@
 
 [data-theme="light"] .hover\:text-white:hover,
 [data-theme="light"] .group:hover .group-hover\:text-white {
-  color: #006B67 !important;
+  color: #2563EB !important;
 }
 [data-theme="light"] .hover\:text-white\/80:hover,
 [data-theme="light"] .hover\:text-white\/70:hover,
@@ -175,8 +175,8 @@
 
 /* ── Brand accent token (used everywhere — change here to update all) ── */
 :root {
-  --brand-blue:     #00CEC8;
-  --brand-blue-dim: #009B98;
+  --brand-blue:     #2563EB;
+  --brand-blue-dim: #1D4ED8;
   --brand-sky:      #EB4203;
 }
 
@@ -236,31 +236,31 @@
 
 /* ── ProspectGrid workspace tokens ───────────────────────────────────────── */
 [data-workspace="prospectgrid"] {
-  --t-accent:         #00CEC8;
-  --t-accent-strong:  #009B98;
-  --t-accent-soft:    rgba(0,206,200,0.16);
-  --t-accent-faint:   rgba(0,206,200,0.07);
-  --t-accent-on:      #112126;
-  --t-glow:           rgba(0,206,200,0.32);
+  --t-accent:         #2563EB;
+  --t-accent-strong:  #1D4ED8;
+  --t-accent-soft:    rgba(37,99,235,0.16);
+  --t-accent-faint:   rgba(37,99,235,0.07);
+  --t-accent-on:      #0B132B;
+  --t-glow:           rgba(37,99,235,0.32);
   --t-radius:         16px;
   --t-radius-lg:      20px;
   --t-radius-sm:      10px;
   --t-display-font:   'Inter', system-ui, sans-serif;
   --t-mono-font:      'JetBrains Mono', ui-monospace, monospace;
-  --t-grid-color:     rgba(0,206,200,0.05);
-  --t-card-shadow:    0 1px 0 rgba(0,206,200,0.08) inset;
-  --t-card-shadow-hover: 0 30px 80px -30px rgba(0,206,200,0.30);
+  --t-grid-color:     rgba(37,99,235,0.05);
+  --t-card-shadow:    0 1px 0 rgba(37,99,235,0.06) inset;
+  --t-card-shadow-hover: 0 30px 80px -30px rgba(37,99,235,0.28);
 }
 
 /* Light-mode workspace token overrides — recalibrate accent washes, glows, and
    shadows so they read on a white surface instead of a dark one. */
 [data-theme="light"][data-workspace="prospectgrid"] {
-  --t-accent:         #009B98;
-  --t-accent-strong:  #006B67;
-  --t-accent-soft:    rgba(0,155,152,0.10);
-  --t-accent-faint:   rgba(0,155,152,0.04);
-  --t-glow:           rgba(0,155,152,0.18);
-  --t-grid-color:     rgba(0,155,152,0.04);
+  --t-accent:         #2563EB;
+  --t-accent-strong:  #1D4ED8;
+  --t-accent-soft:    rgba(37,99,235,0.10);
+  --t-accent-faint:   rgba(37,99,235,0.04);
+  --t-glow:           rgba(37,99,235,0.18);
+  --t-grid-color:     rgba(37,99,235,0.04);
   --t-radius:         10px;
   --t-radius-lg:      14px;
   --t-radius-sm:      8px;
@@ -269,8 +269,8 @@
 }
 
 /* Selection follows the ProspectGrid accent. */
-[data-workspace="prospectgrid"] ::selection { background: rgba(0,206,200,0.30); color: #fff; }
-[data-theme="light"][data-workspace="prospectgrid"] ::selection { background: rgba(0,155,152,0.20); color: #0f172a; }
+[data-workspace="prospectgrid"] ::selection { background: rgba(37,99,235,0.30); color: #fff; }
+[data-theme="light"][data-workspace="prospectgrid"] ::selection { background: rgba(37,99,235,0.20); color: #0f172a; }
 
 /* Workspace page-load motion: stagger children with attr [data-stagger] */
 @keyframes workspaceFadeUp {
