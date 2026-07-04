@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dashboardMetrics } from '@/lib/crawler/signals-db';
+import { dashboardMetrics, emptyDashboardMetrics } from '@/lib/crawler/signals-db';
 import { getUserFromRequest } from '@/lib/auth/session';
 import { getOrgProfile } from '@/lib/settings/org-store';
 
@@ -20,7 +20,9 @@ export async function GET(req: Request) {
     const metrics = await dashboardMetrics(sbu ?? '__no_sbu__');
     return NextResponse.json({ ...metrics, needs_generation: !sbu });
   } catch (err) {
-    console.error('[GET /api/crawler/metrics]', err);
-    return NextResponse.json({ error: 'Failed to load metrics' }, { status: 500 });
+    // Crawler DB unreachable (Railway blip/pause) — degrade to zeros so the
+    // dashboard renders a clean empty state instead of a hard error.
+    console.error('[GET /api/crawler/metrics]', err instanceof Error ? err.message : err);
+    return NextResponse.json({ ...emptyDashboardMetrics(), db_unavailable: true });
   }
 }

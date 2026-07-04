@@ -5,9 +5,18 @@ import type { Metadata } from 'next';
  * canonical URLs, OG/Twitter, sitemap, robots, JSON-LD) derives from here.
  *
  * Set NEXT_PUBLIC_SITE_URL to the real production domain in the environment.
- * The fallback below is only used when the env var is missing (dev/preview).
+ * The fallback below is used when the env var is missing OR empty — deploy
+ * containers often set it to '' rather than leaving it undefined, and an empty
+ * value would make `new URL(SITE_URL)` (metadataBase in the root layout) throw
+ * during the build. `|| ` (not `??`) treats '' as absent so the build is safe.
  */
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.synq.com').replace(/\/$/, '');
+const DEFAULT_SITE_URL = 'https://www.synq.com';
+function resolveSiteUrl(): string {
+  const raw = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/$/, '');
+  if (!raw) return DEFAULT_SITE_URL;
+  try { new URL(raw); return raw; } catch { return DEFAULT_SITE_URL; } // reject values without a scheme etc.
+}
+export const SITE_URL = resolveSiteUrl();
 
 export const SITE = {
   name: 'SYNQ',

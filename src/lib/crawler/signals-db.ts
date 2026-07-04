@@ -32,7 +32,16 @@ export function getSignalsPool(): Pool | null {
     ssl: { rejectUnauthorized: false },
     max: 4,
     idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
+    // Fail fast on an unreachable/slow DB (Railway can pause or blip): a 10s
+    // hang per request made the polling dashboard feel broken. Cap query time
+    // too so a slow aggregate can't tie up a connection indefinitely.
+    connectionTimeoutMillis: 5_000,
+    query_timeout: 8_000,
+    statement_timeout: 8_000,
+  });
+  // A pool 'error' event on an idle client would otherwise crash the process.
+  g.__signalsPool.on('error', (err) => {
+    console.error('[signals-db pool] idle client error:', err.message);
   });
   return g.__signalsPool;
 }
@@ -235,6 +244,12 @@ export interface SignalStats {
   byIngestionCategory: { ingestion_category: string | null; count: number }[];
 }
 
+/** Well-formed zero stats — returned when the crawler DB is unreachable so the
+ * dashboard degrades to zeros instead of erroring. */
+export function emptySignalStats(): SignalStats {
+  return { total: 0, processed: 0, pending: 0, withEmail: 0, byIntentLevel: [], byIntentCategory: [], byIngestionCategory: [] };
+}
+
 export async function signalStats(opts: { source?: string; sbu?: string } = {}): Promise<SignalStats> {
   const pool = getSignalsPool();
   if (!pool) throw new Error('Signals Postgres not configured');
@@ -293,6 +308,18 @@ export interface DashboardMetrics {
   daily: {
     today: { linkedin_signals: number; linkedin_high_intent: number; leads_captured: number; conversion_rate: number; avg_urgency: number };
     yesterday: { linkedin_signals: number; linkedin_high_intent: number; leads_captured: number; conversion_rate: number; avg_urgency: number };
+  };
+}
+
+/** Well-formed zero metrics — returned when the crawler DB is unreachable. */
+export function emptyDashboardMetrics(): DashboardMetrics {
+  const emptyDay = { linkedin_signals: 0, linkedin_high_intent: 0, leads_captured: 0, conversion_rate: 0, avg_urgency: 0 };
+  return {
+    total_signals: 0, high_intent_count: 0, high_intent_signals: 0, high_intent_wow: 0,
+    leads_captured: 0, conversion_rate: 0, avg_urgency: 0,
+    urgency_distribution: [], ghl_sync_rate: 0, ghl_synced: 0, ghl_unsynced: 0,
+    signals_by_day: [], signals_by_platform: [], leads_by_tool: [], leads_by_day: [], top_pain_points: [],
+    daily: { today: { ...emptyDay }, yesterday: { ...emptyDay } },
   };
 }
 

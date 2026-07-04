@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { signalStats } from '@/lib/crawler/signals-db';
+import { signalStats, emptySignalStats } from '@/lib/crawler/signals-db';
 import { toUiStats } from '@/lib/crawler/map';
 import { getUserFromRequest } from '@/lib/auth/session';
 import { getOrgProfile } from '@/lib/settings/org-store';
@@ -20,7 +20,9 @@ export async function GET(req: Request) {
     const stats = await signalStats({ source, sbu: sbu ?? '__no_sbu__' });
     return NextResponse.json({ ...toUiStats(stats), needs_generation: !sbu });
   } catch (err) {
-    console.error('[GET /api/crawler/stats]', err);
-    return NextResponse.json({ error: 'Failed to load stats' }, { status: 500 });
+    // Crawler DB unreachable (Railway blip/pause) — degrade to zeros so the
+    // polling dashboard shows a clean empty state instead of an error.
+    console.error('[GET /api/crawler/stats]', err instanceof Error ? err.message : err);
+    return NextResponse.json({ ...toUiStats(emptySignalStats()), db_unavailable: true });
   }
 }
