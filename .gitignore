@@ -28,6 +28,11 @@ dist
 *.tsbuildinfo
 next-env.d.ts
 
+# Local SQLite data (created at runtime — never commit lead/comms/user data)
+*.db
+*.db-shm
+*.db-wal
+
 # Misc
 .DS_Store
 *.pem
@@ -37,3 +42,6 @@ yarn-error.log*
 
 # Vercel
 .vercel
+
+# Standalone crawler — lives in its own repo (Ciscoflash/SYNQ_CRAWLER)
+thelixcrawler/

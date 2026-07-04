@@ -1,5 +1,5 @@
 export interface WorkspaceConfig {
-  id: 'prospectgrid';
+  id: 'synq';
   name: string;
   shortName: string;
   tagline: string;
@@ -9,13 +9,13 @@ export interface WorkspaceConfig {
 }
 
 export const WORKSPACE: WorkspaceConfig = {
-  id: 'prospectgrid',
-  name: 'ProspectGrid',
-  shortName: 'ProspectGrid',
+  id: 'synq',
+  name: 'SYNQ',
+  shortName: 'SYNQ',
   tagline: 'Lead Intelligence Platform',
   description: 'Source, enrich, score, and route business leads across every marketing channel.',
   accent: '#00CEC8',
-  initials: 'PG',
+  initials: 'SQ',
 };
 
 export function getWorkspaceConfig(): WorkspaceConfig {

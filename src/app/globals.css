@@ -1,3 +1,6 @@
+/* Satoshi — SYNQ primary display font (Fontshare CDN) */
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@700,600,500,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,6 +8,7 @@
 @layer base {
   body {
     @apply bg-brand-darker text-brand-light antialiased;
+    font-family: 'Satoshi', var(--font-inter), system-ui, sans-serif;
   }
 
   ::selection {
@@ -49,49 +53,142 @@
   to { transform: translateX(-50%); }
 }
 
+/* ── SYNQ "Stitch" marketing design-system utilities ─────────────────────── */
+@layer components {
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
+    user-select: none;
+  }
+
+  /* Glass surfaces */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .glass-fill {
+    background: rgba(8, 13, 26, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Luminous glows */
+  .glow-primary { box-shadow: 0 0 40px -10px rgba(109, 94, 249, 0.4); }
+  .glow-cyan    { box-shadow: 0 0 40px -10px rgba(31, 216, 255, 0.3); }
+  .glow-mint    { box-shadow: 0 0 40px -10px rgba(0, 226, 153, 0.3); }
+  .btn-primary  { background: #6d5ef9; }
+  .glow-button {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 0 rgba(109, 94, 249, 0);
+  }
+  .glow-button:hover {
+    box-shadow: 0 0 20px rgba(109, 94, 249, 0.4);
+    filter: brightness(1.1);
+  }
+
+  /* Ambient hero glow blob */
+  .hero-glow {
+    position: absolute;
+    width: 420px;
+    height: 420px;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(109, 94, 249, 0.18), transparent 70%);
+    filter: blur(60px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .mesh-gradient-overlay {
+    background:
+      radial-gradient(circle at 20% 30%, rgba(109, 94, 249, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(0, 226, 153, 0.10) 0%, transparent 50%);
+  }
+
+  /* Gradient brand text */
+  .gradient-text {
+    background: linear-gradient(135deg, #6d5ef9, #00e299);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Recessed input (Stitch auth fields) */
+  .input-recessed {
+    background-color: #080d1a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .input-recessed:focus {
+    border-color: #6d5ef9;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(109, 94, 249, 0.18);
+  }
+
+  /* Integrations responsive grid */
+  .integration-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  .integration-logo:hover { color: #c5c0ff; }
+}
+
+@keyframes stitch-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: stitch-fade-in 0.7s ease-out both; }
+
 /* ── Admin theme CSS variables ───────────────────────────────────────────── */
-/* Light SaaS workspace (default) */
+/* Light SaaS workspace (default) — neutral slate canvas. The brand violet lives
+   only in accents (buttons, active states, charts), NOT in the background or
+   borders, so cards read as clean white panels with real elevation instead of a
+   washed-out purple haze. */
 :root,
 [data-theme="light"] {
-  --a-bg:        #F8FBFA;
-  --a-surface:   #ffffff;
-  --a-card:      #ffffff;
-  --a-card2:     #FFF3D3;
-  --a-border:    rgba(17,33,38,0.11);
-  --a-border2:   rgba(17,33,38,0.16);
-  --a-text:      #0f172a;
-  --a-text-80:   #1e293b;
-  --a-text-60:   #334155;
-  --a-text-50:   #475569;
-  --a-text-40:   #64748b;
-  --a-text-30:   #475569;
-  --a-text-25:   #64748b;
-  --a-text-20:   #64748b;
-  --a-hover:     rgba(0,0,0,0.02);
-  --a-hover2:    rgba(0,0,0,0.05);
-  --a-input-bg:  rgba(0,0,0,0.04);
+  --a-bg:        #F6F7F9;   /* soft neutral canvas */
+  --a-surface:   #FFFFFF;   /* sidebar / topbar */
+  --a-card:      #FFFFFF;   /* elevated cards */
+  --a-card2:     #F1F3F7;   /* subtle secondary fill (table heads, wells) */
+  --a-border:    #E6E8EE;   /* neutral, clearly visible separator */
+  --a-border2:   #D7DBE3;   /* stronger separator */
+  --a-text:      #0F172A;   /* slate-900 */
+  --a-text-80:   #1E293B;   /* slate-800 */
+  --a-text-60:   #475569;   /* slate-600 */
+  --a-text-50:   #64748B;   /* slate-500 */
+  --a-text-40:   #64748B;   /* slate-500 (kept readable, ≥4.5:1) */
+  --a-text-30:   #94A3B8;   /* slate-400 */
+  --a-text-25:   #94A3B8;   /* slate-400 */
+  --a-text-20:   #CBD5E1;   /* slate-300, decorative only */
+  --a-hover:     rgba(15,23,42,0.03);
+  --a-hover2:    rgba(15,23,42,0.06);
+  --a-input-bg:  #F4F6F9;
+  --a-card-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 2px 6px rgba(16,24,40,0.05);
   color-scheme: light;
 }
 
-/* Dark */
+/* Dark — deep navy. Card tone unified with the dashboard's inline cards so every
+   surface matches; borders lifted slightly for visibility. */
 [data-theme="dark"] {
-  --a-bg:        #080D1A;
-  --a-surface:   #0C1424;
+  --a-bg:        #0A0E1A;
+  --a-surface:   #0E1524;
   --a-card:      #0F1929;
-  --a-card2:     #141E35;
-  --a-border:    rgba(255,255,255,0.06);
-  --a-border2:   rgba(255,255,255,0.10);
+  --a-card2:     #17223A;
+  --a-border:    rgba(255,255,255,0.08);
+  --a-border2:   rgba(255,255,255,0.13);
   --a-text:      #ffffff;
   --a-text-80:   rgba(255,255,255,0.80);
-  --a-text-60:   rgba(255,255,255,0.60);
+  --a-text-60:   rgba(255,255,255,0.62);
   --a-text-50:   rgba(255,255,255,0.50);
   --a-text-40:   rgba(255,255,255,0.40);
   --a-text-30:   rgba(255,255,255,0.30);
   --a-text-25:   rgba(255,255,255,0.25);
   --a-text-20:   rgba(255,255,255,0.20);
-  --a-hover:     rgba(255,255,255,0.02);
-  --a-hover2:    rgba(255,255,255,0.05);
+  --a-hover:     rgba(255,255,255,0.03);
+  --a-hover2:    rgba(255,255,255,0.06);
   --a-input-bg:  rgba(255,255,255,0.04);
+  --a-card-shadow: 0 1px 2px rgba(0,0,0,0.30), 0 10px 28px -14px rgba(0,0,0,0.55);
   color-scheme: dark;
 }
 
@@ -123,6 +220,16 @@
 [data-theme="light"] .text-white\/30      { color: var(--a-text-30) !important; }
 [data-theme="light"] .text-white\/25      { color: var(--a-text-25) !important; }
 [data-theme="light"] .text-white\/20      { color: var(--a-text-20) !important; }
+/* Intermediate opacity steps (no Tailwind default → need explicit light mapping) */
+[data-theme="light"] .text-white\/85      { color: var(--a-text-80) !important; }
+[data-theme="light"] .text-white\/75      { color: var(--a-text-60) !important; }
+[data-theme="light"] .text-white\/65      { color: var(--a-text-60) !important; }
+[data-theme="light"] .text-white\/55      { color: var(--a-text-50) !important; }
+[data-theme="light"] .text-white\/45      { color: var(--a-text-40) !important; }
+[data-theme="light"] .text-white\/35      { color: var(--a-text-40) !important; }
+[data-theme="light"] .text-white\/15      { color: #94a3b8 !important; }
+[data-theme="light"] .text-white\/12      { color: #cbd5e1 !important; }
+[data-theme="light"] .text-white\/10      { color: #cbd5e1 !important; }
 [data-theme="light"] .text-brand-muted    { color: var(--a-text-40) !important; }
 [data-theme="light"] .text-brand-light    { color: var(--a-text-80) !important; }
 [data-theme="light"] .border-brand-slate  { border-color: var(--a-border) !important; }
@@ -136,6 +243,39 @@
 [data-theme="light"] .bg-white\/8         { background-color: var(--a-hover2) !important; }
 [data-theme="light"] .input-field  { background-color: var(--a-surface) !important; border-color: var(--a-border2) !important; color: var(--a-text) !important; }
 [data-theme="light"] .select-field { background-color: var(--a-surface) !important; border-color: var(--a-border2) !important; color: var(--a-text) !important; }
+
+/* Admin layout backgrounds */
+[data-theme="light"] .bg-\[\#080D1A\]        { background-color: var(--a-bg) !important; }
+[data-theme="light"] .bg-\[\#0A0F1E\]        { background-color: var(--a-surface) !important; }
+[data-theme="light"] .bg-\[\#0B1020\]        { background-color: var(--a-surface) !important; }
+[data-theme="light"] .bg-\[\#111827\]        { background-color: var(--a-card) !important; }
+
+/* Card surfaces used inline on the dashboard & other admin pages — without these
+   they stay dark-navy on the light canvas (the "dark cards on white page" bug). */
+[data-theme="light"] .bg-\[\#0F1929\]        { background-color: var(--a-card) !important; }
+[data-theme="light"] .bg-\[\#111929\]        { background-color: var(--a-card) !important; }
+[data-theme="light"] .bg-\[\#112126\]        { background-color: var(--a-card) !important; }
+[data-theme="light"] .hover\:bg-\[\#111929\]:hover { background-color: var(--a-hover) !important; }
+[data-theme="light"] .hover\:bg-\[\#112126\]:hover { background-color: var(--a-hover) !important; }
+
+/* Heavy dark drop-shadows (shadow-2xl / shadow-xl) read as muddy smudges under a
+   light card — swap them for a crisp neutral elevation in light mode. */
+[data-theme="light"] .shadow-2xl,
+[data-theme="light"] .shadow-xl { box-shadow: var(--a-card-shadow) !important; }
+[data-theme="light"] .bg-\[\#080D1A\]\/90    { background-color: color-mix(in srgb, var(--a-bg) 90%, transparent) !important; }
+[data-theme="light"] .border-white\/\[0\.05\] { border-color: var(--a-border) !important; }
+[data-theme="light"] .border-white\/\[0\.06\] { border-color: var(--a-border) !important; }
+[data-theme="light"] .border-white\/\[0\.08\] { border-color: var(--a-border2) !important; }
+[data-theme="light"] .border-white\/\[0\.10\] { border-color: var(--a-border2) !important; }
+[data-theme="light"] .bg-white\/\[0\.02\]    { background-color: var(--a-hover) !important; }
+[data-theme="light"] .bg-white\/\[0\.03\]    { background-color: var(--a-hover) !important; }
+[data-theme="light"] .bg-white\/\[0\.04\]    { background-color: var(--a-hover) !important; }
+[data-theme="light"] .bg-white\/\[0\.05\]    { background-color: var(--a-hover2) !important; }
+[data-theme="light"] .bg-white\/\[0\.06\]    { background-color: var(--a-hover2) !important; }
+[data-theme="light"] .bg-white\/\[0\.07\]    { background-color: var(--a-hover2) !important; }
+[data-theme="light"] .bg-white\/\[0\.08\]    { background-color: var(--a-hover2) !important; }
+[data-theme="light"] .border-white\/15       { border-color: var(--a-border2) !important; }
+[data-theme="light"] .border-white\/\[0\.07\] { border-color: var(--a-border) !important; }
 [data-theme="light"] .admin-table thead { background-color: var(--a-card2) !important; }
 [data-theme="light"] .admin-table td { border-color: var(--a-border) !important; }
 [data-theme="light"] .admin-table tbody tr:hover { background-color: var(--a-hover) !important; }
@@ -161,7 +301,7 @@
 
 [data-theme="light"] .hover\:text-white:hover,
 [data-theme="light"] .group:hover .group-hover\:text-white {
-  color: #2563EB !important;
+  color: #6D5EF9 !important;
 }
 [data-theme="light"] .hover\:text-white\/80:hover,
 [data-theme="light"] .hover\:text-white\/70:hover,
@@ -173,11 +313,19 @@
   color: rgba(17,33,38,0.62) !important;
 }
 
-/* ── Brand accent token (used everywhere — change here to update all) ── */
+/* ── SYNQ brand accent tokens (change here to update all) ── */
 :root {
-  --brand-blue:     #2563EB;
-  --brand-blue-dim: #1D4ED8;
-  --brand-sky:      #EB4203;
+  --brand-blue:        #6D5EF9;
+  --brand-blue-dim:    #5B4FE8;
+  --brand-sky:         #18D8FF;
+  --synq-violet:       #6D5EF9;
+  --synq-violet-dark:  #5B4FE8;
+  --synq-cyan:         #18D8FF;
+  --synq-green:        #21F2A6;
+  --synq-amber:        #FFB547;
+  --synq-coral:        #FF5C74;
+  --synq-midnight:     #0B1020;
+  --synq-slate:        #8A94A6;
 }
 
 /* ── Theme-aware foreground tokens ──────────────────────────────────────────
@@ -234,43 +382,46 @@
   --t-page-bg:  #f0f4f8;
 }
 
-/* ── ProspectGrid workspace tokens ───────────────────────────────────────── */
+/* ── SYNQ / ProspectGrid workspace tokens ────────────────────────────────── */
 [data-workspace="prospectgrid"] {
-  --t-accent:         #2563EB;
-  --t-accent-strong:  #1D4ED8;
-  --t-accent-soft:    rgba(37,99,235,0.16);
-  --t-accent-faint:   rgba(37,99,235,0.07);
-  --t-accent-on:      #0B132B;
-  --t-glow:           rgba(37,99,235,0.32);
+  --t-accent:         #6D5EF9;
+  --t-accent-strong:  #5B4FE8;
+  --t-accent-soft:    rgba(109,94,249,0.16);
+  --t-accent-faint:   rgba(109,94,249,0.07);
+  --t-accent-on:      #0B1020;
+  --t-glow:           rgba(109,94,249,0.40);
+  --t-cyan:           #18D8FF;
+  --t-cyan-soft:      rgba(24,216,255,0.12);
+  --t-green:          #21F2A6;
+  --t-amber:          #FFB547;
+  --t-coral:          #FF5C74;
   --t-radius:         16px;
   --t-radius-lg:      20px;
   --t-radius-sm:      10px;
-  --t-display-font:   'Inter', system-ui, sans-serif;
+  --t-display-font:   'Satoshi', 'Inter', system-ui, sans-serif;
   --t-mono-font:      'JetBrains Mono', ui-monospace, monospace;
-  --t-grid-color:     rgba(37,99,235,0.05);
-  --t-card-shadow:    0 1px 0 rgba(37,99,235,0.06) inset;
-  --t-card-shadow-hover: 0 30px 80px -30px rgba(37,99,235,0.28);
+  --t-grid-color:     rgba(109,94,249,0.05);
+  --t-card-shadow:    0 1px 0 rgba(109,94,249,0.08) inset;
+  --t-card-shadow-hover: 0 30px 80px -30px rgba(109,94,249,0.35);
 }
 
-/* Light-mode workspace token overrides — recalibrate accent washes, glows, and
-   shadows so they read on a white surface instead of a dark one. */
 [data-theme="light"][data-workspace="prospectgrid"] {
-  --t-accent:         #2563EB;
-  --t-accent-strong:  #1D4ED8;
-  --t-accent-soft:    rgba(37,99,235,0.10);
-  --t-accent-faint:   rgba(37,99,235,0.04);
-  --t-glow:           rgba(37,99,235,0.18);
-  --t-grid-color:     rgba(37,99,235,0.04);
+  --t-accent:         #6D5EF9;
+  --t-accent-strong:  #5B4FE8;
+  --t-accent-soft:    rgba(109,94,249,0.10);
+  --t-accent-faint:   rgba(109,94,249,0.04);
+  --t-glow:           rgba(109,94,249,0.20);
+  --t-grid-color:     rgba(15,23,42,0.05);
   --t-radius:         10px;
   --t-radius-lg:      14px;
   --t-radius-sm:      8px;
-  --t-card-shadow:    0 1px 0 rgba(15,23,42,0.04) inset, 0 18px 44px -34px rgba(17,33,38,0.30);
-  --t-card-shadow-hover: 0 24px 48px -28px rgba(17,33,38,0.30);
+  --t-card-shadow:    0 1px 2px rgba(16,24,40,0.04), 0 2px 6px rgba(16,24,40,0.05);
+  --t-card-shadow-hover: 0 12px 32px -12px rgba(16,24,40,0.18);
 }
 
-/* Selection follows the ProspectGrid accent. */
-[data-workspace="prospectgrid"] ::selection { background: rgba(37,99,235,0.30); color: #fff; }
-[data-theme="light"][data-workspace="prospectgrid"] ::selection { background: rgba(37,99,235,0.20); color: #0f172a; }
+/* Selection follows SYNQ accent */
+[data-workspace="prospectgrid"] ::selection { background: rgba(109,94,249,0.30); color: #fff; }
+[data-theme="light"][data-workspace="prospectgrid"] ::selection { background: rgba(109,94,249,0.20); color: #0B1020; }
 
 /* Workspace page-load motion: stagger children with attr [data-stagger] */
 @keyframes workspaceFadeUp {
@@ -363,7 +514,7 @@
 
   /* Text */
   .gradient-text {
-    background: linear-gradient(90deg, var(--brand-blue), var(--brand-sky));
+    background: linear-gradient(135deg, var(--synq-violet), var(--synq-cyan));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -455,4 +606,41 @@
   .badge-red {
     @apply badge bg-brand-danger/20 text-brand-danger;
   }
+}
+
+/* ── Hero shader animations ──────────────────────────────────────────────── */
+
+@keyframes hero-fade-in-down {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0);     }
+}
+
+@keyframes hero-fade-in-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes hero-gradient-shift {
+  0%   { background-position: 0%   50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0%   50%; }
+}
+
+.animate-hero-fade-down {
+  animation: hero-fade-in-down 0.8s ease-out forwards;
+}
+
+.animate-hero-fade-up {
+  animation: hero-fade-in-up 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+.animation-delay-200 { animation-delay: 0.2s; }
+.animation-delay-400 { animation-delay: 0.4s; }
+.animation-delay-600 { animation-delay: 0.6s; }
+.animation-delay-800 { animation-delay: 0.8s; }
+
+.animate-hero-gradient {
+  background-size: 200% 200%;
+  animation: hero-gradient-shift 3s ease infinite;
 }

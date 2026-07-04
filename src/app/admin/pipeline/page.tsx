@@ -33,6 +33,18 @@ interface Signal {
   ghl_contact_id?: string | null;
 }
 
+interface KeywordPerformance {
+  pace: number;
+  target: number;
+  onPace: boolean;
+  activeKeywordCount?: number;
+  topKeywords: { keyword: string; hitRate: number; hotCount: number; totalSignals: number }[];
+  recentlyPruned: { keyword: string; timesCrawled: number; prunedAt: string }[];
+  recentlyAdded: { keyword: string; addedAt: string }[];
+  escalationBoost: number;
+  needs_generation?: boolean;
+}
+
 interface IngestStatus {
   running: boolean;
   lastCount: number | null;
@@ -87,6 +99,9 @@ export default function PipelinePage() {
   const [feedTotal, setFeedTotal] = useState(0);
   const FEED_PAGE_SIZE = 20;
 
+  const [keywordPerf, setKeywordPerf] = useState<KeywordPerformance | null>(null);
+  const [keywordPerfLoading, setKeywordPerfLoading] = useState(true);
+
   const fetchStats = useCallback(async () => {
     try {
       // Use the dedicated stats endpoint instead of filter+count on getSignals
@@ -138,6 +153,20 @@ export default function PipelinePage() {
       document.removeEventListener('visibilitychange', tick);
     };
   }, [fetchStats]);
+
+  const fetchKeywordPerf = useCallback(async () => {
+    setKeywordPerfLoading(true);
+    try {
+      const res = await adminApi.getKeywordPerformance();
+      setKeywordPerf(res.data as KeywordPerformance);
+    } catch {
+      setKeywordPerf(null);
+    } finally {
+      setKeywordPerfLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchKeywordPerf(); }, [fetchKeywordPerf]);
 
   const triggerIngest = async (platform: Platform) => {
     setIngestStatus((prev) => ({ ...prev, [platform]: { ...prev[platform], running: true, error: null } }));
@@ -342,10 +371,130 @@ export default function PipelinePage() {
         </div>
       </section>
 
-      {/* SIGNAL FEED */}
+      {/* MODULE 03 — KEYWORD PERFORMANCE */}
       <section>
         <SectionHeader
           ord="03"
+          title="Keyword performance"
+          subtitle="Daily self-refining loop: scores every keyword by real lead yield, prunes dead ones, and regenerates from your own winners"
+          theme={theme}
+          right={
+            <button
+              onClick={fetchKeywordPerf}
+              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.22em] transition-colors hover:opacity-100"
+              style={{ color: 'var(--t-fg-45)', fontFamily: theme.fontMono }}
+              title="Refresh"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" d="M4 4v5h.582m15.356 2A8 8 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8 8 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
+          }
+        />
+
+        {keywordPerfLoading ? (
+          <div className="p-5 text-sm" style={{ color: 'var(--t-fg-40)' }}>Loading…</div>
+        ) : !keywordPerf || keywordPerf.needs_generation ? (
+          <div
+            className="flex flex-col items-center justify-center gap-2 py-12 text-center"
+            style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)', borderRadius: 'var(--t-radius-lg)' }}
+          >
+            <p className="text-sm" style={{ color: 'var(--t-fg-35)' }}>No keyword data yet</p>
+            <p className="text-[10px] uppercase tracking-[0.25em]" style={{ color: 'var(--t-fg-25)', fontFamily: theme.fontMono }}>
+              Generate leads first to provision keywords
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Pace vs target */}
+            <div
+              className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr),auto]"
+              style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)', borderRadius: 'var(--t-radius-lg)' }}
+            >
+              <div>
+                <p className="mb-2 text-[10px] uppercase tracking-[0.24em]" style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}>
+                  Daily hot-lead pace · trailing 3 days
+                </p>
+                <p
+                  className="font-bold tabular-nums leading-none"
+                  style={{ fontSize: '36px', letterSpacing: '-0.02em', color: keywordPerf.onPace ? theme.intent.low : theme.intent.medium }}
+                >
+                  {keywordPerf.pace.toFixed(1)}
+                  <span className="ml-2 text-base font-medium" style={{ color: 'var(--t-fg-40)' }}>/ {keywordPerf.target} target</span>
+                </p>
+                <p className="mt-2 max-w-xl text-sm leading-6" style={{ color: 'var(--t-fg-60)' }}>
+                  {keywordPerf.onPace
+                    ? 'On pace. The nightly refine cron keeps scoring and pruning to hold this.'
+                    : 'Below target — the nightly refine cron is regenerating keywords from your own winners and pain points.'}
+                  {keywordPerf.activeKeywordCount != null && ` ${keywordPerf.activeKeywordCount} active keywords.`}
+                </p>
+              </div>
+              <div className="flex items-center justify-start lg:justify-end">
+                <span
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em]"
+                  style={{
+                    background: keywordPerf.onPace ? 'rgba(33,242,166,0.10)' : 'rgba(255,181,71,0.10)',
+                    color: keywordPerf.onPace ? theme.intent.low : theme.intent.medium,
+                    fontFamily: theme.fontMono,
+                  }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: keywordPerf.onPace ? theme.intent.low : theme.intent.medium }} />
+                  {keywordPerf.onPace ? 'On pace' : 'Ramping'}
+                </span>
+                {keywordPerf.escalationBoost > 0 && (
+                  <span
+                    className="ml-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em]"
+                    style={{ background: 'var(--t-accent-soft)', color: theme.accent, fontFamily: theme.fontMono }}
+                    title="Extra keywords crawled per cycle while below pace"
+                  >
+                    +{keywordPerf.escalationBoost} escalated
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Top keywords / recently pruned / recently added */}
+            <div className="grid gap-4 lg:grid-cols-3">
+              <KeywordListCard
+                title="Top performing"
+                theme={theme}
+                empty="No scored keywords yet"
+                items={keywordPerf.topKeywords.map((k) => ({
+                  label: k.keyword,
+                  detail: `${k.hotCount}/${k.totalSignals} hot · ${(k.hitRate * 100).toFixed(0)}%`,
+                  tone: theme.intent.low,
+                }))}
+              />
+              <KeywordListCard
+                title="Recently pruned"
+                theme={theme}
+                empty="Nothing pruned yet"
+                items={keywordPerf.recentlyPruned.map((k) => ({
+                  label: k.keyword,
+                  detail: `${k.timesCrawled} crawls · 0 hot`,
+                  tone: theme.intent.high,
+                }))}
+              />
+              <KeywordListCard
+                title="Recently added"
+                theme={theme}
+                empty="No new keywords yet"
+                items={keywordPerf.recentlyAdded.map((k) => ({
+                  label: k.keyword,
+                  detail: new Date(k.addedAt).toLocaleDateString(),
+                  tone: theme.accent,
+                }))}
+              />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* SIGNAL FEED */}
+      <section>
+        <SectionHeader
+          ord="04"
           title="Signal feed"
           subtitle="Live stream of recent signals — click any to inspect"
           theme={theme}
@@ -527,6 +676,43 @@ function SectionHeader({
         </div>
       </div>
       {right}
+    </div>
+  );
+}
+
+function KeywordListCard({
+  title, items, theme, empty,
+}: {
+  title: string;
+  items: { label: string; detail: string; tone: string }[];
+  theme: ReturnType<typeof useWorkspaceTheme>;
+  empty: string;
+}) {
+  return (
+    <div
+      className="p-4"
+      style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)', borderRadius: 'var(--t-radius-lg)' }}
+    >
+      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}>
+        {title}
+      </p>
+      {items.length === 0 ? (
+        <p className="text-xs" style={{ color: 'var(--t-fg-35)' }}>{empty}</p>
+      ) : (
+        <div className="space-y-2">
+          {items.slice(0, 6).map((it, i) => (
+            <div key={i} className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: it.tone }} />
+                <span className="truncate text-xs" style={{ color: 'var(--t-fg-85)' }} title={it.label}>{it.label}</span>
+              </div>
+              <span className="shrink-0 text-[10px] tabular-nums" style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}>
+                {it.detail}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

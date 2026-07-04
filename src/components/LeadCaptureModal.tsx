@@ -380,7 +380,7 @@ export default function LeadCaptureModal({
                 className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#00CEC8] focus:ring-[#00CEC8]/30 cursor-pointer"
               />
               <span className="text-sm text-brand-muted">
-                I agree to be contacted via email/SMS by ProspectGrid about lead intelligence
+                I agree to be contacted via email/SMS by SYNQ about lead intelligence
                 resources, product updates, and demo follow-up.{' '}
                 <Link
                   href="/privacy"

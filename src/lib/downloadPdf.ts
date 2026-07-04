@@ -210,7 +210,7 @@ export async function downloadPdf(opts: PdfReportOptions): Promise<void> {
 
     doc.setFontSize(7.5);
     doc.setTextColor(...GREY);
-    doc.text('ProspectGrid — Lead Intelligence Platform', footerTextX, PAGE_H - 4.5);
+    doc.text('SYNQ — Lead Intelligence Platform', footerTextX, PAGE_H - 4.5);
     doc.text(`Page ${i} of ${totalPages}`, PAGE_W - MARGIN, PAGE_H - 4.5, { align: 'right' });
   }
 

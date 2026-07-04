@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { adminApi } from '@/lib/api';
 import { INTEGRATIONS } from '@/lib/integrations';
+import { getSubscription } from '@/lib/subscription-store';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,10 @@ interface OrgProfile {
   contact_email: string;
   timezone: string;
   logo_url: string;
+  industry: string;
+  about: string;
+  services: string;
+  expectations: string;
 }
 
 interface AdminProfile {
@@ -49,6 +54,44 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
+/**
+ * Reads an image file and returns a data URI, downscaled so the longer side
+ * is at most `maxDim` px. Keeps the stored logo small — it round-trips through
+ * a TEXT column and localStorage, and a full-resolution phone photo would
+ * otherwise bloat both. SVGs pass through untouched (already small, vector).
+ */
+async function fileToLogoDataUrl(file: File, maxDim = 512): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('Please choose an image file.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Image is too large (max 5MB).');
+
+  const dataUrl: string = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Could not read the file.'));
+    reader.readAsDataURL(file);
+  });
+
+  if (file.type === 'image/svg+xml') return dataUrl;
+
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error('Could not read the image.'));
+    el.src = dataUrl;
+  });
+
+  const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return dataUrl;
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL('image/png');
+}
+
 function Input({ value, onChange, placeholder, type = 'text', disabled = false }: {
   value: string; onChange?: (v: string) => void; placeholder?: string; type?: string; disabled?: boolean;
 }) {
@@ -60,6 +103,21 @@ function Input({ value, onChange, placeholder, type = 'text', disabled = false }
       placeholder={placeholder}
       disabled={disabled}
       className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#00CEC8]/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border"
+      style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
+    />
+  );
+}
+
+function Textarea({ value, onChange, placeholder, rows = 3 }: {
+  value: string; onChange?: (v: string) => void; placeholder?: string; rows?: number;
+}) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange?.(e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className="w-full resize-y rounded-xl px-4 py-2.5 text-sm leading-relaxed focus:outline-none focus:border-[#00CEC8]/40 transition-colors border placeholder:text-white/20"
       style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
     />
   );
@@ -109,19 +167,42 @@ export default function SettingsPage() {
 
   // Org profile — persisted in localStorage
   const [org, setOrg] = useState<OrgProfile>({
-    company_name: 'ProspectGrid',
-    website: 'https://prospectgrid.demo',
-    contact_email: 'admin@prospectgrid.demo',
+    company_name: 'SYNQ',
+    website: 'https://synq.demo',
+    contact_email: 'admin@synq.demo',
     timezone: 'America/New_York',
     logo_url: '',
+    industry: '',
+    about: '',
+    services: '',
+    expectations: '',
   });
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgSaved, setOrgSaved] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+
+  // Mention monitoring (Pulse) — brand terms tracked across the web.
+  const [brand, setBrand] = useState({ brand_keywords: '', brand_handles: '', exclude_terms: '' });
+  const [brandSaving, setBrandSaving] = useState(false);
+  const [brandSaved, setBrandSaved] = useState(false);
+  const [brandAnalyzing, setBrandAnalyzing] = useState(false);
+  const [brandError, setBrandError] = useState<string | null>(null);
+  const [mentionsAnalyzedAt, setMentionsAnalyzedAt] = useState<string | null>(null);
+
+  // Lead Intelligence — website analysis + lead generation
+  interface LeadAnalysis { summary: string; target_audience: string; pain_points: string[]; keywords: string[]; }
+  const [leadSubscribed, setLeadSubscribed] = useState<boolean | null>(null);
+  const [leadAnalysis, setLeadAnalysis] = useState<LeadAnalysis | null>(null);
+  const [leadAnalyzedAt, setLeadAnalyzedAt] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+  const [genStatus, setGenStatus] = useState<string | null>(null);
 
   // Admin profile — read from localStorage token + display settings
   const [admin, setAdmin] = useState<AdminProfile>({
-    display_name: 'ProspectGrid Operator',
-    email: 'admin@prospectgrid.demo',
+    display_name: 'SYNQ Operator',
+    email: 'admin@synq.demo',
     role: 'Admin',
   });
   const [adminSaving, setAdminSaving] = useState(false);
@@ -149,14 +230,69 @@ export default function SettingsPage() {
   ];
 
   useEffect(() => {
-    // Load saved org profile
-    const saved = localStorage.getItem('prospectgrid_org_profile');
+    // Load saved org profile — localStorage first (instant), server authoritative.
+    const saved = localStorage.getItem('synq_org_profile');
     if (saved) {
-      try { setOrg(JSON.parse(saved)); } catch {}
+      try { setOrg((prev) => ({ ...prev, ...JSON.parse(saved) })); } catch {}
     }
-    const savedAdmin = localStorage.getItem('prospectgrid_admin_profile');
-    if (savedAdmin) {
-      try { setAdmin(JSON.parse(savedAdmin)); } catch {}
+
+    // Load real user from auth token — override any stale localStorage profile
+    const token = localStorage.getItem('synq_admin_token');
+    if (token) {
+      const authHeaders = { Authorization: `Bearer ${token}` };
+
+      fetch('/api/auth/me', { headers: authHeaders })
+        .then((r) => r.ok ? r.json() : null)
+        .then((u) => {
+          if (u) {
+            setAdmin({ display_name: u.name, email: u.email, role: u.role === 'admin' ? 'Admin' : 'Viewer' });
+          }
+        })
+        .catch(() => {});
+
+      // Server-side org profile (authoritative — the crawler reads from here).
+      fetch('/api/settings/org', { headers: authHeaders })
+        .then((r) => r.ok ? r.json() : null)
+        .then((res) => {
+          if (res?.profile) {
+            setOrg((prev) => ({ ...prev, ...res.profile }));
+            setBrand({
+              brand_keywords: (res.profile.brand_keywords ?? []).join('\n'),
+              brand_handles: (res.profile.brand_handles ?? []).join('\n'),
+              exclude_terms: (res.profile.exclude_terms ?? []).join('\n'),
+            });
+            setMentionsAnalyzedAt(res.profile.mentions_analyzed_at ?? null);
+          }
+        })
+        .catch(() => {});
+
+      // Lead Intelligence subscription + last analysis status.
+      fetch('/api/leads/generate', { headers: authHeaders })
+        .then((r) => r.ok ? r.json() : null)
+        .then((res) => {
+          if (!res) return;
+          let subscribed = !!res.subscribed;
+          // Self-heal: if the server gate is behind the client subscription
+          // (e.g. subscribed but never mirrored), reflect it and sync the server.
+          if (!subscribed) {
+            const clientMods = getSubscription()?.modules ?? [];
+            if (clientMods.includes('leads')) {
+              subscribed = true;
+              fetch('/api/subscription/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders },
+                body: JSON.stringify({ modules: clientMods }),
+              }).catch(() => {});
+            }
+          }
+          setLeadSubscribed(subscribed);
+          setLeadAnalysis(res.analysis ?? null);
+          setLeadAnalyzedAt(res.analyzed_at ?? null);
+        })
+        .catch(() => {});
+    } else {
+      const savedAdmin = localStorage.getItem('synq_admin_profile');
+      if (savedAdmin) { try { setAdmin(JSON.parse(savedAdmin)); } catch {} }
     }
 
     // Fetch health and integration status from backend
@@ -164,24 +300,180 @@ export default function SettingsPage() {
     adminApi.getIntegrationStatus().then((r) => setIntegrationStatus(r.data)).catch(() => {});
   }, []);
 
-  const saveOrg = () => {
+  const saveOrg = async () => {
     setOrgSaving(true);
-    localStorage.setItem('prospectgrid_org_profile', JSON.stringify(org));
-    setTimeout(() => {
-      setOrgSaving(false);
-      setOrgSaved(true);
-      setTimeout(() => setOrgSaved(false), 3000);
-    }, 600);
+    // Mirror to localStorage for instant reload; persist to the server so the
+    // crawler and lead-generation flow can read the company profile.
+    localStorage.setItem('synq_org_profile', JSON.stringify(org));
+    const token = localStorage.getItem('synq_admin_token');
+    try {
+      if (token) {
+        await fetch('/api/settings/org', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(org),
+        });
+      }
+    } catch { /* keep localStorage copy on network failure */ }
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('synq:org-changed'));
+    setOrgSaving(false);
+    setOrgSaved(true);
+    setTimeout(() => setOrgSaved(false), 3000);
   };
 
-  const saveAdmin = () => {
+  const handleLogoFile = async (file: File | undefined) => {
+    if (!file) return;
+    setLogoError(null);
+    setLogoUploading(true);
+    try {
+      // Basic client-side guardrails before hitting the network.
+      if (!file.type.startsWith('image/')) throw new Error('Please choose an image file.');
+      if (file.size > 5 * 1024 * 1024) throw new Error('Image is too large (max 5MB).');
+
+      // Upload to Cloudinary via our server route (returns a hosted URL).
+      const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', 'synq/logos');
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.url) { setOrg((prev) => ({ ...prev, logo_url: data.url })); return; }
+      }
+      // Not configured (503) or failed → fall back to an inline data URI so the
+      // logo still works before Cloudinary keys are added.
+      const data = await res.json().catch(() => null);
+      if (res.status !== 503) {
+        throw new Error(data?.message || 'Upload failed. Please try again.');
+      }
+      const dataUrl = await fileToLogoDataUrl(file);
+      setOrg((prev) => ({ ...prev, logo_url: dataUrl }));
+    } catch (err) {
+      setLogoError(err instanceof Error ? err.message : 'Could not upload that image.');
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const parseList = (s: string) => s.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
+
+  const saveBrand = async () => {
+    setBrandSaving(true);
+    setBrandError(null);
+    const token = localStorage.getItem('synq_admin_token');
+    try {
+      if (token) {
+        await fetch('/api/settings/org', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            brand_keywords: parseList(brand.brand_keywords),
+            brand_handles: parseList(brand.brand_handles),
+            exclude_terms: parseList(brand.exclude_terms),
+          }),
+        });
+      }
+      setBrandSaved(true);
+      setTimeout(() => setBrandSaved(false), 2500);
+    } catch { setBrandError('Could not save. Try again.'); }
+    finally { setBrandSaving(false); }
+  };
+
+  const analyzeBrandTerms = async () => {
+    setBrandAnalyzing(true);
+    setBrandError(null);
+    const token = localStorage.getItem('synq_admin_token');
+    try {
+      // Persist profile edits first so analysis uses current company details.
+      if (token) {
+        await fetch('/api/settings/org', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(org),
+        });
+      }
+      const res = await fetch('/api/settings/brand/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      const data = await res.json();
+      if (!res.ok) { setBrandError(data.message || 'Analysis failed.'); return; }
+      if (data.brand) {
+        setBrand({
+          brand_keywords: (data.brand.brand_keywords ?? []).join('\n'),
+          brand_handles: (data.brand.brand_handles ?? []).join('\n'),
+          exclude_terms: (data.brand.exclude_terms ?? []).join('\n'),
+        });
+      }
+      if (data.profile?.mentions_analyzed_at) setMentionsAnalyzedAt(data.profile.mentions_analyzed_at);
+    } catch { setBrandError('Analysis failed. Try again.'); }
+    finally { setBrandAnalyzing(false); }
+  };
+
+  const generateLeads = async () => {
+    setGenerating(true);
+    setGenError(null);
+    setGenStatus(null);
+    const token = localStorage.getItem('synq_admin_token');
+    try {
+      // Persist the latest profile first so the server analyzes current values.
+      if (token) {
+        await fetch('/api/settings/org', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(org),
+        });
+      }
+      const res = await fetch('/api/leads/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ start_crawl: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGenError(data?.message || 'Lead generation failed.');
+        return;
+      }
+      setLeadAnalysis(data.analysis ?? null);
+      setLeadAnalyzedAt(new Date().toISOString());
+      const p = data.provisioning || {};
+      setGenStatus(
+        p.crawler_connected
+          ? `Crawler updated — ${p.keywords_added} keywords, ${p.crawls_started} crawls started. Leads will appear in the Lead Queue as they're found.`
+          : `Analysis saved and ${data.analysis?.keywords?.length ?? 0} keywords staged. Connect the crawler (CRAWLER_API_URL) to start collecting leads.`,
+      );
+    } catch (err) {
+      setGenError('Network error — please try again.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const saveAdmin = async () => {
     setAdminSaving(true);
-    localStorage.setItem('prospectgrid_admin_profile', JSON.stringify(admin));
-    setTimeout(() => {
-      setAdminSaving(false);
-      setAdminSaved(true);
-      setTimeout(() => setAdminSaved(false), 3000);
-    }, 600);
+    // The display name IS the organization name — persist it to the DB (org
+    // profile) so it survives reloads and shows in the sidebar everywhere.
+    localStorage.setItem('synq_org_profile', JSON.stringify(org));
+    localStorage.setItem('synq_admin_profile', JSON.stringify(admin));
+    const token = localStorage.getItem('synq_admin_token');
+    try {
+      if (token) {
+        await fetch('/api/settings/org', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ company_name: org.company_name }),
+        });
+      }
+    } catch { /* keep localStorage copy on network failure */ }
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('synq:org-changed'));
+    setAdminSaving(false);
+    setAdminSaved(true);
+    setTimeout(() => setAdminSaved(false), 3000);
   };
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
@@ -237,14 +529,14 @@ export default function SettingsPage() {
               <Input
                 value={org.company_name}
                 onChange={(v) => setOrg({ ...org, company_name: v })}
-                placeholder="e.g. ProspectGrid"
+                placeholder="e.g. SYNQ"
               />
             </Field>
             <Field label="Website" hint="Public-facing website URL">
               <Input
                 value={org.website}
                 onChange={(v) => setOrg({ ...org, website: v })}
-                placeholder="https://prospectgrid.demo"
+                placeholder="https://synq.demo"
                 type="url"
               />
             </Field>
@@ -252,7 +544,7 @@ export default function SettingsPage() {
               <Input
                 value={org.contact_email}
                 onChange={(v) => setOrg({ ...org, contact_email: v })}
-                placeholder="admin@prospectgrid.demo"
+                placeholder="admin@synq.demo"
                 type="email"
               />
             </Field>
@@ -268,25 +560,203 @@ export default function SettingsPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Logo URL" hint="Optional — URL to your company logo image">
-              <Input
-                value={org.logo_url}
-                onChange={(v) => setOrg({ ...org, logo_url: v })}
-                placeholder="https://cdn.example.com/logo.png"
-                type="url"
-              />
-              {org.logo_url && (
-                <div className="mt-3 flex items-center gap-3">
-                  <img src={org.logo_url} alt="Logo preview" className="h-10 w-auto rounded-lg border border-white/10 object-contain bg-white/5 p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  <span className="text-white/30 text-xs">Logo preview</span>
+            <Field label="Logo" hint="Used as your workspace icon across the dashboard. PNG, JPG or SVG.">
+              <div className="flex items-center gap-4">
+                {org.logo_url ? (
+                  <img
+                    src={org.logo_url}
+                    alt="Logo preview"
+                    className="h-20 w-20 shrink-0 rounded-xl border object-contain p-1.5"
+                    style={{ borderColor: 'var(--a-border2)', background: 'var(--a-input-bg)' }}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <div
+                    className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-dashed text-[11px]"
+                    style={{ borderColor: 'var(--a-border2)', color: 'var(--a-text-40)' }}
+                  >
+                    No logo
+                  </div>
+                )}
+                <div>
+                  <label
+                    className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium cursor-pointer border transition-colors hover:border-[#00CEC8]/40"
+                    style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
+                  >
+                    {logoUploading ? 'Processing…' : org.logo_url ? 'Replace logo' : 'Upload logo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={logoUploading}
+                      onChange={(e) => { handleLogoFile(e.target.files?.[0]); e.target.value = ''; }}
+                    />
+                  </label>
+                  {org.logo_url && (
+                    <button
+                      type="button"
+                      onClick={() => setOrg((prev) => ({ ...prev, logo_url: '' }))}
+                      className="ml-2 text-xs transition-colors"
+                      style={{ color: 'var(--a-text-40)' }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                  {logoError && <p className="mt-1.5 text-xs text-red-400">{logoError}</p>}
                 </div>
-              )}
+              </div>
+            </Field>
+          </Section>
+
+          <Section
+            title="Company Context"
+            subtitle="Tell SYNQ what your business does. This context personalises lead scoring, AI reply drafts, and routing to your goals."
+          >
+            <Field label="Industry" hint="e.g. B2B SaaS, Fintech, Real Estate, Agency">
+              <Input
+                value={org.industry}
+                onChange={(v) => setOrg({ ...org, industry: v })}
+                placeholder="e.g. B2B SaaS"
+              />
+            </Field>
+            <Field label="About your company" hint="A short description of who you are">
+              <Textarea
+                value={org.about}
+                onChange={(v) => setOrg({ ...org, about: v })}
+                placeholder="e.g. We help mid-market revenue teams unify ad, CRM, and social signals into one scored pipeline."
+                rows={3}
+              />
+            </Field>
+            <Field label="What you do / products & services" hint="What you sell and to whom — used to qualify and route leads">
+              <Textarea
+                value={org.services}
+                onChange={(v) => setOrg({ ...org, services: v })}
+                placeholder="e.g. Lead intelligence platform + managed onboarding. Ideal customers: Series A–C B2B teams running paid + outbound."
+                rows={3}
+              />
+            </Field>
+            <Field label="Goals & expectations" hint="What a great outcome looks like — SYNQ optimises scoring and replies toward this">
+              <Textarea
+                value={org.expectations}
+                onChange={(v) => setOrg({ ...org, expectations: v })}
+                placeholder="e.g. Prioritise high-intent enterprise accounts, keep first response under 2 minutes, and route demo requests straight to senior AEs."
+                rows={3}
+              />
             </Field>
           </Section>
 
           <div className="flex justify-end">
             <SaveButton onClick={saveOrg} saving={orgSaving} saved={orgSaved} />
           </div>
+
+          <Section
+            title="Mention monitoring (Pulse)"
+            subtitle="Track what people say about your company across X, Reddit, YouTube, news and the web. These terms drive the Mentions feed in Pulse."
+          >
+            <div className="flex items-start justify-between gap-4">
+              <p className="text-white/30 text-xs">
+                Auto-generate terms from your website, then fine-tune. One term per line.
+                {mentionsAnalyzedAt && <span className="block mt-0.5">Last generated: {new Date(mentionsAnalyzedAt).toLocaleString()}</span>}
+              </p>
+              <button
+                onClick={analyzeBrandTerms}
+                disabled={brandAnalyzing}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium bg-[#6D5EF9]/10 border border-[#6D5EF9]/30 text-[#8B7EF9] hover:bg-[#6D5EF9]/15 disabled:opacity-50 transition-all whitespace-nowrap"
+              >
+                {brandAnalyzing
+                  ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Generating…</>
+                  : <>✨ Auto-generate from website</>}
+              </button>
+            </div>
+            {brandError && <p className="text-xs text-red-400">{brandError}</p>}
+            <Field label="Brand keywords" hint="Company & product names people mention — one per line">
+              <Textarea value={brand.brand_keywords} onChange={(v) => setBrand({ ...brand, brand_keywords: v })} placeholder={'Acme\nAcme CRM\nAcme Analytics'} rows={4} />
+            </Field>
+            <Field label="Handles" hint="Social usernames for your brand — one per line">
+              <Textarea value={brand.brand_handles} onChange={(v) => setBrand({ ...brand, brand_handles: v })} placeholder={'@acme\nacmehq'} rows={2} />
+            </Field>
+            <Field label="Exclude terms" hint="Filter out false positives if your name is a common word — one per line (optional)">
+              <Textarea value={brand.exclude_terms} onChange={(v) => setBrand({ ...brand, exclude_terms: v })} placeholder={'wile e coyote\nlooney tunes'} rows={2} />
+            </Field>
+            <div className="flex justify-end">
+              <SaveButton onClick={saveBrand} saving={brandSaving} saved={brandSaved} />
+            </div>
+          </Section>
+
+          <Section
+            title="Lead Intelligence"
+            subtitle="Analyse your website to learn what you do and who your buyers are, then generate matching leads."
+          >
+            {leadSubscribed === false ? (
+              <div className="flex items-start gap-4 p-4 rounded-xl border" style={{ background: 'var(--a-hover)', borderColor: 'var(--a-border)' }}>
+                <div className="w-8 h-8 rounded-lg bg-yellow-400/10 flex items-center justify-center shrink-0 text-yellow-400 text-sm">🔒</div>
+                <div>
+                  <p className="text-white/70 text-sm font-medium">Lead Intelligence is not active on your account</p>
+                  <p className="text-white/30 text-xs mt-1">
+                    Subscribe to the Lead Intelligence module to analyse your website and generate leads.{' '}
+                    <Link href="/admin/subscription" className="text-[#00CEC8] hover:underline">View plans →</Link>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-white/70 text-sm font-medium">Analyse website &amp; generate leads</p>
+                    <p className="text-white/30 text-xs mt-1">
+                      Uses your Website, About and What&nbsp;you&nbsp;do fields above. Save any edits first.
+                      {leadAnalyzedAt && (
+                        <span className="block mt-0.5">Last run: {new Date(leadAnalyzedAt).toLocaleString()}</span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={generateLeads}
+                    disabled={generating || leadSubscribed === null}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium bg-[#00CEC8]/10 border border-[#00CEC8]/30 text-[#00CEC8] hover:bg-[#00CEC8]/15 disabled:opacity-50 transition-all whitespace-nowrap"
+                  >
+                    {generating ? (
+                      <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Analysing…</>
+                    ) : (
+                      <>✨ Analyse &amp; generate</>
+                    )}
+                  </button>
+                </div>
+
+                {genError && (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-red-300 text-xs">{genError}</div>
+                )}
+                {genStatus && (
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-emerald-300 text-xs">
+                    {genStatus} <Link href="/admin/leads" className="underline">Open Lead Queue →</Link>
+                  </div>
+                )}
+
+                {leadAnalysis && (
+                  <div className="space-y-3 rounded-xl border p-4" style={{ background: 'var(--a-card2)', borderColor: 'var(--a-border)' }}>
+                    <div>
+                      <p className="text-white/40 text-[10px] uppercase tracking-[0.18em]">What you do</p>
+                      <p className="text-white/70 text-sm mt-1">{leadAnalysis.summary}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/40 text-[10px] uppercase tracking-[0.18em]">Target audience</p>
+                      <p className="text-white/70 text-sm mt-1">{leadAnalysis.target_audience}</p>
+                    </div>
+                    {leadAnalysis.keywords?.length > 0 && (
+                      <div>
+                        <p className="text-white/40 text-[10px] uppercase tracking-[0.18em]">Search signals ({leadAnalysis.keywords.length})</p>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {leadAnalysis.keywords.map((k) => (
+                            <span key={k} className="text-[11px] px-2 py-1 rounded-lg bg-white/5 text-white/60 border border-white/8">{k}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </Section>
         </div>
       )}
 
@@ -294,18 +764,18 @@ export default function SettingsPage() {
       {tab === 'account' && (
         <div className="space-y-4">
           <Section title="Admin Account" subtitle="Your personal admin profile and display settings">
-            <Field label="Display Name" hint="Name shown in the sidebar and reports">
+            <Field label="Display Name" hint="Your organization name — shown in the sidebar and reports">
               <Input
-                value={admin.display_name}
-                onChange={(v) => setAdmin({ ...admin, display_name: v })}
-                placeholder="e.g. ProspectGrid Operator"
+                value={org.company_name}
+                onChange={(v) => setOrg({ ...org, company_name: v })}
+                placeholder="e.g. Kofa Africa"
               />
             </Field>
             <Field label="Admin Email" hint="Login email — change via server environment variable ADMIN_EMAIL">
               <Input
                 value={admin.email}
                 onChange={(v) => setAdmin({ ...admin, email: v })}
-                placeholder="admin@prospectgrid.demo"
+                placeholder="admin@synq.demo"
                 type="email"
               />
             </Field>
@@ -345,7 +815,7 @@ export default function SettingsPage() {
             <Field label="Sign Out" hint="Invalidates your local session token">
               <button
                 onClick={() => {
-                  localStorage.removeItem('prospectgrid_admin_token');
+                  localStorage.removeItem('synq_admin_token');
                   window.location.href = '/admin/login';
                 }}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/15 transition-colors"
@@ -452,7 +922,7 @@ export default function SettingsPage() {
             <Field label="Route Layer" hint="Lead routing adapter used by connected CRMs">
               <div className="flex items-center gap-2">
                 <span className="text-xs px-2.5 py-1.5 rounded-lg bg-[#00CEC8]/10 text-[#00CEC8] border border-[#00CEC8]/20 font-mono">
-                  ProspectGrid Routing API v1
+                  SYNQ Routing API v1
                 </span>
               </div>
             </Field>

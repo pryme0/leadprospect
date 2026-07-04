@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { getIntegrationById } from '@/lib/integrations';
@@ -58,7 +58,6 @@ function StatusPill({ connected }: { connected: boolean }) {
   );
 }
 
-const disconnectedKeys = new Set(['SALESFORCE_CLIENT_ID']);
 type DatasetTab = 'pulls' | 'sends' | 'mappings' | 'outcomes';
 
 function readableOn(hex: string) {
@@ -71,27 +70,122 @@ function readableOn(hex: string) {
   return luminance > 0.45 ? '#112126' : '#ffffff';
 }
 
+interface CredField { key: string; label: string; type: 'text' | 'password'; placeholder?: string; optional?: boolean; help?: string }
+interface ConnectorMeta { oauth: boolean; provider_configured: boolean; has_credentials: boolean; fields: CredField[]; account_label: string | null; source: 'oauth' | 'env' | null }
+
+function authHeaders(): Record<string, string> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+interface LiveRecord { id: string; name: string; email: string; company: string; status: string; source: string; created_at: string; type: string }
+
 export default function IntegrationDetailPage() {
   const params = useParams<{ id: string }>();
   const theme = useWorkspaceTheme();
   const integration = getIntegrationById(params.id);
   const [activeTab, setActiveTab] = useState<DatasetTab>('pulls');
-  const [connected, setConnected] = useState(() => (integration ? !disconnectedKeys.has(integration.key) : false));
-  const [runningAction, setRunningAction] = useState<string | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [meta, setMeta] = useState<ConnectorMeta | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
   const [records, setRecords] = useState(() => integration?.records ?? []);
   const [selectedMapping, setSelectedMapping] = useState(() => integration?.mappings[0]?.source ?? '');
-  const [activity, setActivity] = useState<string[]>(() => {
-    if (!integration) return [];
-    return [
-      `${integration.label} workspace opened with ${integration.pulls.length} pull datasets and ${integration.sends.length} writeback jobs.`,
-      connected ? 'Connection is healthy on demo credentials.' : 'Connection needs setup before live sync can run.',
-    ];
-  });
+  const [activity, setActivity] = useState<string[]>([]);
+  const [liveRecords, setLiveRecords] = useState<LiveRecord[] | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [showCreds, setShowCreds] = useState(false);
+  const [credInput, setCredInput] = useState<Record<string, string>>({});
+  const [savingCreds, setSavingCreds] = useState(false);
+
+  /* Real connection status — per-user OAuth connection + server config. */
+  const loadStatus = useCallback(() => {
+    if (!integration) return;
+    fetch('/api/settings/integrations', { cache: 'no-store', headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data: { statuses?: Record<string, string>; meta?: Record<string, ConnectorMeta> }) => {
+        const ok = data.statuses?.[integration.id] === 'connected';
+        setConnected(ok);
+        setMeta(data.meta?.[integration.id] ?? null);
+        setActivity(ok ? [`${integration.label} is connected.`] : []);
+      })
+      .catch(() => {})
+      .finally(() => setStatusLoading(false));
+  }, [integration]);
+
+  useEffect(() => {
+    loadStatus();
+    const id = setInterval(loadStatus, 30_000);
+    return () => clearInterval(id);
+  }, [loadStatus]);
+
+  /* OAuth return handler (?connected / ?error) — same params the list page uses. */
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('connected')) { setNotice({ kind: 'ok', text: 'Connected successfully.' }); loadStatus(); }
+    else if (p.get('error')) { setNotice({ kind: 'err', text: `Connection failed: ${p.get('error')!.replace(/_/g, ' ')}` }); }
+    if (p.get('connected') || p.get('error')) window.history.replaceState({}, '', window.location.pathname);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const connect = useCallback(() => {
+    if (!integration) return;
+    setBusy(true); setNotice(null);
+    fetch(`/api/integrations/${integration.id}/connect`, { headers: authHeaders() })
+      .then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => ({})) }))
+      .then(({ ok, body }) => {
+        if (ok && body.url) { window.location.href = body.url; return; }
+        if (body.needs_credentials) { setShowCreds(true); setNotice({ kind: 'err', text: 'Enter your app credentials below, then connect.' }); }
+        else setNotice({ kind: 'err', text: body.message || 'Could not start the connection.' });
+        setBusy(false);
+      })
+      .catch(() => { setNotice({ kind: 'err', text: 'Could not start the connection.' }); setBusy(false); });
+  }, [integration]);
+
+  const saveCreds = useCallback(() => {
+    if (!integration) return;
+    setSavingCreds(true); setNotice(null);
+    fetch(`/api/integrations/${integration.id}/credentials`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(credInput),
+    })
+      .then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => ({})) }))
+      .then(({ ok, body }) => {
+        if (ok) { setNotice({ kind: 'ok', text: 'Credentials saved — you can connect now.' }); setShowCreds(false); setCredInput({}); loadStatus(); }
+        else setNotice({ kind: 'err', text: body.message || 'Could not save credentials.' });
+      })
+      .catch(() => setNotice({ kind: 'err', text: 'Could not save credentials.' }))
+      .finally(() => setSavingCreds(false));
+  }, [integration, credInput, loadStatus]);
+
+  const disconnect = useCallback(() => {
+    if (!integration) return;
+    setBusy(true); setNotice(null);
+    fetch(`/api/integrations/${integration.id}/disconnect`, { method: 'POST', headers: authHeaders() })
+      .then(() => { setNotice({ kind: 'ok', text: 'Disconnected.' }); setLiveRecords(null); loadStatus(); })
+      .catch(() => setNotice({ kind: 'err', text: 'Could not disconnect.' }))
+      .finally(() => setBusy(false));
+  }, [integration, loadStatus]);
+
+  const syncNow = useCallback(() => {
+    if (!integration) return;
+    setSyncing(true); setNotice(null);
+    fetch(`/api/integrations/${integration.id}/sync`, { headers: authHeaders() })
+      .then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => ({})) }))
+      .then(({ ok, body }) => {
+        if (ok) { setLiveRecords(body.records ?? []); setNotice({ kind: 'ok', text: `Pulled ${body.count ?? 0} live records.` }); }
+        else setNotice({ kind: 'err', text: body.message || 'Sync failed.' });
+      })
+      .catch(() => setNotice({ kind: 'err', text: 'Sync failed.' }))
+      .finally(() => setSyncing(false));
+  }, [integration]);
 
   if (!integration) {
     return (
       <div className="max-w-3xl mx-auto py-16">
-        <Link href="/admin/settings" className="text-sm transition-colors" style={{ color: 'var(--t-fg-45)' }}>
+        <Link href="/admin/integrations" className="text-sm transition-colors" style={{ color: 'var(--t-fg-45)' }}>
           Back to integrations
         </Link>
         <div
@@ -108,29 +202,15 @@ export default function IntegrationDetailPage() {
           </p>
           <h1 className="mt-3 text-2xl font-bold" style={{ color: 'var(--t-fg-95)' }}>Integration not found</h1>
           <p className="mt-2 text-sm" style={{ color: 'var(--t-fg-45)' }}>
-            This connector is not part of the current ProspectGrid workspace.
+            This connector is not part of the current SYNQ workspace.
           </p>
         </div>
       </div>
     );
   }
 
-  const activeIntegration = integration;
-
   function appendActivity(message: string) {
     setActivity((current) => [message, ...current].slice(0, 6));
-  }
-
-  function runAction(action: string) {
-    const integrationCategory = activeIntegration.category.replace('-', ' ');
-    setRunningAction(action);
-    appendActivity(`${action} started.`);
-
-    window.setTimeout(() => {
-      setConnected(true);
-      setRunningAction(null);
-      appendActivity(`${action} completed against demo ${integrationCategory} data.`);
-    }, 850);
   }
 
   function updateRecord(id: string, status: string) {
@@ -142,13 +222,13 @@ export default function IntegrationDetailPage() {
     { id: 'pulls', label: 'Data pulled', count: integration.pulls.length },
     { id: 'sends', label: 'Writebacks', count: integration.sends.length },
     { id: 'mappings', label: 'Field mapping', count: integration.mappings.length },
-    { id: 'outcomes', label: 'Lead outcomes', count: records.length },
+    { id: 'outcomes', label: 'Lead outcomes', count: connected ? records.length : 0 },
   ];
 
   return (
     <div className="max-w-[1480px] mx-auto space-y-6">
       <div className="flex items-center gap-2 text-sm">
-        <Link href="/admin/settings" className="transition-colors" style={{ color: 'var(--t-fg-45)' }}>
+        <Link href="/admin/integrations" className="transition-colors" style={{ color: 'var(--t-fg-45)' }}>
           Integrations
         </Link>
         <span style={{ color: 'var(--t-fg-20)' }}>/</span>
@@ -189,51 +269,166 @@ export default function IntegrationDetailPage() {
           <p className="mt-6 text-sm leading-relaxed text-white/60 max-w-3xl">
             {integration.summary}
           </p>
-          <div className="mt-7 flex flex-wrap gap-2">
+          <div className="mt-7 flex flex-wrap items-center gap-2">
             <a
               href={integration.docsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 text-sm font-semibold transition-colors"
-              style={{
-                background: '#00CEC8',
-                color: '#112126',
-                border: '1px solid rgba(0,206,200,0.3)',
-                borderRadius: 'var(--t-radius-sm)',
-              }}
+              style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.82)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 'var(--t-radius-sm)' }}
             >
-              Official API docs
+              API docs ↗
             </a>
-            {integration.actions.map((action, index) => (
+
+            {meta?.oauth ? (
+              connected && meta?.source === 'oauth' ? (
+                <>
+                  <button
+                    onClick={syncNow}
+                    disabled={syncing}
+                    className="px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-60"
+                    style={{ background: '#00CEC8', color: '#112126', border: '1px solid rgba(0,206,200,0.3)', borderRadius: 'var(--t-radius-sm)' }}
+                  >
+                    {syncing ? 'Syncing…' : 'Sync now'}
+                  </button>
+                  <button
+                    onClick={disconnect}
+                    disabled={busy}
+                    className="px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-60"
+                    style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--t-radius-sm)' }}
+                  >
+                    {busy ? 'Working…' : 'Disconnect'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={connect}
+                    disabled={busy}
+                    className="px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-60"
+                    style={{ background: '#00CEC8', color: '#112126', border: '1px solid rgba(0,206,200,0.3)', borderRadius: 'var(--t-radius-sm)' }}
+                  >
+                    {busy ? 'Redirecting…' : `Connect ${integration.label}`}
+                  </button>
+                  <button
+                    onClick={() => setShowCreds((s) => !s)}
+                    className="px-4 py-2 text-sm font-semibold transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.82)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 'var(--t-radius-sm)' }}
+                  >
+                    {meta?.has_credentials ? 'Update credentials' : 'Add credentials'}
+                  </button>
+                </>
+              )
+            ) : (
               <button
-                key={action}
-                onClick={() => runAction(action)}
-                disabled={runningAction !== null}
+                onClick={loadStatus}
                 className="px-4 py-2 text-sm font-semibold transition-colors"
-                style={{
-                  background: runningAction === action ? `${integration.accent}24` : 'rgba(255,255,255,0.08)',
-                  color: runningAction === action ? readableOn(integration.accent) : 'rgba(255,255,255,0.82)',
-                  border: `1px solid ${runningAction === action ? integration.accent : 'rgba(255,255,255,0.14)'}`,
-                  borderRadius: 'var(--t-radius-sm)',
-                  opacity: runningAction && runningAction !== action ? 0.55 : 1,
-                }}
+                style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.82)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 'var(--t-radius-sm)' }}
               >
-                {runningAction === action ? 'Running...' : action}
+                Recheck configuration
               </button>
-            ))}
+            )}
           </div>
+
+          {notice && (
+            <div
+              className="mt-3 rounded-lg px-3 py-2 text-[12px] font-medium"
+              style={{ background: notice.kind === 'ok' ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)', color: notice.kind === 'ok' ? '#34d399' : '#fca5a5' }}
+            >
+              {notice.text}
+            </div>
+          )}
+
+          {meta?.oauth && showCreds && (
+            <div className="mt-4 rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <p className="text-[13px] font-semibold text-white">Your {integration.label} app credentials</p>
+              <p className="mt-1 text-[12px] text-white/45">
+                Create your own OAuth app on {integration.label} and paste its credentials. Set the callback / redirect URI to{' '}
+                <code className="rounded bg-white/10 px-1 py-0.5 text-white/70">{`${typeof window !== 'undefined' ? window.location.origin : ''}/api/integrations/${integration.id}/callback`}</code>.
+                {meta.has_credentials && <span className="ml-1 text-emerald-400">Saved — re-enter the secret only to change it.</span>}
+              </p>
+              <div className="mt-3 grid gap-3">
+                {(meta.fields ?? []).map((f) => (
+                  <label key={f.key} className="block">
+                    <span className="text-[11px] font-medium text-white/60">{f.label}{f.optional ? ' (optional)' : ''}</span>
+                    <input
+                      type={f.type}
+                      value={credInput[f.key] ?? ''}
+                      onChange={(e) => setCredInput((c) => ({ ...c, [f.key]: e.target.value }))}
+                      placeholder={f.type === 'password' && meta.has_credentials ? '•••••••• (unchanged)' : f.placeholder}
+                      className="mt-1 w-full rounded-lg px-3 py-2 text-[13px] outline-none"
+                      style={{ background: 'var(--a-input-bg, rgba(0,0,0,0.25))', border: '1px solid rgba(255,255,255,0.16)', color: '#fff' }}
+                    />
+                    {f.help && <span className="mt-0.5 block text-[10px] text-white/35">{f.help}</span>}
+                  </label>
+                ))}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={saveCreds}
+                  disabled={savingCreds}
+                  className="px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-60"
+                  style={{ background: '#00CEC8', color: '#112126', borderRadius: 'var(--t-radius-sm)' }}
+                >
+                  {savingCreds ? 'Saving…' : 'Save credentials'}
+                </button>
+                <button
+                  onClick={() => { setShowCreds(false); setCredInput({}); }}
+                  className="px-4 py-2 text-sm font-semibold transition-colors"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.82)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 'var(--t-radius-sm)' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {liveRecords && (
+            <div className="mt-4 rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.12)' }}>
+              <div className="px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50" style={{ background: 'rgba(255,255,255,0.04)', fontFamily: theme.fontMono }}>
+                Live records · {liveRecords.length}
+              </div>
+              {liveRecords.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-white/40">No records returned from the connected account.</p>
+              ) : (
+                <div className="max-h-[320px] overflow-y-auto divide-y divide-white/5">
+                  {liveRecords.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-semibold text-white">{r.name || '(no name)'}</p>
+                        <p className="truncate text-[11px] text-white/45">{[r.email, r.company].filter(Boolean).join(' · ') || '—'}</p>
+                      </div>
+                      <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(0,206,200,0.14)', color: '#00CEC8' }}>{r.type}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 xl:grid-cols-1 gap-px bg-white/10">
-          {integration.metrics.map((metric) => (
-            <div key={metric.label} className="bg-[#112126] px-5 py-4">
-              <p className="text-2xl font-bold tracking-tight tabular-nums text-white">{metric.value}</p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/45" style={{ fontFamily: theme.fontMono }}>
-                {metric.label}
+          {connected ? (
+            integration.metrics.map((metric) => (
+              <div key={metric.label} className="bg-[#112126] px-5 py-4">
+                <p className="text-2xl font-bold tracking-tight tabular-nums text-white">{metric.value}</p>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/45" style={{ fontFamily: theme.fontMono }}>
+                  {metric.label}
+                </p>
+                <p className="mt-1 text-xs text-white/35">{metric.detail}</p>
+              </div>
+            ))
+          ) : (
+            <div className="bg-[#112126] px-5 py-6">
+              <p className="text-sm font-semibold text-white/70">
+                {statusLoading ? 'Checking connection…' : 'No live metrics yet'}
               </p>
-              <p className="mt-1 text-xs text-white/35">{metric.detail}</p>
+              <p className="mt-1 text-xs leading-relaxed text-white/40">
+                Connect {integration.label} to stream real metrics here — set{' '}
+                <code className="rounded bg-white/10 px-1 py-0.5 text-white/60">{integration.key}</code> on the server.
+              </p>
             </div>
-          ))}
+          )}
         </div>
       </header>
 
@@ -326,7 +521,7 @@ export default function IntegrationDetailPage() {
                     <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--t-fg-35)', fontFamily: theme.fontMono }}>Source field</p>
                     <p className="mt-1 font-mono text-base font-bold" style={{ color: 'var(--t-fg-95)' }}>{mapping.source}</p>
                     <div className="my-5 h-px" style={{ background: 'var(--a-border)' }} />
-                    <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--t-fg-35)', fontFamily: theme.fontMono }}>ProspectGrid field</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--t-fg-35)', fontFamily: theme.fontMono }}>SYNQ field</p>
                     <p className="mt-1 font-mono text-base font-bold" style={{ color: 'var(--t-fg-95)' }}>{mapping.destination}</p>
                     <p className="mt-4 text-sm leading-relaxed" style={{ color: 'var(--t-fg-55)' }}>{mapping.rule}</p>
                     <button
@@ -341,7 +536,16 @@ export default function IntegrationDetailPage() {
               </div>
             )}
 
-            {activeTab === 'outcomes' && (
+            {activeTab === 'outcomes' && !connected && (
+              <div className="rounded-xl border p-8 text-center" style={{ borderColor: 'var(--a-border)' }}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--t-fg-95)' }}>No lead outcomes yet</p>
+                <p className="mt-1 text-xs" style={{ color: 'var(--t-fg-45)' }}>
+                  Connect {integration.label} to see real routed and suppressed leads here.
+                </p>
+              </div>
+            )}
+
+            {activeTab === 'outcomes' && connected && (
               <div className="divide-y overflow-hidden rounded-xl border" style={{ borderColor: 'var(--a-border)' }}>
                 {records.map((record) => (
                   <div key={record.id} className="grid gap-4 p-4 md:grid-cols-[90px,1fr,auto] md:items-center" style={{ borderColor: 'var(--a-border)' }}>
@@ -402,18 +606,20 @@ export default function IntegrationDetailPage() {
 
           <Panel className="p-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--t-fg-35)', fontFamily: theme.fontMono }}>
-              Quick test
+              {connected && meta?.oauth ? 'Live sync' : 'Connection check'}
             </p>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--t-fg-55)' }}>
-              Run the first connector action to simulate a setup check and update the workspace status.
+              {connected && meta?.oauth
+                ? 'Pull the latest records from the connected account right now.'
+                : 'Re-check this connector against the current server/account configuration.'}
             </p>
             <button
-              onClick={() => runAction(integration.actions[0] ?? 'Run connector test')}
-              disabled={runningAction !== null}
+              onClick={() => (connected && meta?.oauth ? syncNow() : loadStatus())}
+              disabled={syncing || busy}
               className="mt-4 min-h-11 w-full rounded-lg px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
               style={{ background: integration.accent, color: readableOn(integration.accent) }}
             >
-              {runningAction ? 'Running...' : integration.actions[0] ?? 'Run connector test'}
+              {syncing ? 'Syncing…' : connected && meta?.oauth ? 'Sync now' : 'Recheck configuration'}
             </button>
           </Panel>
         </aside>

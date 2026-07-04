@@ -13,7 +13,7 @@ const PITCHES = [
     eyebrow: "Don't lose another qualified account",
     headline: 'See which ad clicks are turning into real business leads.',
     body:
-      "ProspectGrid connects campaign source, company enrichment, and routing status so your team can act on high-intent accounts while they are still warm.",
+      "SYNQ connects campaign source, company enrichment, and routing status so your team can act on high-intent accounts while they are still warm.",
   },
   {
     eyebrow: 'Ad platforms plus CRM context',
@@ -380,7 +380,7 @@ export default function HomepagePromptModal({
                     className="mt-1 w-4 h-4 rounded border-brand-slate bg-brand-navy text-[#00CEC8] focus:ring-[#00CEC8]/30 cursor-pointer"
                   />
                   <span className="text-xs text-brand-muted">
-                    I agree to be contacted by ProspectGrid about lead intelligence resources.{' '}
+                    I agree to be contacted by SYNQ about lead intelligence resources.{' '}
                     <Link href="/privacy" target="_blank" className="text-[#00CEC8] underline">
                       Privacy Policy
                     </Link>

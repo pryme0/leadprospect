@@ -59,12 +59,12 @@ function buildSubject(lead: EmailLead, template: TemplateKey) {
 function buildBody(lead: EmailLead, template: TemplateKey) {
   const first = lead.name.split(' ')[0];
   if (template === 'handoff') {
-    return `Hi ${first},\n\nYour ${lead.source} signal shows a clear handoff opportunity: ${lead.context}\n\nProspectGrid can keep the source, score, dedupe status, and owner assignment together before this lands in CRM.\n\nWould you like me to send the routing map for this lead?\n\nBest,\nProspectGrid`;
+    return `Hi ${first},\n\nYour ${lead.source} signal shows a clear handoff opportunity: ${lead.context}\n\nSYNQ can keep the source, score, dedupe status, and owner assignment together before this lands in CRM.\n\nWould you like me to send the routing map for this lead?\n\nBest,\nSYNQ`;
   }
   if (template === 'nurture') {
-    return `Hi ${first},\n\nI noticed the ${lead.source} activity around ${lead.intent.toLowerCase()}.\n\nNo rush if this is early, but ProspectGrid can keep the account in nurture while tracking score changes, repeat visits, and CRM readiness.\n\nWant the short checklist for deciding when to route it?\n\nBest,\nProspectGrid`;
+    return `Hi ${first},\n\nI noticed the ${lead.source} activity around ${lead.intent.toLowerCase()}.\n\nNo rush if this is early, but SYNQ can keep the account in nurture while tracking score changes, repeat visits, and CRM readiness.\n\nWant the short checklist for deciding when to route it?\n\nBest,\nSYNQ`;
   }
-  return `Hi ${first},\n\nA recent ${lead.source} signal from ${lead.company} scored ${lead.score}/100 in ProspectGrid.\n\nThe reason: ${lead.context}\n\nI can show how we would enrich, score, dedupe, and route this lead before the next campaign sync.\n\nBest,\nProspectGrid`;
+  return `Hi ${first},\n\nA recent ${lead.source} signal from ${lead.company} scored ${lead.score}/100 in SYNQ.\n\nThe reason: ${lead.context}\n\nI can show how we would enrich, score, dedupe, and route this lead before the next campaign sync.\n\nBest,\nSYNQ`;
 }
 
 export default function EmailDeskPage() {
@@ -100,7 +100,7 @@ export default function EmailDeskPage() {
       setSendState(action === 'schedule' ? 'scheduled' : 'sent');
       setLog((current) => [
         action === 'test'
-          ? `Test delivered to growth@prospectgrid.demo using ${selectedLead.company} context.`
+          ? `Test delivered to growth@synq.demo using ${selectedLead.company} context.`
           : action === 'schedule'
             ? `Scheduled ${selectedLead.name} follow-up for tomorrow at 9:00 AM.`
             : `Email sent to ${selectedLead.email}.`,
@@ -213,7 +213,7 @@ export default function EmailDeskPage() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <Field label="To" value={`${selectedLead.name} <${selectedLead.email}>`} readOnly theme={theme} />
-            <Field label="From" value="ProspectGrid Growth <growth@prospectgrid.demo>" readOnly theme={theme} />
+            <Field label="From" value="SYNQ Growth <growth@synq.demo>" readOnly theme={theme} />
           </div>
           <Field label="Subject" value={subject} onChange={setSubject} theme={theme} />
           <label className="block">

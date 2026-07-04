@@ -98,7 +98,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     category: 'ad-platform',
     accent: '#1877f2',
     docsUrl: 'https://developers.facebook.com/documentation/ads-commerce/marketing-api/guides/lead-ads',
-    summary: 'Uses Meta Marketing API lead ads endpoints and webhooks to collect submitted form responses from Facebook and Instagram. ProspectGrid maps form fields and ad context into scoring, dedupe, and CRM routing.',
+    summary: 'Uses Meta Marketing API lead ads endpoints and webhooks to collect submitted form responses from Facebook and Instagram. SYNQ maps form fields and ad context into scoring, dedupe, and CRM routing.',
     apiNotes: [
       'Lead ads expose submitted field data, form IDs, ad IDs, page context, creation time, and lead identifiers when the app has the correct page and leads permissions.',
       'Best practice is webhook-first ingestion for new leads, with API backfill for missed records and auditing.',
@@ -237,7 +237,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
       { name: 'Deals and associations', fields: ['deal_id', 'pipeline', 'dealstage', 'amount', 'associated_contact_id'], cadence: 'Hourly' },
     ],
     sends: [
-      { name: 'Contact score update', fields: ['email', 'prospectgrid_score', 'prospectgrid_route_reason', 'lead_source'], cadence: 'On scoring update' },
+      { name: 'Contact score update', fields: ['email', 'synq_score', 'synq_route_reason', 'lead_source'], cadence: 'On scoring update' },
       { name: 'Deal or task creation', fields: ['dealname', 'pipeline', 'dealstage', 'amount', 'hubspot_owner_id'], cadence: 'On hot route' },
     ],
     metrics: [
@@ -248,8 +248,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     ],
     mappings: [
       { source: 'lead.email', destination: 'contact.email', rule: 'Primary match and dedupe key' },
-      { source: 'lead_score', destination: 'contact.prospectgrid_score', rule: 'Custom property updated on scoring runs' },
-      { source: 'routing_reason', destination: 'contact.prospectgrid_route_reason', rule: 'Visible to sales owners' },
+      { source: 'lead_score', destination: 'contact.synq_score', rule: 'Custom property updated on scoring runs' },
+      { source: 'routing_reason', destination: 'contact.synq_route_reason', rule: 'Visible to sales owners' },
       { source: 'pipeline_value', destination: 'deal.amount', rule: 'Creates forecast context on hot routes' },
     ],
     records: [
@@ -280,7 +280,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
       { name: 'Opportunity context', fields: ['Opportunity.Id', 'StageName', 'Amount', 'CloseDate', 'AccountId'], cadence: 'Hourly' },
     ],
     sends: [
-      { name: 'Lead upsert and routing', fields: ['Company', 'Email', 'Phone', 'LeadSource', 'OwnerId', 'ProspectGrid_Score__c'], cadence: 'Near real-time' },
+      { name: 'Lead upsert and routing', fields: ['Company', 'Email', 'Phone', 'LeadSource', 'OwnerId', 'SYNQ_Score__c'], cadence: 'Near real-time' },
       { name: 'Campaign membership', fields: ['CampaignId', 'LeadId', 'ContactId', 'Status'], cadence: 'On attribution match' },
     ],
     metrics: [
@@ -291,7 +291,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     ],
     mappings: [
       { source: 'company_domain', destination: 'Account.Website', rule: 'Primary account dedupe key' },
-      { source: 'lead_score', destination: 'Lead.ProspectGrid_Score__c', rule: 'Custom score field' },
+      { source: 'lead_score', destination: 'Lead.SYNQ_Score__c', rule: 'Custom score field' },
       { source: 'source_campaign', destination: 'CampaignMember.CampaignId', rule: 'Campaign attribution' },
       { source: 'route_owner', destination: 'Lead.OwnerId', rule: 'Territory owner assignment' },
     ],
@@ -311,7 +311,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     category: 'capture',
     accent: '#65a30d',
     docsUrl: 'https://developer.mozilla.org/en-US/docs/Web/API/FormData',
-    summary: 'Uses ProspectGrid-owned webhooks and form handlers to capture first-party submissions, verify payload signatures, preserve attribution, and score form answers before CRM routing.',
+    summary: 'Uses SYNQ-owned webhooks and form handlers to capture first-party submissions, verify payload signatures, preserve attribution, and score form answers before CRM routing.',
     apiNotes: [
       'This is a first-party connector, so the most important correctness concerns are signature verification, consent capture, payload schema stability, and replay protection.',
       'UTM and referrer values should be captured at submission time because ad platforms may not expose full click context later.',
@@ -353,9 +353,9 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     category: 'enrichment',
     accent: '#7c3aed',
     docsUrl: 'https://clearbit.com/docs',
-    summary: 'Represents an enrichment-provider connector. ProspectGrid normalizes provider responses into company, person, contact-verification, fit-score, and dedupe fields before routing to CRM.',
+    summary: 'Represents an enrichment-provider connector. SYNQ normalizes provider responses into company, person, contact-verification, fit-score, and dedupe fields before routing to CRM.',
     apiNotes: [
-      'Provider schemas vary, so enrichment fields should be normalized into ProspectGrid-owned company, person, and verification objects.',
+      'Provider schemas vary, so enrichment fields should be normalized into SYNQ-owned company, person, and verification objects.',
       'Do not assume every provider returns phone, verified email, employee count, revenue, or LinkedIn URL for every lead.',
       'Dedupe confidence should be stored separately from firmographic fit so routing rules can decide whether to create, update, or suppress a CRM record.',
     ],

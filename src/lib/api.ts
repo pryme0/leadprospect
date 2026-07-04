@@ -10,6 +10,35 @@ function wait<T>(data: T, ms = 180): MockResponse<T> {
   });
 }
 
+/**
+ * Real network call for the persisted Lead engine (backed by /api/leads).
+ * Returns the same `{ data }` envelope the mock layer uses so callers are
+ * unchanged. Throws an Error carrying the server message on failure.
+ */
+/** Bearer token from the admin session (browser only). Lets server routes
+ * identify the logged-in user so leads can be scoped per user. */
+function authHeader(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const token = localStorage.getItem('synq_admin_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function apiFetch<T>(input: string, init?: RequestInit): Promise<{ data: T }> {
+  const res = await fetch(input, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...authHeader(), ...(init?.headers || {}) },
+  });
+  let json: any = null;
+  try { json = await res.json(); } catch { /* empty body */ }
+  if (!res.ok) {
+    const message = json?.message || json?.error || `Request failed (${res.status})`;
+    const err: any = new Error(message);
+    err.response = { data: json };
+    throw err;
+  }
+  return { data: json as T };
+}
+
 function todayMinus(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -112,21 +141,6 @@ interface MockSignal {
   enriched_via?: string | null;
   enriched_at?: string | null;
   ghl_contact_id?: string | null;
-}
-
-interface MockLead {
-  id: string;
-  first_name: string;
-  email: string;
-  phone_number: string;
-  timeline_to_start: string;
-  income_goal: string;
-  source_tool: string;
-  intent_level: IntentLevel;
-  consented: boolean;
-  ghl_contact_id: string | null;
-  lead_source: string | null;
-  created_at: string;
 }
 
 interface MockOutreachMessage {
@@ -274,7 +288,7 @@ const signals: MockSignal[] = [
     name: 'Ava Mitchell',
     email: null,
     phone: null,
-    content: 'Instagram ad lead asking whether ProspectGrid can suppress existing customers from retargeting campaigns.',
+    content: 'Instagram ad lead asking whether SYNQ can suppress existing customers from retargeting campaigns.',
     url: 'https://instagram.com/p/sig_1005',
     timestamp: todayMinus(2),
     intent_level: 'LOW_INTENT',
@@ -322,69 +336,13 @@ const signals: MockSignal[] = [
   },
 ];
 
-let leads: MockLead[] = [
-  {
-    id: 'lead_2001',
-    first_name: 'Maria',
-    email: 'maria@northstarclinics.example',
-    phone_number: '+1 312 555 0198',
-    timeline_to_start: 'Within 30 days',
-    income_goal: '$250,000 - $500,000 pipeline',
-    source_tool: 'google-ads',
-    intent_level: 'HIGH_INTENT',
-    consented: true,
-    ghl_contact_id: 'ghl_7781',
-    lead_source: 'Website',
-    created_at: todayMinus(0),
-  },
-  {
-    id: 'lead_2002',
-    first_name: 'Daniel',
-    email: 'daniel@beaconfinancial.example',
-    phone_number: '+1 646 555 0134',
-    timeline_to_start: '1-3 months',
-    income_goal: '$500,000 - $1M pipeline',
-    source_tool: 'crm-import',
-    intent_level: 'HIGH_INTENT',
-    consented: true,
-    ghl_contact_id: null,
-    lead_source: 'so',
-    created_at: todayMinus(1),
-  },
-  {
-    id: 'lead_2003',
-    first_name: 'Ava',
-    email: 'ava@cedarservices.example',
-    phone_number: '+1 213 555 0171',
-    timeline_to_start: '3-6 months',
-    income_goal: '$100,000 - $250,000 pipeline',
-    source_tool: 'instagram-ads',
-    intent_level: 'MEDIUM_INTENT',
-    consented: true,
-    ghl_contact_id: 'ghl_7789',
-    lead_source: 'cr',
-    created_at: todayMinus(2),
-  },
-  {
-    id: 'lead_2004',
-    first_name: 'Samuel',
-    email: 'samuel@asterlogistics.example',
-    phone_number: '+1 415 555 0184',
-    timeline_to_start: 'Immediately',
-    income_goal: '$1M+ pipeline',
-    source_tool: 'linkedin-ads',
-    intent_level: 'MEDIUM_INTENT',
-    consented: true,
-    ghl_contact_id: null,
-    lead_source: 'Website',
-    created_at: todayMinus(3),
-  },
-];
+// Leads are no longer mocked here — they persist in leads.db and are served by
+// the /api/leads route. See leadsApi.quickCapture and adminApi.getLeads below.
 
 let users: MockUser[] = [
-  { id: 'usr_1', name: 'ProspectGrid Admin', email: 'admin@prospectgrid.demo', role: 'admin', is_active: true, created_at: todayMinus(42) },
-  { id: 'usr_2', name: 'Growth Operator', email: 'growth@prospectgrid.demo', role: 'admin', is_active: true, created_at: todayMinus(18) },
-  { id: 'usr_3', name: 'Read Only Analyst', email: 'analyst@prospectgrid.demo', role: 'viewer', is_active: true, created_at: todayMinus(9) },
+  { id: 'usr_1', name: 'SYNQ Admin', email: 'admin@synq.demo', role: 'admin', is_active: true, created_at: todayMinus(42) },
+  { id: 'usr_2', name: 'Growth Operator', email: 'growth@synq.demo', role: 'admin', is_active: true, created_at: todayMinus(18) },
+  { id: 'usr_3', name: 'Read Only Analyst', email: 'analyst@synq.demo', role: 'viewer', is_active: true, created_at: todayMinus(9) },
 ];
 
 let outreach: MockOutreachMessage[] = [
@@ -397,7 +355,7 @@ let outreach: MockOutreachMessage[] = [
     original_content: signals[0].content,
     original_url: signals[0].url,
     tool_recommendation: 'source-routing',
-    suggested_reply: 'Maria, ProspectGrid can connect the Google Ads source, clinic-location fit, and pricing-page activity so the right sales owner follows up today.',
+    suggested_reply: 'Maria, SYNQ can connect the Google Ads source, clinic-location fit, and pricing-page activity so the right sales owner follows up today.',
     outreach_type: 'dm',
     status: 'pending',
     auto_approved: false,
@@ -440,7 +398,7 @@ let outreach: MockOutreachMessage[] = [
     original_content: signals[2].content,
     original_url: signals[2].url,
     tool_recommendation: 'dedupe-preview',
-    suggested_reply: 'ProspectGrid can show how Salesforce dedupe, source scoring, and sales-owner routing work before new campaign leads hit your CRM.',
+    suggested_reply: 'SYNQ can show how Salesforce dedupe, source scoring, and sales-owner routing work before new campaign leads hit your CRM.',
     outreach_type: 'reply',
     status: 'sent',
     auto_approved: true,
@@ -462,7 +420,7 @@ let outreach: MockOutreachMessage[] = [
     original_content: signals[5].content,
     original_url: signals[5].url,
     tool_recommendation: 'account-expansion',
-    suggested_reply: 'Daniel, ProspectGrid can flag the new buying committee activity and route expansion accounts without mixing them into net-new ad leads.',
+    suggested_reply: 'Daniel, SYNQ can flag the new buying committee activity and route expansion accounts without mixing them into net-new ad leads.',
     outreach_type: 'dm',
     status: 'failed',
     auto_approved: false,
@@ -477,152 +435,14 @@ let outreach: MockOutreachMessage[] = [
   },
 ];
 
-function buildStats(): SignalStats {
-  const processed = signals.filter((s) => s.processed).length;
-  return {
-    total: signals.length,
-    processed,
-    pending: signals.length - processed,
-    withEmail: signals.filter((s) => s.email || s.enriched_email).length,
-    automationSent: signals.filter((s) => s.automation_sent_at).length,
-    automationSentToday: signals.filter((s) => s.automation_sent_at && new Date(s.automation_sent_at).toDateString() === new Date().toDateString()).length,
-    automationSentYesterday: 1,
-    automationPending: signals.filter((s) => s.processed && !s.automation_sent_at && (s.intent_level === 'HIGH_INTENT' || s.intent_level === 'MEDIUM_INTENT')).length,
-    byIntentLevel: [
-      { intent_level: 'HIGH_INTENT', count: signals.filter((s) => s.intent_level === 'HIGH_INTENT').length },
-      { intent_level: 'MEDIUM_INTENT', count: signals.filter((s) => s.intent_level === 'MEDIUM_INTENT').length },
-      { intent_level: 'LOW_INTENT', count: signals.filter((s) => s.intent_level === 'LOW_INTENT').length },
-      { intent_level: null, count: signals.filter((s) => !s.processed).length },
-    ],
-    byIntentCategory: ['Budget Active', 'High Fit Account', 'Evaluating Vendor', 'Needs Outreach', 'Existing Customer', null].map((intent_category) => ({
-      intent_category,
-      count: signals.filter((s) => s.intent_category === intent_category).length,
-    })),
-    byIngestionCategory: ['google_ads', 'meta_ads', 'linkedin_ads', 'tiktok_ads', 'instagram_ads', 'crm_import'].map((ingestion_category) => ({
-      ingestion_category,
-      count: signals.filter((s) => s.ingestion_category === ingestion_category).length,
-    })),
-  };
-}
-
-function buildMetrics() {
-  const stats = buildStats();
-  const signals_by_day = Array.from({ length: 8 }, (_, i) => ({
-    date: todayMinus(7 - i),
-    count: [11, 18, 15, 23, 31, 28, 36, 42][i],
-  }));
-  const leads_by_day = Array.from({ length: 8 }, (_, i) => ({
-    date: todayMinus(7 - i),
-    count: [2, 3, 4, 5, 8, 7, 9, 11][i],
-  }));
-
-  return {
-    total_signals: 1248,
-    high_intent_count: 312,
-    high_intent_signals: 312,
-    high_intent_wow: 18,
-    leads_captured: 186,
-    conversion_rate: 0.149,
-    avg_urgency: 76,
-    urgency_distribution: [
-      { bucket: '0-30', count: 91 },
-      { bucket: '31-60', count: 384 },
-      { bucket: '61-80', count: 461 },
-      { bucket: '81-100', count: 312 },
-    ],
-    ghl_sync_rate: 0.82,
-    ghl_synced: leads.filter((l) => l.ghl_contact_id).length,
-    ghl_unsynced: leads.filter((l) => !l.ghl_contact_id).length,
-    signals_by_day,
-    signals_by_platform: [
-      { platform: 'google', count: 468 },
-      { platform: 'linkedin', count: 284 },
-      { platform: 'instagram', count: 206 },
-      { platform: 'tiktok', count: 173 },
-      { platform: 'reddit', count: 117 },
-    ],
-    leads_by_tool: [
-      { tool: 'google-ads', count: 92 },
-      { tool: 'meta-ads', count: 57 },
-      { tool: 'crm-import', count: 37 },
-    ],
-    leads_by_day,
-    top_pain_points: [
-      { point: 'Source attribution gaps', count: 184 },
-      { point: 'Duplicate CRM records', count: 146 },
-      { point: 'Slow sales handoff', count: 121 },
-      { point: 'Audience suppression gaps', count: 95 },
-    ],
-    daily: {
-      today: {
-        linkedin_signals: 42,
-        linkedin_high_intent: 13,
-        leads_captured: 11,
-        conversion_rate: 0.17,
-        avg_urgency: 79,
-      },
-      yesterday: {
-        linkedin_signals: 36,
-        linkedin_high_intent: 9,
-        leads_captured: 9,
-        conversion_rate: 0.13,
-        avg_urgency: 74,
-      },
-    },
-    demo_stats: stats,
-  };
-}
-
-function addLeadFromCapture(data: LeadCaptureRequest | QuickCaptureRequest, sourceTool = 'homepage'): void {
-  const firstName = data.first_name || 'Demo';
-  leads = [
-    {
-      id: `lead_${Date.now()}`,
-      first_name: firstName,
-      email: data.email,
-      phone_number: data.phone_number,
-      timeline_to_start: 'New demo capture',
-      income_goal: 'Not specified',
-      source_tool: 'source_tool' in data ? data.source_tool : sourceTool,
-      intent_level: 'HIGH_INTENT',
-      consented: data.consented,
-      ghl_contact_id: null,
-      lead_source: data.lead_source || 'Website',
-      created_at: new Date().toISOString(),
-    },
-    ...leads,
-  ];
-}
-
 export const leadsApi = {
-  quickCapture: (data: QuickCaptureRequest) => {
-    addLeadFromCapture(data, 'homepage-prompt');
-    return wait({ ok: true, id: `lead_${Date.now()}` });
-  },
+  // Persists a real lead via the /api/leads route (leads.db).
+  quickCapture: (data: QuickCaptureRequest) =>
+    apiFetch<{ ok: boolean; id: string }>('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
-
-function filterSignals(params: Record<string, string | number | undefined>) {
-  let rows = [...signals];
-  if (params.source) rows = rows.filter((s) => s.source === params.source);
-  if (params.intent_level) rows = rows.filter((s) => s.intent_level === params.intent_level);
-  if (params.processed) rows = rows.filter((s) => String(s.processed) === String(params.processed));
-  if (params.has_email === 'true') rows = rows.filter((s) => Boolean(s.email || s.enriched_email));
-  if (params.automation_sent === 'true') rows = rows.filter((s) => Boolean(s.automation_sent_at));
-  if (params.intent_category && params.intent_category !== '__null__') rows = rows.filter((s) => s.intent_category === params.intent_category);
-  if (params.ingestion_category && params.ingestion_category !== '__null__') rows = rows.filter((s) => s.ingestion_category === params.ingestion_category);
-  if (params.q) {
-    const q = String(params.q).toLowerCase();
-    rows = rows.filter((s) => [s.username, s.name, s.email, s.content, s.summary, s.enriched_company, s.enriched_title].filter(Boolean).join(' ').toLowerCase().includes(q));
-  }
-  return rows;
-}
-
-function filterLeads(params: { source_tool?: string; intent_level?: string }) {
-  let rows = [...leads];
-  if (params.source_tool) rows = rows.filter((l) => l.source_tool === params.source_tool);
-  if (params.intent_level) rows = rows.filter((l) => l.intent_level === params.intent_level);
-  return rows;
-}
 
 function outreachStats() {
   const sent = outreach.filter((m) => m.status === 'sent');
@@ -662,24 +482,32 @@ function outreachStats() {
 export const adminApi = {
   login: (_data: AdminLoginRequest) => wait({ token: 'demo-admin-token' }, 300),
 
-  getDashboardMetrics: () => wait(buildMetrics()),
+  // Dashboard + signals now read real crawler records from the classifier
+  // Postgres (via /api/crawler/*), not mock data.
+  getDashboardMetrics: () => apiFetch<any>('/api/crawler/metrics'),
 
-  getSignalStats: () => wait(buildStats()),
+  getSignalStats: () => apiFetch<any>('/api/crawler/stats'),
+
+  // Keyword-refinement engine: pace vs. the 5/day target, top-performing
+  // keywords, and recent prune/regenerate activity for the logged-in org.
+  getKeywordPerformance: () => apiFetch<any>('/api/crawler/keyword-performance'),
 
   getSignals: (params: Record<string, string | number | undefined> = {}) => {
-    const rows = filterSignals(params);
-    const limit = Number(params.limit ?? 20);
-    if (params.offset !== undefined) {
-      const result = offsetSlice(rows, Number(params.offset), limit);
-      return wait<any>({ signals: result.data, data: result.data, total: result.total, total_pages: result.total_pages, totalPages: result.total_pages });
-    }
-    const result = pageSlice(rows, Number(params.page ?? 1), limit);
-    return wait<any>({ signals: result.data, data: result.data, total: result.total, total_pages: result.total_pages, totalPages: result.total_pages });
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') qs.set(k, String(v));
+    });
+    return apiFetch<any>(`/api/crawler/signals?${qs.toString()}`);
   },
 
+  // The Lead Queue shows the crawler's enriched, deduped, prospect-only leads.
   getLeads: (params: { page?: number; limit?: number; source_tool?: string; intent_level?: string } = {}) => {
-    const result = pageSlice(filterLeads(params), params.page ?? 1, params.limit ?? 20);
-    return wait<any>({ leads: result.data, data: result.data, total: result.total, total_pages: result.total_pages, totalPages: result.total_pages, pagination: { total: result.total, total_pages: result.total_pages } });
+    const qs = new URLSearchParams();
+    qs.set('page', String(params.page ?? 1));
+    qs.set('limit', String(params.limit ?? 20));
+    if (params.source_tool) qs.set('source_tool', params.source_tool);
+    if (params.intent_level) qs.set('intent_level', params.intent_level);
+    return apiFetch<any>(`/api/crawler/leads?${qs.toString()}`);
   },
 
   triggerIngest: (platform: 'twitter' | 'reddit' | 'youtube' | 'linkedin' | 'instagram' | 'google' | 'tiktok') =>
@@ -712,24 +540,21 @@ export const adminApi = {
   },
 
   getClassifiedSignals: (params: { limit?: number; offset?: number; intent_level?: string; min_urgency?: number } = {}) => {
-    let rows = signals.filter((s) => s.processed);
-    if (params.intent_level) rows = rows.filter((s) => s.intent_level === params.intent_level);
-    if (params.min_urgency) rows = rows.filter((s) => s.urgency_score >= Number(params.min_urgency));
-    const result = offsetSlice(rows, params.offset ?? 0, params.limit ?? 20);
-    return wait({ data: result.data, total: result.total });
+    const qs = new URLSearchParams();
+    qs.set('processed', 'true');
+    qs.set('limit', String(params.limit ?? 20));
+    qs.set('offset', String(params.offset ?? 0));
+    if (params.intent_level) qs.set('intent_level', params.intent_level);
+    if (params.min_urgency) qs.set('min_urgency', String(params.min_urgency));
+    qs.set('order_by', 'urgency_score');
+    return apiFetch<any>(`/api/crawler/signals?${qs.toString()}`);
   },
 
-  getSignalById: (id: string) => wait<any>(signals.find((s) => s.id === id) || signals[0]),
+  getSignalById: (id: string) => apiFetch<any>(`/api/crawler/signals/${encodeURIComponent(id)}`),
 
   getHealth: () => wait({ ok: true, status: 'ok', version: 'demo-2.0.0', timestamp: new Date().toISOString() }),
 
-  retryGhlSync: () => {
-    const unsynced = leads.filter((l) => !l.ghl_contact_id);
-    unsynced.forEach((lead, i) => {
-      lead.ghl_contact_id = `ghl_demo_${Date.now()}_${i}`;
-    });
-    return wait({ queued: unsynced.length, synced: unsynced.length }, 800);
-  },
+  retryGhlSync: () => apiFetch<{ queued: number; synced: number }>('/api/leads/sync', { method: 'POST' }),
 
   getIntegrationStatus: () => wait({
     GOOGLE_ADS_CUSTOMER_ID: true,
@@ -742,22 +567,16 @@ export const adminApi = {
     ENRICHMENT_API_KEY: true,
   }),
 
-  getUsers: () => wait(users),
+  // Real, persisted team management (SQLite users table) with plan-based seats.
+  getUsers: () => apiFetch<{ users: any[]; seats: { used: number; limit: number; remaining: number; modules: string[] } }>('/api/users'),
 
-  createUser: (data: { name: string; email: string; password: string; role: 'admin' | 'viewer' }) => {
-    users = [{ id: `usr_${Date.now()}`, name: data.name, email: data.email, role: data.role, is_active: true, created_at: new Date().toISOString() }, ...users];
-    return wait(users[0]);
-  },
+  createUser: (data: { name: string; email: string; password: string; role: 'admin' | 'viewer' }) =>
+    apiFetch<any>('/api/users', { method: 'POST', body: JSON.stringify(data) }),
 
-  updateUser: (id: string, data: { name?: string; role?: 'admin' | 'viewer'; is_active?: boolean; password?: string }) => {
-    users = users.map((u) => (u.id === id ? { ...u, ...data } : u));
-    return wait(users.find((u) => u.id === id));
-  },
+  updateUser: (id: string, data: { name?: string; role?: 'admin' | 'viewer'; is_active?: boolean; password?: string }) =>
+    apiFetch<any>(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
-  deleteUser: (id: string) => {
-    users = users.filter((u) => u.id !== id);
-    return wait({ ok: true });
-  },
+  deleteUser: (id: string) => apiFetch<{ ok: boolean }>(`/api/users/${id}`, { method: 'DELETE' }),
 
   getOutreachQueue: (params: { page?: number; limit?: number; status?: string; platform?: string; tool_recommendation?: string } = {}) => {
     let rows = [...outreach];

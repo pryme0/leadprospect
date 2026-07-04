@@ -10,7 +10,7 @@
 // when they navigate to a clean URL. We DO overwrite if a new utm_source
 // shows up (e.g. they bounce out and come back via a different campaign).
 
-const STORAGE_KEY = 'prospectgrid_utm_v1';
+const STORAGE_KEY = 'synq_utm_v1';
 
 const UTM_KEYS = [
   'utm_source',

@@ -1,0 +1,96 @@
+import { NextResponse } from 'next/server';
+import { listSignals } from '@/lib/crawler/signals-db';
+import { toUiLead } from '@/lib/crawler/map';
+import { getUserFromRequest } from '@/lib/auth/session';
+import { getOrgProfile } from '@/lib/settings/org-store';
+import { getUserTier } from '@/lib/subscription/server-store';
+import { TIER_LIMITS } from '@/lib/subscription/tiers';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * GET /api/crawler/leads — the logged-in user's outbound lead list.
+ *
+ * Leads are scoped to the user's crawler SBU (set by /api/leads/generate), so
+ * each user only sees prospects generated from their own website analysis.
+ * Mirrors the crawler's /api/signals/leads shaping: excludes non-prospects,
+ * dedupes one row per person, orders by urgency.
+ * Query: page, limit, source_tool (→ ingestion_category), intent_level, with_email.
+ */
+export async function GET(req: Request) {
+  try {
+    // Identify the user and resolve their per-user SBU scope.
+    const user = getUserFromRequest(req);
+    const sbu = user ? getOrgProfile(user.sub)?.crawler_sbu_id ?? null : null;
+
+    // No SBU yet → the user hasn't generated leads. Return an empty set with a
+    // hint rather than leaking the global pool.
+    if (!sbu) {
+      return NextResponse.json({
+        leads: [], data: [], total: 0, total_pages: 1, totalPages: 1,
+        pagination: { total: 0, total_pages: 1 },
+        needs_generation: true,
+      });
+    }
+
+    const sp = new URL(req.url).searchParams;
+    const limit = Math.min(Number(sp.get('limit') ?? 20) || 20, 500);
+    const page = Math.max(1, Number(sp.get('page') ?? 1));
+    const offset = (page - 1) * limit;
+
+    const intent = sp.get('intent_level');
+    // Show leads from ALL channels (LinkedIn, TikTok, etc.). Social leads (TikTok/
+    // IG) can't be email-enriched (Apollo is LinkedIn-based), so email is an
+    // opt-in FILTER, not a default gate: pass ?with_email=true for contactable-only.
+    const withEmail = sp.get('with_email') === 'true';
+
+    // Basic-tier daily HIGH-intent cap: scope to today's crop and clamp the page
+    // size to the plan's daily allowance. Nothing is deleted — leads generated
+    // beyond the cap simply aren't surfaced until the next day (fresh `since`
+    // boundary) or an upgrade. Only applies when the caller is explicitly asking
+    // for HIGH_INTENT leads (the tier promise is specifically about that bucket).
+    let since: string | undefined;
+    let dailyCapLimit = limit;
+    if (user && intent === 'HIGH_INTENT') {
+      const tier = getUserTier(user.sub) ?? 'basic';
+      const cap = TIER_LIMITS[tier].maxHighIntentLeadsPerDay;
+      if (cap !== null) {
+        since = new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString();
+        dailyCapLimit = Math.min(limit, cap);
+      }
+    }
+
+    const { signals, total } = await listSignals({
+      sbu,
+      intentLevel: intent === 'HIGH_INTENT' || intent === 'MEDIUM_INTENT' || intent === 'LOW_INTENT' ? intent : undefined,
+      hasEmail: withEmail ? true : undefined,
+      since,
+      orderBy: 'urgency_score',
+      excludeNonProspects: true,
+      deduplicateByPerson: true,
+      limit: dailyCapLimit,
+      offset,
+    });
+
+    let data = signals.map(toUiLead);
+    // source_tool filter maps to the mapped ingestion_category/source label.
+    const sourceTool = sp.get('source_tool');
+    if (sourceTool) data = data.filter((l) => l.source_tool === sourceTool);
+
+    const total_pages = Math.max(1, Math.ceil(total / limit));
+    return NextResponse.json({
+      leads: data,
+      data,
+      total,
+      total_pages,
+      totalPages: total_pages,
+      pagination: { total, total_pages },
+    });
+  } catch (err) {
+    console.error('[GET /api/crawler/leads]', err);
+    return NextResponse.json(
+      { error: 'Failed to load leads', leads: [], data: [], total: 0, total_pages: 1, pagination: { total: 0, total_pages: 1 } },
+      { status: 500 },
+    );
+  }
+}

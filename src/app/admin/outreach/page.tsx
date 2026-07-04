@@ -168,7 +168,7 @@ export default function OutreachPage() {
       setEmailStatus(action === 'schedule' ? 'scheduled' : 'sent');
       pushDeliveryLog(
         action === 'test'
-          ? `Test delivered to growth@prospectgrid.demo with ${selectedMessage.platform} context.`
+          ? `Test delivered to growth@synq.demo with ${selectedMessage.platform} context.`
           : action === 'schedule'
             ? `Scheduled follow-up for ${getRecipientName(selectedMessage)} tomorrow at 9:00 AM.`
             : `Email sent to ${recipient}; route marked ready for CRM follow-up.`,
@@ -578,7 +578,7 @@ function getRecipientEmail(message: OutreachMessage) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '.')
     .replace(/^\.+|\.+$/g, '');
-  return `${slug || 'lead'}@${message.platform}.prospectgrid.demo`;
+  return `${slug || 'lead'}@${message.platform}.synq.demo`;
 }
 
 function buildEmailSubject(message: OutreachMessage, template: 'qualified' | 'crm' | 'nurture') {
@@ -594,14 +594,14 @@ function buildEmailBody(message: OutreachMessage, template: 'qualified' | 'crm' 
   const recommendation = message.suggested_reply.trim();
 
   if (template === 'crm') {
-    return `Hi ${name},\n\nI noticed your team is looking at ${TOOL_LABELS[message.tool_recommendation] || 'lead routing'} from ${message.platform}. The useful part is not just capturing the lead, it is keeping the source, score, dedupe status, and owner assignment together before the CRM handoff.\n\n${recommendation}\n\nWould it help if I sent over a quick routing map for this workflow?\n\nBest,\nProspectGrid`;
+    return `Hi ${name},\n\nI noticed your team is looking at ${TOOL_LABELS[message.tool_recommendation] || 'lead routing'} from ${message.platform}. The useful part is not just capturing the lead, it is keeping the source, score, dedupe status, and owner assignment together before the CRM handoff.\n\n${recommendation}\n\nWould it help if I sent over a quick routing map for this workflow?\n\nBest,\nSYNQ`;
   }
 
   if (template === 'nurture') {
-    return `Hi ${name},\n\nSaw the ${message.platform} signal around: "${context.slice(0, 180)}${context.length > 180 ? '...' : ''}"\n\nNo hard pitch here. The pattern usually means the account is comparing source quality, CRM routing, and follow-up timing. ProspectGrid can keep that activity scored until the lead is ready for sales.\n\nWant me to share the short checklist we use for this?\n\nBest,\nProspectGrid`;
+    return `Hi ${name},\n\nSaw the ${message.platform} signal around: "${context.slice(0, 180)}${context.length > 180 ? '...' : ''}"\n\nNo hard pitch here. The pattern usually means the account is comparing source quality, CRM routing, and follow-up timing. SYNQ can keep that activity scored until the lead is ready for sales.\n\nWant me to share the short checklist we use for this?\n\nBest,\nSYNQ`;
   }
 
-  return `Hi ${name},\n\nYour recent ${message.platform} activity stood out because it points to active buying intent: ${message.intent_category || 'source and routing evaluation'}.\n\n${recommendation}\n\nIf useful, I can show how ProspectGrid would score this lead, dedupe it, and route it to the right owner before the next campaign sync.\n\nBest,\nProspectGrid`;
+  return `Hi ${name},\n\nYour recent ${message.platform} activity stood out because it points to active buying intent: ${message.intent_category || 'source and routing evaluation'}.\n\n${recommendation}\n\nIf useful, I can show how SYNQ would score this lead, dedupe it, and route it to the right owner before the next campaign sync.\n\nBest,\nSYNQ`;
 }
 
 function EmailComposer({
@@ -715,7 +715,7 @@ function EmailComposer({
               From
             </span>
             <input
-              value="ProspectGrid Growth <growth@prospectgrid.demo>"
+              value="SYNQ Growth <growth@synq.demo>"
               readOnly
               className="h-11 w-full rounded-lg border px-3 text-sm outline-none"
               style={{ background: 'var(--t-fg-03)', borderColor: 'var(--a-border)', color: 'var(--t-fg-85)' }}

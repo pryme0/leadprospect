@@ -45,7 +45,7 @@ function ThankYouContent() {
           Request received
         </p>
         <h1 className="mb-4 text-3xl font-bold tracking-tight text-white md:text-5xl">
-          Your ProspectGrid workspace is ready.
+          Your SYNQ workspace is ready.
         </h1>
         <p className="mx-auto mb-2 max-w-2xl text-lg text-brand-muted">
           Your <span className="font-semibold text-[#00CEC8]">{toolLabel}</span> has been unlocked.
@@ -71,7 +71,7 @@ function ThankYouContent() {
             Open Demo Workspace
           </Link>
           <Link href="/" className="btn-secondary">
-            Back to ProspectGrid
+            Back to SYNQ
           </Link>
         </div>
 

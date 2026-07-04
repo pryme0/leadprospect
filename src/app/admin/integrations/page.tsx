@@ -1,23 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { INTEGRATIONS, type IntegrationCategory } from '@/lib/integrations';
 import { useWorkspaceTheme } from '@/lib/workspace-theme';
 
 type ConnectorState = 'connected' | 'needs-setup' | 'syncing' | 'error';
 type StatusFilter = 'all' | ConnectorState;
-
-const initialStatuses: Record<string, ConnectorState> = {
-  'google-ads': 'connected',
-  'meta-ads': 'connected',
-  'tiktok-ads': 'connected',
-  'linkedin-ads': 'connected',
-  hubspot: 'connected',
-  salesforce: 'needs-setup',
-  'website-forms': 'connected',
-  'lead-enrichment': 'connected',
-};
 
 const categories: Array<{ value: 'all' | IntegrationCategory; label: string }> = [
   { value: 'all', label: 'All sources' },
@@ -69,21 +58,85 @@ function readableOn(hex: string) {
   return luminance > 0.45 ? '#112126' : '#ffffff';
 }
 
+interface ConnectorMeta { oauth: boolean; provider_configured: boolean; account_label: string | null; source: 'oauth' | 'env' | null }
+
+function authHeaders(): Record<string, string> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export default function IntegrationsPage() {
   const theme = useWorkspaceTheme();
-  const [statuses, setStatuses] = useState<Record<string, ConnectorState>>(initialStatuses);
+  const [statuses, setStatuses] = useState<Record<string, ConnectorState>>({});
+  const [meta, setMeta] = useState<Record<string, ConnectorMeta>>({});
   const [category, setCategory] = useState<'all' | IntegrationCategory>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState(INTEGRATIONS[0]?.id ?? '');
-  const [activity, setActivity] = useState([
-    'Google Ads uploaded 92 qualified offline conversions.',
-    'Meta Lead Ads webhook delivered 57 forms successfully.',
-    'Salesforce is waiting for OAuth and custom field validation.',
-  ]);
+  const [activity, setActivity] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+
+  /* Real connection status — per-user OAuth connections + server config, polled live. */
+  const loadStatus = useCallback((manual = false) => {
+    if (manual) setChecking(true);
+    fetch('/api/settings/integrations', { cache: 'no-store', headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data: { statuses?: Record<string, ConnectorState>; meta?: Record<string, ConnectorMeta>; events?: string[] }) => {
+        if (data.statuses) setStatuses(data.statuses);
+        if (data.meta) setMeta(data.meta);
+        setActivity(data.events ?? []);
+        setLastChecked(new Date());
+      })
+      .catch(() => {})
+      .finally(() => { setLoading(false); setChecking(false); });
+  }, []);
+
+  useEffect(() => {
+    loadStatus();
+    const id = setInterval(() => loadStatus(), 30_000);
+    return () => clearInterval(id);
+  }, [loadStatus]);
+
+  /* Handle the OAuth return (?connected=… / ?error=…) and strip the params. */
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const connected = p.get('connected');
+    const err = p.get('error');
+    if (connected) { setNotice({ kind: 'ok', text: `Connected ${toTitle(connected)} successfully.` }); setSelectedId(connected); }
+    else if (err) { setNotice({ kind: 'err', text: `Connection failed: ${err.replace(/_/g, ' ')}` }); }
+    if (connected || err) { window.history.replaceState({}, '', '/admin/integrations'); loadStatus(); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Start OAuth: fetch the authorize URL (with our token), then redirect the browser. */
+  const connect = useCallback((id: string) => {
+    setBusyId(id); setNotice(null);
+    fetch(`/api/integrations/${id}/connect`, { headers: authHeaders() })
+      .then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => ({})) }))
+      .then(({ ok, body }) => {
+        if (ok && body.url) { window.location.href = body.url; return; }
+        if (body.needs_credentials) { window.location.href = `/admin/integrations/${id}`; return; }
+        setNotice({ kind: 'err', text: body.message || 'Could not start the connection.' });
+        setBusyId(null);
+      })
+      .catch(() => { setNotice({ kind: 'err', text: 'Could not start the connection.' }); setBusyId(null); });
+  }, []);
+
+  const disconnect = useCallback((id: string) => {
+    setBusyId(id); setNotice(null);
+    fetch(`/api/integrations/${id}/disconnect`, { method: 'POST', headers: authHeaders() })
+      .then(() => { setNotice({ kind: 'ok', text: 'Disconnected.' }); loadStatus(); })
+      .catch(() => setNotice({ kind: 'err', text: 'Could not disconnect.' }))
+      .finally(() => setBusyId(null));
+  }, [loadStatus]);
 
   const selected = INTEGRATIONS.find((integration) => integration.id === selectedId) ?? INTEGRATIONS[0];
   const selectedStatus = selected ? statuses[selected.id] ?? 'needs-setup' : 'needs-setup';
+  const selectedMeta = selected ? meta[selected.id] : undefined;
 
   const filteredIntegrations = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -107,23 +160,6 @@ export default function IntegrationsPage() {
   const connectedCount = Object.values(statuses).filter((status) => status === 'connected').length;
   const actionNeededCount = Object.values(statuses).filter((status) => status === 'needs-setup' || status === 'error').length;
   const activeFilterCount = Number(category !== 'all') + Number(statusFilter !== 'all') + Number(query.trim() !== '');
-
-  function appendActivity(message: string) {
-    setActivity((current) => [message, ...current].slice(0, 5));
-  }
-
-  function runConnectorAction(id: string, label: string) {
-    const integration = INTEGRATIONS.find((item) => item.id === id);
-    if (!integration) return;
-
-    setStatuses((current) => ({ ...current, [id]: 'syncing' }));
-    appendActivity(`${integration.label}: ${label.toLowerCase()} started.`);
-
-    window.setTimeout(() => {
-      setStatuses((current) => ({ ...current, [id]: 'connected' }));
-      appendActivity(`${integration.label}: ${label.toLowerCase()} completed using demo data.`);
-    }, 850);
-  }
 
   function resetFilters() {
     setCategory('all');
@@ -334,27 +370,73 @@ export default function IntegrationsPage() {
               </div>
               <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--t-fg-55)' }}>{selected.summary}</p>
 
-              <div className="mt-5 grid gap-2">
-                <button
-                  onClick={() => runConnectorAction(selected.id, selectedStatus === 'connected' ? 'Test connection' : 'Connect workspace')}
-                  className="min-h-11 rounded-lg px-4 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={selectedStatus === 'syncing'}
-                  style={{ background: selected.accent, color: readableOn(selected.accent) }}
+              <div className="mt-3 flex items-center gap-2 text-[11px]" style={{ color: 'var(--t-fg-45)', fontFamily: theme.fontMono }}>
+                <span>Requires env key</span>
+                <code className="rounded px-1.5 py-0.5" style={{ background: 'var(--a-card2)', color: 'var(--t-fg-70)' }}>{selected.key}</code>
+              </div>
+
+              {notice && (
+                <div
+                  className="mt-4 rounded-lg px-3 py-2 text-[12px] font-medium"
+                  style={{
+                    background: notice.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                    color: notice.kind === 'ok' ? '#047857' : '#b91c1c',
+                  }}
                 >
-                  {selectedStatus === 'syncing' ? 'Running check...' : selectedStatus === 'connected' ? 'Test connection' : 'Connect workspace'}
-                </button>
-                <button
-                  onClick={() => runConnectorAction(selected.id, selected.actions[0] ?? 'Sync connector')}
-                  className="min-h-11 rounded-lg border px-4 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={selectedStatus === 'syncing'}
+                  {notice.text}
+                </div>
+              )}
+
+              <div className="mt-5 grid gap-2">
+                {selectedMeta?.oauth ? (
+                  selectedStatus === 'connected' && selectedMeta?.source === 'oauth' ? (
+                    <>
+                      <div className="rounded-lg px-3 py-2 text-[12px]" style={{ background: 'var(--a-card2)', color: 'var(--t-fg-70)' }}>
+                        Connected{selectedMeta.account_label ? ` as ${selectedMeta.account_label}` : ''}.
+                      </div>
+                      <button
+                        onClick={() => disconnect(selected.id)}
+                        disabled={busyId === selected.id}
+                        className="min-h-11 rounded-lg border px-4 text-sm font-bold transition disabled:opacity-60"
+                        style={{ background: 'rgba(239,68,68,0.10)', borderColor: 'rgba(239,68,68,0.28)', color: '#b91c1c' }}
+                      >
+                        {busyId === selected.id ? 'Working…' : 'Disconnect'}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => connect(selected.id)}
+                      disabled={busyId === selected.id}
+                      className="min-h-11 rounded-lg px-4 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{ background: selected.accent, color: readableOn(selected.accent) }}
+                      title={selectedMeta?.provider_configured ? undefined : 'Server OAuth app credentials are not set for this provider yet.'}
+                    >
+                      {busyId === selected.id ? 'Redirecting…' : `Connect ${selected.label}`}
+                    </button>
+                  )
+                ) : (
+                  <button
+                    onClick={() => loadStatus(true)}
+                    className="min-h-11 rounded-lg px-4 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={checking}
+                    style={{ background: selected.accent, color: readableOn(selected.accent) }}
+                  >
+                    {checking ? 'Checking configuration…' : selectedStatus === 'connected' ? 'Verify connection' : 'Recheck configuration'}
+                  </button>
+                )}
+                <a
+                  href={selected.docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex min-h-11 items-center justify-center rounded-lg border px-4 text-sm font-bold transition"
                   style={{
                     background: `${selected.accent}12`,
                     borderColor: `${selected.accent}34`,
                     color: selected.accent,
                   }}
                 >
-                  {selected.actions[0] ?? 'Sync connector'}
-                </button>
+                  Setup guide ↗
+                </a>
                 <Link
                   href={`/admin/integrations/${selected.id}`}
                   className="flex min-h-11 items-center justify-center rounded-lg border px-4 text-sm font-bold transition"
@@ -373,17 +455,31 @@ export default function IntegrationsPage() {
                 borderRadius: 'var(--t-radius-lg)',
               }}
             >
-              <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--t-fg-35)', fontFamily: theme.fontMono }}>
-                Activity
-              </p>
-              <div className="space-y-3">
-                {activity.map((item, index) => (
-                  <div key={`${item}-${index}`} className="grid grid-cols-[10px,1fr] gap-3 text-sm leading-relaxed" style={{ color: 'var(--t-fg-60)' }}>
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full" style={{ background: index === 0 ? theme.accent : 'var(--t-fg-25)' }} />
-                    <span>{item}</span>
-                  </div>
-                ))}
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--t-fg-35)', fontFamily: theme.fontMono }}>
+                  Live status
+                </p>
+                {lastChecked && (
+                  <span className="flex items-center gap-1.5 text-[10px]" style={{ color: 'var(--t-fg-40)', fontFamily: theme.fontMono }}>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: '#10B981' }} />
+                    checked {lastChecked.toLocaleTimeString()}
+                  </span>
+                )}
               </div>
+              {activity.length > 0 ? (
+                <div className="space-y-3">
+                  {activity.map((item, index) => (
+                    <div key={`${item}-${index}`} className="grid grid-cols-[10px,1fr] gap-3 text-sm leading-relaxed" style={{ color: 'var(--t-fg-60)' }}>
+                      <span className="mt-2 h-1.5 w-1.5 rounded-full" style={{ background: index === 0 ? theme.accent : 'var(--t-fg-25)' }} />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--t-fg-45)' }}>
+                  {loading ? 'Checking connections…' : 'No integrations are connected yet. Configure a source’s credentials on the server to bring it online — status updates here automatically.'}
+                </p>
+              )}
             </section>
           </aside>
         )}

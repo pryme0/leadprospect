@@ -174,8 +174,23 @@ export default function AdminDashboardPage() {
   const [error,   setError]   = useState('');
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [adSpend, setAdSpend] = useState<string>(() =>
-    typeof window !== 'undefined' ? localStorage.getItem('prospectgrid_ad_spend') || '' : ''
+    typeof window !== 'undefined' ? localStorage.getItem('synq_ad_spend') || '' : ''
   );
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
+
+  /* Prompt the org to finish their company profile so crawling can begin. */
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+    if (!token) return;
+    fetch('/api/settings/org', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { profile?: { website?: string; about?: string; services?: string } | null } | null) => {
+        const p = data?.profile;
+        const incomplete = !p || !p.website?.trim() || !p.about?.trim() || !p.services?.trim();
+        setProfileIncomplete(incomplete);
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
@@ -209,7 +224,7 @@ export default function AdminDashboardPage() {
           <p className="text-sm text-white/40">{error}</p>
           <button
             onClick={fetchMetrics}
-            className="rounded-full border border-[#2563EB]/40 px-5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#2563EB] transition hover:bg-[#2563EB]/10"
+            className="rounded-full border border-[#6D5EF9]/40 px-5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#6D5EF9] transition hover:bg-[#6D5EF9]/10"
           >
             Retry
           </button>
@@ -280,6 +295,42 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6 pb-10">
+
+      {/* ── Setup banner: prompt for company profile so crawling can begin ── */}
+      {profileIncomplete && (
+        <div
+          className="flex flex-col gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between"
+          style={{
+            background: 'linear-gradient(135deg, rgba(109,94,249,0.14), rgba(24,216,255,0.08))',
+            borderColor: 'rgba(109,94,249,0.35)',
+          }}
+        >
+          <div className="flex items-start gap-3.5">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#6D5EF9]/20 text-[#6D5EF9]">
+              <span className="material-symbols-outlined">rocket_launch</span>
+            </span>
+            <div>
+              <p className="text-[15px] font-bold text-white">Finish setting up to start finding leads</p>
+              <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-white/60">
+                Add your <span className="font-semibold text-white/85">website</span>, a short{' '}
+                <span className="font-semibold text-white/85">about</span>, and{' '}
+                <span className="font-semibold text-white/85">what your company does</span> in Settings.
+                SYNQ analyzes your site to build your keywords and starts crawling for buyers right away.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/admin/settings"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(109,94,249,0.4)] transition-all hover:brightness-110"
+            style={{ background: 'linear-gradient(135deg, #6D5EF9, #5B4FE8)' }}
+          >
+            Complete your profile
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </Link>
+        </div>
+      )}
 
       {/* ── Welcome header ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -602,9 +653,9 @@ export default function AdminDashboardPage() {
             value={adSpend}
             onChange={(e) => {
               setAdSpend(e.target.value);
-              localStorage.setItem('prospectgrid_ad_spend', e.target.value);
+              localStorage.setItem('synq_ad_spend', e.target.value);
             }}
-            className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-white/20 transition-colors focus:border-[#2563EB]/50 focus:ring-2 focus:ring-[#2563EB]/10"
+            className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-white/20 transition-colors focus:border-[#6D5EF9]/50 focus:ring-2 focus:ring-[#6D5EF9]/10"
           />
           <div className="flex-1 flex flex-col justify-end">
             {adSpend && parseFloat(adSpend) > 0 && metrics.leads_captured > 0 ? (

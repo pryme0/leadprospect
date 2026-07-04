@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 export type ThemeMode = 'dark' | 'light';
 
 export interface WorkspacePalette {
-  id: 'prospectgrid';
+  id: 'synq';
   mode: ThemeMode;
   accent: string;
   accentStrong: string;
@@ -24,32 +24,32 @@ export interface WorkspacePalette {
 }
 
 const DARK: WorkspacePalette = {
-  id: 'prospectgrid',
+  id: 'synq',
   mode: 'dark',
-  accent:       '#2563EB',
-  accentStrong: '#1D4ED8',
-  accentSoft:   'rgba(37,99,235,0.16)',
-  accentFaint:  'rgba(37,99,235,0.07)',
-  accentOn:     '#0B132B',
-  glow:         'rgba(37,99,235,0.32)',
+  accent:       '#6D5EF9',
+  accentStrong: '#5B4FE8',
+  accentSoft:   'rgba(109,94,249,0.16)',
+  accentFaint:  'rgba(109,94,249,0.07)',
+  accentOn:     '#0B1020',
+  glow:         'rgba(109,94,249,0.32)',
   radius: { sm: 10, md: 14, lg: 18 },
   chart: [
-    '#2563EB', // blue
-    '#38BDF8', // sky
-    '#22C55E', // green
-    '#F59E0B', // amber
-    '#EF4444', // red
-    '#8B5CF6', // violet
+    '#6D5EF9', // violet
+    '#18D8FF', // cyan
+    '#21F2A6', // green
+    '#FFB547', // amber
+    '#FF5C74', // coral
+    '#8A94A6', // slate
     '#EC4899', // pink
     '#10B981', // emerald
     '#F97316', // orange
-    '#06B6D4', // cyan
+    '#06B6D4', // teal
     '#A3E635', // lime
   ],
   intent: {
-    high:   '#EF4444',
-    medium: '#F59E0B',
-    low:    '#22C55E',
+    high:   '#FF5C74',
+    medium: '#FFB547',
+    low:    '#21F2A6',
     none:   'rgba(255,255,255,0.18)',
   },
   platform: {
@@ -59,41 +59,41 @@ const DARK: WorkspacePalette = {
     instagram: '#E1306C',
     tiktok:    '#010101',
     linkedin:  '#0A66C2',
-    twitter:   '#38BDF8',
+    twitter:   '#18D8FF',
     reddit:    '#F97316',
-    youtube:   '#EF4444',
+    youtube:   '#FF5C74',
   },
   axis:        'rgba(255,255,255,0.28)',
   grid:        'rgba(255,255,255,0.04)',
-  fontDisplay: "'Inter', system-ui, sans-serif",
+  fontDisplay: "'Satoshi', 'Inter', system-ui, sans-serif",
   fontMono:    "'JetBrains Mono', ui-monospace, monospace",
 };
 
 const LIGHT: WorkspacePalette = {
   ...DARK,
   mode:         'light',
-  accent:       '#2563EB',
-  accentStrong: '#1D4ED8',
-  accentSoft:   'rgba(37,99,235,0.10)',
-  accentFaint:  'rgba(37,99,235,0.05)',
-  glow:         'rgba(37,99,235,0.18)',
+  accent:       '#6D5EF9',
+  accentStrong: '#5B4FE8',
+  accentSoft:   'rgba(109,94,249,0.10)',
+  accentFaint:  'rgba(109,94,249,0.05)',
+  glow:         'rgba(109,94,249,0.18)',
   chart: [
-    '#2563EB',
-    '#0EA5E9',
-    '#16A34A',
-    '#D97706',
-    '#DC2626',
-    '#7C3AED',
-    '#DB2777',
-    '#059669',
-    '#EA580C',
-    '#0891B2',
-    '#65A30D',
+    '#6D5EF9',
+    '#18D8FF',
+    '#21F2A6',
+    '#FFB547',
+    '#FF5C74',
+    '#8A94A6',
+    '#EC4899',
+    '#10B981',
+    '#F97316',
+    '#06B6D4',
+    '#A3E635',
   ],
   intent: {
-    high:   '#DC2626',
-    medium: '#D97706',
-    low:    '#16A34A',
+    high:   '#FF5C74',
+    medium: '#FFB547',
+    low:    '#21F2A6',
     none:   'rgba(15,23,42,0.18)',
   },
   axis: 'rgba(15,23,42,0.45)',
@@ -108,7 +108,7 @@ function readMode(): ThemeMode {
   if (typeof document === 'undefined') return 'dark';
   const attr =
     document.querySelector('[data-theme]')?.getAttribute('data-theme')
-    ?? localStorage.getItem('prospectgrid_theme');
+    ?? localStorage.getItem('synq_theme');
   return attr === 'light' ? 'light' : 'dark';
 }
 
@@ -122,7 +122,7 @@ export function useWorkspaceTheme(): WorkspacePalette {
     sync();
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key === 'prospectgrid_theme') sync();
+      if (event.key === 'synq_theme') sync();
     };
     window.addEventListener('storage', onStorage);
 
