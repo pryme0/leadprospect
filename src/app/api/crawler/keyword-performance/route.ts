@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSignalsPool } from '@/lib/crawler/signals-db';
-import { getUserFromRequest } from '@/lib/auth/session';
-import { getOrgProfile } from '@/lib/settings/org-store';
+import { resolveUserSbu } from '@/lib/crawler/user-sbu';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,14 +29,13 @@ interface KeywordPerfRow {
  */
 export async function GET(req: Request) {
   try {
-    const user = getUserFromRequest(req);
-    const sbu = user ? getOrgProfile(user.sub)?.crawler_sbu_id ?? null : null;
+    const { sbu, provisioned } = resolveUserSbu(req);
 
     if (!sbu) {
       return NextResponse.json({
         pace: 0, target: DAILY_TARGET, onPace: false,
         topKeywords: [], recentlyPruned: [], recentlyAdded: [],
-        escalationBoost: 0, needs_generation: true,
+        escalationBoost: 0, needs_generation: !provisioned,
       });
     }
 

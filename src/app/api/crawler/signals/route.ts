@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { listSignals } from '@/lib/crawler/signals-db';
 import { toUiSignal } from '@/lib/crawler/map';
-import { getUserFromRequest } from '@/lib/auth/session';
-import { getOrgProfile } from '@/lib/settings/org-store';
+import { resolveUserSbu } from '@/lib/crawler/user-sbu';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,13 +14,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: Request) {
   try {
-    // Identify the user and resolve their per-user SBU scope.
-    const user = getUserFromRequest(req);
-    const sbu = user ? getOrgProfile(user.sub)?.crawler_sbu_id ?? null : null;
+    // Resolve the user's SBU (deterministic fallback across environments).
+    const { sbu, provisioned } = resolveUserSbu(req);
 
     if (!sbu) {
       return NextResponse.json({
-        signals: [], data: [], total: 0, total_pages: 1, totalPages: 1, needs_generation: true,
+        signals: [], data: [], total: 0, total_pages: 1, totalPages: 1, needs_generation: !provisioned,
       });
     }
 

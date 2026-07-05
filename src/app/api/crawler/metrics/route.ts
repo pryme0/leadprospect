@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { dashboardMetrics, emptyDashboardMetrics } from '@/lib/crawler/signals-db';
-import { getUserFromRequest } from '@/lib/auth/session';
-import { getOrgProfile } from '@/lib/settings/org-store';
+import { resolveUserSbu } from '@/lib/crawler/user-sbu';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,13 +11,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: Request) {
   try {
-    const user = getUserFromRequest(req);
-    const sbu = user ? getOrgProfile(user.sub)?.crawler_sbu_id ?? null : null;
+    const { sbu, provisioned } = resolveUserSbu(req);
 
-    // No SBU → nothing generated yet. Use a sentinel that matches no rows so
-    // the aggregates come back as a well-formed zero payload (never the global pool).
+    // Unauthenticated → sentinel that matches no rows → well-formed zero payload
+    // (never the global pool).
     const metrics = await dashboardMetrics(sbu ?? '__no_sbu__');
-    return NextResponse.json({ ...metrics, needs_generation: !sbu });
+    return NextResponse.json({ ...metrics, needs_generation: !provisioned });
   } catch (err) {
     // Crawler DB unreachable (Railway blip/pause) — degrade to zeros so the
     // dashboard renders a clean empty state instead of a hard error.

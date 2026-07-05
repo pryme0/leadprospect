@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { listSignals } from '@/lib/crawler/signals-db';
 import { toUiLead } from '@/lib/crawler/map';
 import { getUserFromRequest } from '@/lib/auth/session';
-import { getOrgProfile } from '@/lib/settings/org-store';
+import { resolveUserSbu } from '@/lib/crawler/user-sbu';
 import { getUserTier } from '@/lib/subscription/server-store';
 import { TIER_LIMITS } from '@/lib/subscription/tiers';
 
@@ -19,17 +19,18 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: Request) {
   try {
-    // Identify the user and resolve their per-user SBU scope.
+    // Identify the user and resolve their per-user SBU scope. `sbu` falls back to
+    // the deterministic id derived from the user (works across environments even
+    // when this env's org profile is empty); `provisioned` drives the setup hint.
     const user = getUserFromRequest(req);
-    const sbu = user ? getOrgProfile(user.sub)?.crawler_sbu_id ?? null : null;
+    const { sbu, provisioned } = resolveUserSbu(req);
 
-    // No SBU yet → the user hasn't generated leads. Return an empty set with a
-    // hint rather than leaking the global pool.
+    // Not authenticated → nothing to show.
     if (!sbu) {
       return NextResponse.json({
         leads: [], data: [], total: 0, total_pages: 1, totalPages: 1,
         pagination: { total: 0, total_pages: 1 },
-        needs_generation: true,
+        needs_generation: !provisioned,
       });
     }
 
