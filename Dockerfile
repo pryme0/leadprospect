@@ -52,6 +52,14 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Next's standalone output does NOT bundle `sharp` — it's loaded at runtime, so
+# @vercel/nft can't trace it, and image optimization then throws
+# "'sharp' is required … in standalone mode". Install it into the standalone's
+# node_modules here (as root, before switching to the nextjs user). The
+# alpine/musl prebuilt binary is fetched automatically. Pinned to match
+# package.json so build and runtime use the same version.
+RUN npm install --no-save --no-package-lock sharp@0.35.3
+
 # Writable location for the app's SQLite databases (app.db / comms.db / leads.db).
 # /app is root-owned and the app runs as the non-root `nextjs` user, so it cannot
 # create DB files there (SQLITE_CANTOPEN). This dir is owned by nextjs and is the
