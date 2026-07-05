@@ -40,7 +40,7 @@ export default function Navbar() {
             SYNQ
           </Link>
 
-          <div className="hidden items-center gap-8 md:flex">
+          <div className="hidden items-center gap-8 lg:flex">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
@@ -58,7 +58,7 @@ export default function Navbar() {
         </div>
 
         {/* Right: auth actions */}
-        <div className="hidden items-center gap-6 md:flex">
+        <div className="hidden items-center gap-6 lg:flex">
           <Link
             href="/admin/login"
             className="font-body-md text-body-md text-on-surface-variant transition-colors duration-200 hover:text-primary"
@@ -76,7 +76,7 @@ export default function Navbar() {
         {/* Mobile toggle */}
         <button
           onClick={() => setOpen((v) => !v)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface md:hidden"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface lg:hidden"
           aria-label="Toggle menu"
         >
           <span className="material-symbols-outlined">{open ? 'close' : 'menu'}</span>
@@ -85,7 +85,7 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="border-t border-glass-stroke bg-midnight/98 px-margin-mobile py-6 backdrop-blur-xl md:hidden">
+        <div className="border-t border-glass-stroke bg-midnight/98 px-margin-mobile py-6 backdrop-blur-xl lg:hidden">
           <div className="flex flex-col gap-4">
             {NAV_LINKS.map((link) => (
               <Link
