@@ -45,7 +45,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # redeploys — otherwise it is writable but ephemeral.
 RUN mkdir -p /data && chown nextjs:nodejs /data
 ENV DATA_DIR=/data
-VOLUME ["/data"]
 
 USER nextjs
 EXPOSE 3000
