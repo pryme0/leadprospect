@@ -9,9 +9,9 @@ export const dynamic = 'force-dynamic';
 /** Seat usage for the caller's workspace, derived from their subscription tier.
  * `limit: null` means unlimited (Max tier) — callers must check for that before
  * comparing against `used` (null >= used would misbehave via JS coercion). */
-function seatInfo(userId: string) {
-  const modules = getUserModules(userId);
-  const tier = getUserTier(userId);
+async function seatInfo(userId: string) {
+  const modules = await getUserModules(userId);
+  const tier = await getUserTier(userId);
   const limit = seatLimitForTier(tier);
   const used = countActiveUsers();
   const remaining = limit === null ? null : Math.max(0, limit - used);
@@ -22,7 +22,7 @@ function seatInfo(userId: string) {
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
-  const s = seatInfo(user.sub);
+  const s = await seatInfo(user.sub);
   return NextResponse.json({ users: listUsers(), seats: { used: s.used, limit: s.limit, remaining: s.remaining, modules: s.modules, tier: s.tier } });
 }
 
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   // Seat gate — block once the workspace is at its plan limit. limit === null
   // means Max tier's unlimited seats, so it never blocks.
-  const s = seatInfo(user.sub);
+  const s = await seatInfo(user.sub);
   if (s.limit !== null && s.used >= s.limit) {
     return NextResponse.json(
       { message: `You've used all ${s.limit} seats on your plan. Upgrade to invite more teammates.`, code: 'seat_limit', seats: { used: s.used, limit: s.limit } },
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const created = createTeamUser({ name, email, password, role });
-    const after = seatInfo(user.sub);
+    const after = await seatInfo(user.sub);
     return NextResponse.json({ user: created, seats: { used: after.used, limit: after.limit, remaining: after.remaining } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to create user.';

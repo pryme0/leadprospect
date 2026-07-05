@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     // Basic-tier daily mentions cap — display-only truncation. The true
     // rolling-30-day count (comms/stats KPIs, the chart) is computed
     // separately via countMentions() and is never affected by this.
-    const tier = getUserTier(user.sub) ?? 'basic';
+    const tier = await getUserTier(user.sub) ?? 'basic';
     const dailyLimit = TIER_LIMITS[tier].maxMentionsPerDay;
     if (dailyLimit !== null) {
       const todayStartSec = Math.floor(new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() / 1000);
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
       seen: m.seen === 1,
     }));
 
-    const profile = getOrgProfile(user.sub);
+    const profile = await getOrgProfile(user.sub);
     return NextResponse.json({
       mentions,
       count: mentions.length,

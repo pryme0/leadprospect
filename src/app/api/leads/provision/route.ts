@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
-  const profile = getOrgProfile(user.sub);
+  const profile = await getOrgProfile(user.sub);
   const keywords = profile?.analysis?.keywords ?? [];
   if (keywords.length === 0) {
     return NextResponse.json(
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   });
 
   const sbuId = provision.sbuId || sbuIdForUser(user.sub);
-  setOrgAnalysis(user.sub, sbuId, profile!.analysis!);
+  await setOrgAnalysis(user.sub, sbuId, profile!.analysis!);
 
   return NextResponse.json({
     ok: provision.sbuReady,

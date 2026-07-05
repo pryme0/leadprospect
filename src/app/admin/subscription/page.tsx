@@ -67,11 +67,25 @@ export default function SubscriptionPage() {
 
   /* Load stored subscription + user email */
   useEffect(() => {
+    // Fast paint from the local cache…
     const sub = getSubscription();
     if (sub?.planTier) {
       setCurrentTier(sub.planTier);
       setSelectedTier(sub.planTier);
       setBilling(sub.billing);
+    }
+    // …then reconcile with the SHARED server (Postgres), the source of truth.
+    const token = localStorage.getItem('synq_admin_token');
+    if (token) {
+      fetch('/api/subscription/sync', { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { planTier?: PlanTier | null } | null) => {
+          if (data?.planTier) {
+            setCurrentTier(data.planTier);
+            setSelectedTier(data.planTier);
+          }
+        })
+        .catch(() => {});
     }
     try {
       // Check all key variants — new names + old names (pre-rename) + signup profile

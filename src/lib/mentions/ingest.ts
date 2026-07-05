@@ -45,7 +45,7 @@ function decodeEntities(s: string): string {
     .replace(/&nbsp;/g, ' ');
 }
 
-function buildQuery(profile: NonNullable<ReturnType<typeof getOrgProfile>>): BrandQuery {
+function buildQuery(profile: NonNullable<Awaited<ReturnType<typeof getOrgProfile>>>): BrandQuery {
   return {
     companyName: profile.company_name,
     keywords: profile.brand_keywords,
@@ -69,7 +69,7 @@ export interface IngestResult {
  */
 export async function ingestForUser(userId: string, force = false): Promise<IngestResult> {
   const db = getDb();
-  const profile = getOrgProfile(userId);
+  const profile = await getOrgProfile(userId);
   if (!hasBrandTerms(profile)) return { ran: false, reason: 'no_terms', providers: [], scanned: 0, inserted: 0 };
 
   const metaKey = `mentions_fetch:${userId}`;

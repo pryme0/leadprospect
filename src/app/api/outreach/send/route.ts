@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
-  if (!hasModule(user.sub, 'comms')) {
+  if (!(await hasModule(user.sub, 'comms'))) {
     return NextResponse.json({ message: 'Replying to leads requires an active Pulse subscription.' }, { status: 403 });
   }
 

@@ -1,9 +1,10 @@
-import { getAuthDb } from '@/lib/auth/db';
+import { appPool, ensureAppSchema } from '@/lib/app-pg';
 
 /**
- * Server-side company/org profile, keyed to the logged-in user. This replaces
- * the browser-only `synq_org_profile` localStorage blob for anything the server
- * needs (website analysis, per-user lead scoping).
+ * Server-side company/org profile, keyed to the logged-in user. Stored in the
+ * SHARED Postgres (not per-environment SQLite) so a user's company name, logo,
+ * analysis and brand terms are identical across local and prod. Async because
+ * Postgres is.
  */
 export interface OrgProfile {
   company_name: string;
@@ -115,66 +116,66 @@ function rowToRecord(row: Row): OrgProfileRecord {
   };
 }
 
-export function getOrgProfile(userId: string): OrgProfileRecord | null {
-  const db = getAuthDb();
-  const row = db.prepare('SELECT * FROM org_profiles WHERE user_id = ?').get(userId) as Row | undefined;
-  return row ? rowToRecord(row) : null;
+export async function getOrgProfile(userId: string): Promise<OrgProfileRecord | null> {
+  await ensureAppSchema();
+  const { rows } = await appPool().query('SELECT * FROM org_profiles WHERE user_id = $1', [userId]);
+  return rows[0] ? rowToRecord(rows[0] as Row) : null;
 }
 
 /** Insert or replace the editable profile fields, preserving crawler/analysis columns. */
-export function upsertOrgProfile(userId: string, data: Partial<OrgProfile>): OrgProfileRecord {
-  const db = getAuthDb();
-  const existing = getOrgProfile(userId);
+export async function upsertOrgProfile(userId: string, data: Partial<OrgProfile>): Promise<OrgProfileRecord> {
+  await ensureAppSchema();
+  const existing = await getOrgProfile(userId);
   const merged: OrgProfile = { ...EMPTY, ...(existing ?? {}), ...data };
   const now = new Date().toISOString();
 
-  db.prepare(`
-    INSERT INTO org_profiles (
-      user_id, company_name, website, contact_email, timezone, logo_url,
-      industry, about, services, expectations, updated_at
-    ) VALUES (
-      @user_id, @company_name, @website, @contact_email, @timezone, @logo_url,
-      @industry, @about, @services, @expectations, @updated_at
-    )
-    ON CONFLICT(user_id) DO UPDATE SET
-      company_name  = excluded.company_name,
-      website       = excluded.website,
-      contact_email = excluded.contact_email,
-      timezone      = excluded.timezone,
-      logo_url      = excluded.logo_url,
-      industry      = excluded.industry,
-      about         = excluded.about,
-      services      = excluded.services,
-      expectations  = excluded.expectations,
-      updated_at    = excluded.updated_at
-  `).run({ user_id: userId, ...merged, updated_at: now });
+  await appPool().query(
+    `INSERT INTO org_profiles (
+       user_id, company_name, website, contact_email, timezone, logo_url,
+       industry, about, services, expectations, updated_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     ON CONFLICT (user_id) DO UPDATE SET
+       company_name  = excluded.company_name,
+       website       = excluded.website,
+       contact_email = excluded.contact_email,
+       timezone      = excluded.timezone,
+       logo_url      = excluded.logo_url,
+       industry      = excluded.industry,
+       about         = excluded.about,
+       services      = excluded.services,
+       expectations  = excluded.expectations,
+       updated_at    = excluded.updated_at`,
+    [userId, merged.company_name, merged.website, merged.contact_email, merged.timezone, merged.logo_url,
+     merged.industry, merged.about, merged.services, merged.expectations, now],
+  );
 
-  return getOrgProfile(userId)!;
+  return (await getOrgProfile(userId))!;
 }
 
 /** Store brand-monitoring terms (from analyzeBrand or manual settings edit). */
-export function setBrandTerms(userId: string, terms: Partial<BrandTerms>, markAnalyzed = false): OrgProfileRecord {
-  const db = getAuthDb();
+export async function setBrandTerms(userId: string, terms: Partial<BrandTerms>, markAnalyzed = false): Promise<OrgProfileRecord> {
+  await ensureAppSchema();
   const now = new Date().toISOString();
-  if (!getOrgProfile(userId)) upsertOrgProfile(userId, {});
+  if (!(await getOrgProfile(userId))) await upsertOrgProfile(userId, {});
   const clean = (arr?: string[]) => JSON.stringify(
     Array.from(new Set((arr ?? []).map((s) => s.trim()).filter((s) => s.length > 0 && s.length <= 120))).slice(0, 50),
   );
-  const existing = getOrgProfile(userId)!;
-  db.prepare(`
-    UPDATE org_profiles
-    SET brand_keywords = ?, brand_handles = ?, exclude_terms = ?,
-        mentions_analyzed_at = ?, updated_at = ?
-    WHERE user_id = ?
-  `).run(
-    clean(terms.brand_keywords ?? existing.brand_keywords),
-    clean(terms.brand_handles ?? existing.brand_handles),
-    clean(terms.exclude_terms ?? existing.exclude_terms),
-    markAnalyzed ? now : existing.mentions_analyzed_at,
-    now,
-    userId,
+  const existing = (await getOrgProfile(userId))!;
+  await appPool().query(
+    `UPDATE org_profiles
+     SET brand_keywords = $1, brand_handles = $2, exclude_terms = $3,
+         mentions_analyzed_at = $4, updated_at = $5
+     WHERE user_id = $6`,
+    [
+      clean(terms.brand_keywords ?? existing.brand_keywords),
+      clean(terms.brand_handles ?? existing.brand_handles),
+      clean(terms.exclude_terms ?? existing.exclude_terms),
+      markAnalyzed ? now : existing.mentions_analyzed_at,
+      now,
+      userId,
+    ],
   );
-  return getOrgProfile(userId)!;
+  return (await getOrgProfile(userId))!;
 }
 
 /** True when the user has at least one brand term to monitor. */
@@ -184,14 +185,15 @@ export function hasBrandTerms(profile: OrgProfileRecord | null): boolean {
 }
 
 /** Store the crawler SBU id + website analysis after /api/leads/generate runs. */
-export function setOrgAnalysis(userId: string, sbuId: string, analysis: WebsiteAnalysis): void {
-  const db = getAuthDb();
+export async function setOrgAnalysis(userId: string, sbuId: string, analysis: WebsiteAnalysis): Promise<void> {
+  await ensureAppSchema();
   const now = new Date().toISOString();
   // Ensure a row exists first (a user could generate before ever saving).
-  if (!getOrgProfile(userId)) upsertOrgProfile(userId, {});
-  db.prepare(`
-    UPDATE org_profiles
-    SET crawler_sbu_id = ?, analysis_json = ?, analyzed_at = ?, updated_at = ?
-    WHERE user_id = ?
-  `).run(sbuId, JSON.stringify(analysis), now, now, userId);
+  if (!(await getOrgProfile(userId))) await upsertOrgProfile(userId, {});
+  await appPool().query(
+    `UPDATE org_profiles
+     SET crawler_sbu_id = $1, analysis_json = $2, analyzed_at = $3, updated_at = $4
+     WHERE user_id = $5`,
+    [sbuId, JSON.stringify(analysis), now, now, userId],
+  );
 }

@@ -21,7 +21,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
   // CRM/integration access is a Pro+ feature — gated on the 'email' module
   // (same tier boundary as Email Desk, see TIER_MODULES in tiers.ts).
-  if (!hasModule(user.sub, 'email')) {
+  if (!(await hasModule(user.sub, 'email'))) {
     return NextResponse.json({ message: 'Integrations require an active Pro or Max subscription.' }, { status: 402 });
   }
 

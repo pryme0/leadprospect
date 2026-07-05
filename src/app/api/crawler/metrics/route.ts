@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: Request) {
   try {
-    const { sbu, provisioned } = resolveUserSbu(req);
+    const { sbu, provisioned } = await resolveUserSbu(req);
 
     // Unauthenticated → sentinel that matches no rows → well-formed zero payload
     // (never the global pool).

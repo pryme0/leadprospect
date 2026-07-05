@@ -11,12 +11,12 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/leads/generate — last analysis status for the logged-in user.
  */
-export function GET(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
-  const subscribed = hasModule(user.sub, 'leads');
-  const profile = getOrgProfile(user.sub);
+  const subscribed = await hasModule(user.sub, 'leads');
+  const profile = await getOrgProfile(user.sub);
 
   return NextResponse.json({
     subscribed,
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
   // 2. Server-side subscription gate — Lead Intelligence = the 'leads' module.
-  if (!hasModule(user.sub, 'leads')) {
+  if (!(await hasModule(user.sub, 'leads'))) {
     return NextResponse.json(
       { message: 'This feature requires an active Lead Intelligence subscription.' },
       { status: 403 },
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. Load the user's saved company profile.
-  const profile = getOrgProfile(user.sub);
+  const profile = await getOrgProfile(user.sub);
   if (!profile || !profile.website.trim()) {
     return NextResponse.json(
       { message: 'Add your company website in Settings before generating leads.' },
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
   //    provisioned sbu id (always the deterministic per-user id) so lead reads
   //    can scope even when the crawler wasn't reachable this run.
   const sbuId = provision.sbuId || sbuIdForUser(user.sub);
-  setOrgAnalysis(user.sub, sbuId, analysis);
+  await setOrgAnalysis(user.sub, sbuId, analysis);
 
   // 8. Return the summary + provisioning status.
   return NextResponse.json({

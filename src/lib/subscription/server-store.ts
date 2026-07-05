@@ -1,4 +1,4 @@
-import { getAuthDb } from '@/lib/auth/db';
+import { appPool, ensureAppSchema } from '@/lib/app-pg';
 import { TIER_MODULES, type ModuleId, type PlanTier } from './tiers';
 
 export type { ModuleId };
@@ -21,41 +21,38 @@ interface Row {
   updated_at: string;
 }
 
-/** Persist a user's entitlement (called after a verified Paystack payment).
- * Modules are DERIVED from the tier (TIER_MODULES) — the tier is the source
- * of truth; modules_json is kept in sync so every existing hasModule()/
- * getUserModules() reader keeps working unchanged. */
-export function setUserSubscription(
+/**
+ * Persist a user's entitlement (called after a verified Paystack payment).
+ * Stored in the SHARED Postgres so the subscription is the same across local and
+ * prod. Modules are DERIVED from the tier (TIER_MODULES) — the tier is the source
+ * of truth; modules_json is kept in sync so every hasModule()/getUserModules()
+ * reader keeps working.
+ */
+export async function setUserSubscription(
   userId: string,
   input: { planTier: PlanTier; billing?: string | null; paystackRef?: string | null },
-): void {
-  const db = getAuthDb();
+): Promise<void> {
+  await ensureAppSchema();
   const now = new Date().toISOString();
   const modules = TIER_MODULES[input.planTier];
-  db.prepare(`
-    INSERT INTO subscriptions (user_id, modules_json, plan_tier, billing, paystack_ref, activated_at, updated_at)
-    VALUES (@user_id, @modules_json, @plan_tier, @billing, @paystack_ref, @activated_at, @updated_at)
-    ON CONFLICT(user_id) DO UPDATE SET
-      modules_json = excluded.modules_json,
-      plan_tier    = excluded.plan_tier,
-      billing      = excluded.billing,
-      paystack_ref = excluded.paystack_ref,
-      activated_at = excluded.activated_at,
-      updated_at   = excluded.updated_at
-  `).run({
-    user_id: userId,
-    modules_json: JSON.stringify(modules),
-    plan_tier: input.planTier,
-    billing: input.billing ?? null,
-    paystack_ref: input.paystackRef ?? null,
-    activated_at: now,
-    updated_at: now,
-  });
+  await appPool().query(
+    `INSERT INTO subscriptions (user_id, modules_json, plan_tier, billing, paystack_ref, activated_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
+     ON CONFLICT (user_id) DO UPDATE SET
+       modules_json = excluded.modules_json,
+       plan_tier    = excluded.plan_tier,
+       billing      = excluded.billing,
+       paystack_ref = excluded.paystack_ref,
+       activated_at = excluded.activated_at,
+       updated_at   = excluded.updated_at`,
+    [userId, JSON.stringify(modules), input.planTier, input.billing ?? null, input.paystackRef ?? null, now, now],
+  );
 }
 
-export function getUserSubscription(userId: string): UserSubscription | null {
-  const db = getAuthDb();
-  const row = db.prepare('SELECT * FROM subscriptions WHERE user_id = ?').get(userId) as Row | undefined;
+export async function getUserSubscription(userId: string): Promise<UserSubscription | null> {
+  await ensureAppSchema();
+  const { rows } = await appPool().query('SELECT * FROM subscriptions WHERE user_id = $1', [userId]);
+  const row = rows[0] as Row | undefined;
   if (!row) return null;
   let modules: ModuleId[] = [];
   try { modules = JSON.parse(row.modules_json) as ModuleId[]; } catch { modules = []; }
@@ -70,16 +67,16 @@ export function getUserSubscription(userId: string): UserSubscription | null {
 }
 
 /** Convenience: the modules a user is entitled to (empty array if none). */
-export function getUserModules(userId: string): ModuleId[] {
-  return getUserSubscription(userId)?.modules ?? [];
+export async function getUserModules(userId: string): Promise<ModuleId[]> {
+  return (await getUserSubscription(userId))?.modules ?? [];
 }
 
 /** Convenience: the plan tier a user is on (null if no subscription). */
-export function getUserTier(userId: string): PlanTier | null {
-  return getUserSubscription(userId)?.planTier ?? null;
+export async function getUserTier(userId: string): Promise<PlanTier | null> {
+  return (await getUserSubscription(userId))?.planTier ?? null;
 }
 
 /** Server-side gate: is this user subscribed to a given module? */
-export function hasModule(userId: string, moduleId: ModuleId): boolean {
-  return getUserModules(userId).includes(moduleId);
+export async function hasModule(userId: string, moduleId: ModuleId): Promise<boolean> {
+  return (await getUserModules(userId)).includes(moduleId);
 }

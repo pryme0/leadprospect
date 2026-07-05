@@ -244,22 +244,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => window.removeEventListener('synq:org-changed', loadOrgName);
   }, [pathname]);
 
-  /* Load + listen for subscription changes */
+  /* Subscription entitlement drives the sidebar lock state. The SHARED server
+     (Postgres) is the source of truth; localStorage is only a fast-paint cache
+     (kept per-browser). We paint from the cache, then reconcile with the server. */
   useEffect(() => {
     const load = () => {
-      const sub = getSubscription();
-      const mods = (sub?.modules ?? []) as ModuleId[];
-      setSubscribedModules(new Set(mods));
-      // Mirror the client subscription to the server so server-side entitlement
-      // gates (e.g. Lead Intelligence) match what the user has subscribed to.
+      // Fast paint from the local cache.
+      const cached = getSubscription();
+      if (cached?.modules) setSubscribedModules(new Set(cached.modules as ModuleId[]));
+      // Authoritative read from the shared store.
       const token = localStorage.getItem('synq_admin_token');
-      if (token && mods.length) {
-        fetch('/api/subscription/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ modules: mods, billing: sub?.billing ?? null }),
-        }).catch(() => {});
-      }
+      if (!token) return;
+      fetch('/api/subscription/sync', { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { modules?: ModuleId[] } | null) => {
+          if (data?.modules) setSubscribedModules(new Set(data.modules));
+        })
+        .catch(() => {});
     };
     load();
     window.addEventListener('synq:subscription-changed', load);

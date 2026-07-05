@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   try {
     // Resolve the user's SBU (deterministic fallback across environments).
-    const { sbu, provisioned } = resolveUserSbu(req);
+    const { sbu, provisioned } = await resolveUserSbu(req);
 
     if (!sbu) {
       return NextResponse.json({

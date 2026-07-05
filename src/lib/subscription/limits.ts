@@ -14,19 +14,19 @@ export interface CapCheck {
   message?: string;
 }
 
-function resolveTier(userId: string, tier?: PlanTier | null): PlanTier {
-  return tier ?? getUserTier(userId) ?? 'basic';
+async function resolveTier(userId: string, tier?: PlanTier | null): Promise<PlanTier> {
+  return tier ?? (await getUserTier(userId)) ?? 'basic';
 }
 
 /** Connected-account cap (Basic/Pro/Max). `excludeChannelId` lets a re-save of
  * an already-connected channel pass without counting against the cap. */
-export function checkConnectedAccountCap(
+export async function checkConnectedAccountCap(
   db: Database.Database,
   userId: string,
   excludeChannelId?: string,
   tier?: PlanTier | null,
-): CapCheck {
-  const t = resolveTier(userId, tier);
+): Promise<CapCheck> {
+  const t = await resolveTier(userId, tier);
   const limit = TIER_LIMITS[t].maxConnectedAccounts;
   if (limit === null) return { ok: true, limit: null, used: 0 };
 
@@ -38,18 +38,4 @@ export function checkConnectedAccountCap(
     used: c,
     message: c >= limit ? `Your plan allows ${limit} connected account${limit === 1 ? '' : 's'}. Upgrade to connect more.` : undefined,
   };
-}
-
-/** How many more HIGH-intent leads a user may see today (null = unlimited). */
-export function dailyLeadsRemaining(usedToday: number, tier?: PlanTier | null, userId?: string): number | null {
-  const t = tier ?? (userId ? getUserTier(userId) : null) ?? 'basic';
-  const limit = TIER_LIMITS[t].maxHighIntentLeadsPerDay;
-  if (limit === null) return null;
-  return Math.max(0, limit - usedToday);
-}
-
-/** How many mentions a user may see today (null = unlimited). */
-export function dailyMentionsLimit(tier?: PlanTier | null, userId?: string): number | null {
-  const t = tier ?? (userId ? getUserTier(userId) : null) ?? 'basic';
-  return TIER_LIMITS[t].maxMentionsPerDay;
 }

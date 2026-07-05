@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     // the deterministic id derived from the user (works across environments even
     // when this env's org profile is empty); `provisioned` drives the setup hint.
     const user = getUserFromRequest(req);
-    const { sbu, provisioned } = resolveUserSbu(req);
+    const { sbu, provisioned } = await resolveUserSbu(req);
 
     // Not authenticated → nothing to show.
     if (!sbu) {
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     let since: string | undefined;
     let dailyCapLimit = limit;
     if (user && intent === 'HIGH_INTENT') {
-      const tier = getUserTier(user.sub) ?? 'basic';
+      const tier = await getUserTier(user.sub) ?? 'basic';
       const cap = TIER_LIMITS[tier].maxHighIntentLeadsPerDay;
       if (cap !== null) {
         since = new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString();

@@ -29,7 +29,7 @@ interface KeywordPerfRow {
  */
 export async function GET(req: Request) {
   try {
-    const { sbu, provisioned } = resolveUserSbu(req);
+    const { sbu, provisioned } = await resolveUserSbu(req);
 
     if (!sbu) {
       return NextResponse.json({

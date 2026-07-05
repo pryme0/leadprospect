@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // Connected-account cap (Basic/Pro/Max) — only counts accounts other than
     // the one being (re)connected, so re-saving an existing channel never trips it.
-    const cap = checkConnectedAccountCap(db, user.sub, id);
+    const cap = await checkConnectedAccountCap(db, user.sub, id);
     if (!cap.ok) {
       return NextResponse.json({ error: cap.message, code: 'account_limit' }, { status: 402 });
     }

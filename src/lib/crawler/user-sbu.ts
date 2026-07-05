@@ -16,9 +16,9 @@ import { sbuIdForUser } from '@/lib/crawler/control-client';
  * environment (org profile has the link) — used for "get started" hints, not for
  * data scoping.
  */
-export function resolveUserSbu(req: Request): { sbu: string | null; provisioned: boolean } {
+export async function resolveUserSbu(req: Request): Promise<{ sbu: string | null; provisioned: boolean }> {
   const user = getUserFromRequest(req);
   if (!user) return { sbu: null, provisioned: false };
-  const stored = getOrgProfile(user.sub)?.crawler_sbu_id ?? null;
+  const stored = (await getOrgProfile(user.sub))?.crawler_sbu_id ?? null;
   return { sbu: stored ?? sbuIdForUser(user.sub), provisioned: !!stored };
 }

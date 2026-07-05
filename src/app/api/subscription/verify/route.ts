@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     if (userId) {
       try {
-        setUserSubscription(userId, { planTier, billing, paystackRef: reference });
+        await setUserSubscription(userId, { planTier, billing, paystackRef: reference });
       } catch (err) {
         console.error('[subscription/verify] persist failed', err);
       }
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       planTier,
       // Modules derived from the tier — the client consumes this directly rather
       // than re-deriving from TIER_MODULES itself, so there's one source of truth.
-      modules: userId ? getUserModules(userId) : TIER_MODULES[planTier],
+      modules: userId ? await getUserModules(userId) : TIER_MODULES[planTier],
       billing,
       amount:   data.data.amount,
       currency: data.data.currency,
