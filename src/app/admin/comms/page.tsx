@@ -522,8 +522,9 @@ export default function CommHubPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── Initial data load: channels + stats + conversations ── */
-  useEffect(() => {
+  /* ── Core data load: channels + stats + conversations. Reusable so it can run
+       on mount AND after a disconnect (to clear that account's traction). ── */
+  const loadCore = useCallback((isInitial = false) => {
     fetch('/api/comms/channels', { headers: authHeaders() })
       .then((r) => r.json())
       .then((data: { connected?: { channel_id: string; handle: string; connected_at: string }[] }) => {
@@ -574,18 +575,24 @@ export default function CommHubPage() {
           timeline: [],
         }));
         setConversations(mapped);
-        if (pendingConvo.current) {
+        if (isInitial && pendingConvo.current) {
           // A notification deep-linked to a specific conversation — open it.
           setSelectedId(pendingConvo.current);
           setConvoDrawerOpen(true);
           pendingConvo.current = null;
-        } else if (mapped.length > 0) {
+        } else if (isInitial && mapped.length > 0) {
           setSelectedId(mapped[0].id);
+        } else if (!mapped.some((c) => c.id === selectedId)) {
+          // Selected conversation is gone (e.g. its account was disconnected).
+          setSelectedId(mapped[0]?.id ?? '');
         }
       })
       .catch(() => {})
       .finally(() => setLoadingConvos(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => { loadCore(true); }, [loadCore]);
 
   /* ── Live loaders (also called on demand after replies to stay in sync) ── */
   const loadMentions = useCallback(() => {
@@ -904,10 +911,19 @@ export default function CommHubPage() {
     }, 1500);
   };
 
-  const handleDisconnect = (channelId: string) => {
-    fetch(`/api/comms/channels/${channelId}`, { method: 'DELETE', headers: authHeaders() }).catch(() => {});
-    setConnected((prev) => prev.filter((a) => a.channelId !== channelId));
+  const handleDisconnect = async (channelId: string) => {
     setDisconnectConfirmId(null);
+    // Optimistic: drop the chip + any filter/selection tied to this account.
+    setConnected((prev) => prev.filter((a) => a.channelId !== channelId));
+    if (accountFilter === channelId) setAccountFilter('all');
+    try {
+      await fetch(`/api/comms/channels/${channelId}`, { method: 'DELETE', headers: authHeaders() });
+    } catch { /* server cleanup best-effort; still refresh below */ }
+    // Pull fresh server truth so the disconnect persists and the account's
+    // traction (counts, conversations, mentions) is cleared immediately.
+    loadCore();
+    loadMentions();
+    loadActivity();
   };
 
   const connectedCount = connected.length;
