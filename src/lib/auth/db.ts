@@ -1,9 +1,9 @@
 import Database from 'better-sqlite3';
-import path from 'path';
 import { pbkdf2Sync, randomBytes } from 'crypto';
 import { inferTierFromModules, TIER_MODULES, type ModuleId } from '@/lib/subscription/tiers';
+import { sqliteFile } from '@/lib/sqlite-path';
 
-const DB_PATH = path.join(process.cwd(), 'app.db');
+const DB_PATH = sqliteFile('app.db');
 
 let _db: Database.Database | null = null;
 

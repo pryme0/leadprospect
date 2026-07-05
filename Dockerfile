@@ -38,6 +38,15 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Writable location for the app's SQLite databases (app.db / comms.db / leads.db).
+# /app is root-owned and the app runs as the non-root `nextjs` user, so it cannot
+# create DB files there (SQLITE_CANTOPEN). This dir is owned by nextjs and is the
+# default DATA_DIR. Mount a persistent Railway volume at /data to keep data across
+# redeploys — otherwise it is writable but ephemeral.
+RUN mkdir -p /data && chown nextjs:nodejs /data
+ENV DATA_DIR=/data
+VOLUME ["/data"]
+
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000

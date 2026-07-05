@@ -8,10 +8,10 @@
  * MENTION_WINDOW_DAYS, local time) so the list, KPI, badge and chart reconcile.
  */
 import Database from 'better-sqlite3';
-import path from 'path';
 import { randomBytes } from 'crypto';
+import { sqliteFile } from '@/lib/sqlite-path';
 
-const DB_PATH = path.join(process.cwd(), 'comms.db');
+const DB_PATH = sqliteFile('comms.db');
 
 /** Canonical mention window shared by the list, count, badge and chart. */
 export const MENTION_WINDOW_DAYS = 30;

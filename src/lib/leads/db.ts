@@ -6,10 +6,10 @@
  * There is intentionally NO seed/demo data here: every row is a real capture.
  */
 import Database from 'better-sqlite3';
-import path from 'path';
 import { randomBytes } from 'crypto';
+import { sqliteFile } from '@/lib/sqlite-path';
 
-const DB_PATH = path.join(process.cwd(), 'leads.db');
+const DB_PATH = sqliteFile('leads.db');
 
 let _db: Database.Database | null = null;
 
