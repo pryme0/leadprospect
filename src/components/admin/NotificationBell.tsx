@@ -120,7 +120,7 @@ export default function NotificationBell() {
 
       {open && (
         <div
-          className="absolute right-0 top-[calc(100%+8px)] z-50 w-[340px] overflow-hidden rounded-xl shadow-2xl"
+          className="absolute right-0 top-[calc(100%+8px)] z-50 w-[calc(100vw-1.5rem)] max-w-[340px] overflow-hidden rounded-xl shadow-2xl"
           style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)' }}
         >
           <div

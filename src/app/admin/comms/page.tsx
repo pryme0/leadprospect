@@ -1112,11 +1112,11 @@ export default function CommHubPage() {
               </div>
             )}
 
-            {/* Two-pane: list + detail */}
-            <div className="flex overflow-hidden rounded-xl" style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)', height: 'calc(100vh - 360px)', minHeight: '520px' }}>
+            {/* Two-pane: list + detail (stacks on mobile) */}
+            <div className="flex flex-col overflow-hidden rounded-xl lg:flex-row" style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)', height: 'calc(100vh - 360px)', minHeight: '520px' }}>
 
               {/* LEFT — mention list */}
-              <div className="flex w-[300px] shrink-0 flex-col" style={{ borderRight: '1px solid var(--a-border)' }}>
+              <div className="flex max-h-[45%] w-full shrink-0 flex-col border-b lg:max-h-none lg:w-[300px] lg:border-b-0 lg:border-r" style={{ borderColor: 'var(--a-border)' }}>
                 <div className="flex shrink-0 items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--a-border)' }}>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">{filteredMentions.length} of {mentions.length}</p>
                   <span className="flex items-center gap-1.5 rounded-full bg-[#21F2A6]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#21F2A6]">

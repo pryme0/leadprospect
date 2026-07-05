@@ -618,7 +618,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             {/* Workspace badge */}
-            <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5">
+            <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 sm:px-3">
               {orgLogo ? (
                 <img src={orgLogo} alt={displayName} className="h-5 w-5 rounded-md object-cover" onError={() => setOrgLogo(null)} />
               ) : (
@@ -626,7 +626,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   {displayInitials}
                 </div>
               )}
-              <span className="text-[12px] font-medium text-white/60">{displayName}</span>
+              <span className="hidden max-w-[140px] truncate text-[12px] font-medium text-white/60 sm:inline">{displayName}</span>
             </div>
           </div>
         </header>

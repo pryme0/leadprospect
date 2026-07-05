@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono, Sora } from 'next/font/google';
 import './globals.css';
 import ConditionalNavbar from '@/components/ConditionalNav';
@@ -12,6 +12,13 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], display: 'swap', vari
 const sora = Sora({ subsets: ['latin'], display: 'swap', weight: ['400', '600', '700', '800'], variable: '--font-sora' });
 
 // Satoshi is served via Fontshare (not Google Fonts) — loaded in globals.css
+
+// Mobile viewport — device-width scaling; zoom left enabled for accessibility.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

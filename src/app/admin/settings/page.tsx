@@ -502,13 +502,13 @@ export default function SettingsPage() {
         <p className="mt-0.5 text-sm" style={{ color: 'var(--t-fg-40)' }}>Manage organization details, ad sources, CRM routes, and account preferences</p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl border w-fit" style={{ background: 'var(--a-hover)', borderColor: 'var(--a-border)' }}>
+      {/* Tabs — horizontally scrollable on narrow screens so all stay reachable */}
+      <div className="flex gap-1 p-1 rounded-xl border w-fit max-w-full overflow-x-auto no-scrollbar" style={{ background: 'var(--a-hover)', borderColor: 'var(--a-border)' }}>
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
+            className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
               tab === t.key
                 ? 'shadow-lg'
                 : 'border-transparent text-white/40 hover:text-white/70'
