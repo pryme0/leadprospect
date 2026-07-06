@@ -189,6 +189,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed,         setCollapsed]         = useState(false);
   const [authUser,          setAuthUser]          = useState<AuthUser | null>(null);
   const [subscribedModules, setSubscribedModules] = useState<Set<ModuleId>>(new Set());
+  const [accessExpired,     setAccessExpired]     = useState(false);
   const [themeMode,         setThemeMode]         = useState<'dark' | 'light'>('light');
   const [signoutConfirm,    setSignoutConfirm]    = useState(false);
   const [idleWarning,       setIdleWarning]       = useState(false);
@@ -257,8 +258,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (!token) return;
       fetch('/api/subscription/sync', { headers: { Authorization: `Bearer ${token}` } })
         .then((r) => (r.ok ? r.json() : null))
-        .then((data: { modules?: ModuleId[] } | null) => {
+        .then((data: { modules?: ModuleId[]; expired?: boolean } | null) => {
           if (data?.modules) setSubscribedModules(new Set(data.modules));
+          setAccessExpired(!!data?.expired);
         })
         .catch(() => {});
     };
@@ -297,6 +299,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       })
       .catch(() => setAuthed(true));
   }, [pathname, router]);
+
+  /* Role-based section routing: super admins live in the platform console; org
+     members can't enter it. */
+  useEffect(() => {
+    if (!authUser || pathname === '/admin/login') return;
+    const isSuper = authUser.role === 'superadmin';
+    const inPlatform = pathname.startsWith('/admin/platform');
+    if (isSuper && !inPlatform) router.replace('/admin/platform');
+    if (!isSuper && inPlatform) router.replace('/admin');
+  }, [authUser, pathname, router]);
 
   /* Single logout path — used by the sign-out confirm modal and the idle timer. */
   const doLogout = useCallback(() => {
@@ -634,6 +646,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Content */}
         <main className="relative flex-1 overflow-y-auto" style={{ background: 'var(--a-bg)' }}>
           <div className="mx-auto max-w-[1480px] px-5 py-6 sm:px-7 sm:py-7">
+            {/* Access-expired lockout — data stays viewable (read-only); crawling
+                and all features are off until the org subscribes/renews. */}
+            {accessExpired && pathname !== '/admin/subscription' && (
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3"
+                   style={{ background: 'rgba(255,86,86,0.08)', borderColor: 'rgba(255,86,86,0.35)' }}>
+                <div className="flex items-center gap-2.5">
+                  <span className="material-symbols-outlined text-[20px] text-[#ff7a7a]">lock_clock</span>
+                  <p className="text-[13px] text-white/85">
+                    Your access has expired — crawling and lead generation are paused. Existing data is read-only. Subscribe to resume.
+                  </p>
+                </div>
+                <a href="/admin/subscription" className="rounded-lg bg-[#6D5EF9] px-3.5 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-[#5B4FE8]">
+                  Subscribe to continue
+                </a>
+              </div>
+            )}
             {children}
           </div>
         </main>

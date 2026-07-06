@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth/session';
-import { setUserSubscription, getUserModules, getUserSubscription } from '@/lib/subscription/server-store';
+import { setUserSubscription, getUserModules, getOrgAccess } from '@/lib/subscription/server-store';
 import { PLAN_TIERS, type PlanTier } from '@/lib/subscription/tiers';
 
 export const dynamic = 'force-dynamic';
@@ -14,15 +14,20 @@ export async function GET(req: Request) {
   try {
     const user = getUserFromRequest(req);
     if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
-    const sub = await getUserSubscription(user.org);
+    const access = await getOrgAccess(user.org);
     return NextResponse.json({
-      modules: sub?.modules ?? [],
-      planTier: sub?.planTier ?? null,
-      billing: sub?.billing ?? null,
+      // Modules are empty when the access window has elapsed → features lock.
+      modules: access.active ? access.modules : [],
+      planTier: access.tier,
+      billing: access.billing,
+      active: access.active,
+      expired: access.expired,
+      validUntil: access.validUntil,
+      grantKind: access.grantKind,
     });
   } catch (err) {
     console.error('[GET /api/subscription/sync]', err);
-    return NextResponse.json({ modules: [], planTier: null, billing: null });
+    return NextResponse.json({ modules: [], planTier: null, billing: null, active: false, expired: false });
   }
 }
 

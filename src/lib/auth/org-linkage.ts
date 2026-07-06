@@ -67,7 +67,8 @@ export async function ensureOrgLinkage(): Promise<void> {
   // on auto-detection drift, so genuinely-separate orgs are never re-merged.
   if (!owner || (stored && (stored === owner || !envForced))) { ranThisProcess = true; return; }
 
-  db.prepare('UPDATE users SET org_id = ?').run(owner);
+  // Never sweep the platform super-admin into an org.
+  db.prepare("UPDATE users SET org_id = ? WHERE role != 'superadmin'").run(owner);
   db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('org_owner', ?)").run(owner);
   console.log(`[org-linkage] merged ${localUserIds.size} users into org ${owner}`);
   ranThisProcess = true;

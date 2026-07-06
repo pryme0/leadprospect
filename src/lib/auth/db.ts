@@ -16,11 +16,13 @@ export function getAuthDb(): Database.Database {
   return _db;
 }
 
+export type UserRole = 'admin' | 'viewer' | 'superadmin';
+
 export interface DbUser {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'viewer';
+  role: UserRole;
   is_active: number;
   created_at: string;
   /** The workspace this user belongs to (= the owner's user id). All data is
@@ -163,6 +165,7 @@ function bootstrap(db: Database.Database) {
   if (seeded.c === 0) {
     seedDemoUser(db);
   }
+  seedSuperAdmin(db);
 }
 
 function seedDemoUser(db: Database.Database) {
@@ -173,6 +176,31 @@ function seedDemoUser(db: Database.Database) {
     INSERT INTO users (id, name, email, role, pwd_hash, pwd_salt, is_active, created_at, org_id)
     VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
   `).run('usr_admin_001', 'SYNQ Admin', 'admin@synq.demo', 'admin', hash, salt, 'Jun 12, 2026', 'usr_admin_001');
+}
+
+/** Default super-admin password when SUPERADMIN_PASSWORD isn't set. Change on
+ *  first login. Kept here (not a random value) so the seed is reproducible and
+ *  the credentials are known for the initial platform login. */
+const DEFAULT_SUPERADMIN_PASSWORD = 'Synq-Super-2026!';
+
+/**
+ * Seed the platform super-admin (manages ALL organizations). Idempotent: only
+ * creates the account when its email doesn't already exist. Email/password are
+ * env-overridable (SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD). role='superadmin',
+ * org_id=self so it's never part of any org's workspace.
+ */
+function seedSuperAdmin(db: Database.Database) {
+  const email = (process.env.SUPERADMIN_EMAIL || 'superadmin@synq.africa').trim().toLowerCase();
+  const exists = db.prepare('SELECT COUNT(*) AS c FROM users WHERE email = ? COLLATE NOCASE').get(email) as { c: number };
+  if (exists.c > 0) return;
+  const password = process.env.SUPERADMIN_PASSWORD || DEFAULT_SUPERADMIN_PASSWORD;
+  const salt = randomBytes(32).toString('hex');
+  const hash = pbkdf2Sync(password, salt, 100_000, 64, 'sha512').toString('hex');
+  const id = 'usr_super_001';
+  db.prepare(`
+    INSERT INTO users (id, name, email, role, pwd_hash, pwd_salt, is_active, created_at, org_id)
+    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+  `).run(id, 'Platform Super Admin', email, 'superadmin', hash, salt, new Date().toISOString(), id);
 }
 
 export function verifyPassword(plain: string, hash: string, salt: string): boolean {
@@ -237,6 +265,32 @@ export function createTeamUser(orgId: string, input: { name: string; email: stri
     VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
   `).run(id, input.name.trim(), email, input.role, hash, salt, created_at, orgId);
   return { id, name: input.name.trim(), email, role: input.role, is_active: 1, created_at, org_id: orgId };
+}
+
+/**
+ * Found a NEW organization: create an owner user whose `org_id = its own id`
+ * (unlike createTeamUser, which joins the caller's org). Used by the super-admin
+ * console to spin up organizations. Owner role is 'admin'.
+ */
+export function createOrgOwner(input: { name: string; email: string; password: string }): DbUser {
+  const db = getAuthDb();
+  const email = input.email.trim().toLowerCase();
+  if (getUserByEmail(email)) throw new Error('A user with this email already exists.');
+  const { hash, salt } = hashPassword(input.password);
+  const id = `usr_${randomBytes(8).toString('hex')}`;
+  const created_at = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO users (id, name, email, role, pwd_hash, pwd_salt, is_active, created_at, org_id)
+    VALUES (?, ?, ?, 'admin', ?, ?, 1, ?, ?)
+  `).run(id, input.name.trim(), email, hash, salt, created_at, id);
+  return { id, name: input.name.trim(), email, role: 'admin', is_active: 1, created_at, org_id: id };
+}
+
+/** All organizations = every distinct org_id with its owner. Super-admin only. */
+export function listOrgOwners(): DbUser[] {
+  const db = getAuthDb();
+  // Owners are users whose id equals their org_id; every org has exactly one.
+  return db.prepare("SELECT id, name, email, role, is_active, created_at, org_id FROM users WHERE id = org_id AND role != 'superadmin' ORDER BY created_at DESC").all() as DbUser[];
 }
 
 /** Update a member's name/role/active/password. */

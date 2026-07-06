@@ -38,7 +38,8 @@ export default function AdminLoginPage() {
       }
       localStorage.setItem('synq_admin_token', data.token);
       localStorage.setItem('synq_admin_user', JSON.stringify(data.user));
-      router.replace('/admin');
+      // Super admins manage the whole platform, not a single org workspace.
+      router.replace(data.user?.role === 'superadmin' ? '/admin/platform' : '/admin');
     } catch {
       setError('Unable to connect. Please try again.');
     } finally {

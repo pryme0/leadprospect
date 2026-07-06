@@ -53,6 +53,12 @@ export function ensureAppSchema(): Promise<void> {
         updated_at   TEXT NOT NULL DEFAULT ''
       );
     `);
+    // Access-window columns (super-admin credits/trials). valid_until NULL = an
+    // ongoing subscription; a set value = access granted until then (credit/trial),
+    // after which entitlement is revoked and crawling is stopped.
+    await p.query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS valid_until TEXT`);
+    await p.query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS grant_kind  TEXT`);
+    await p.query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS grant_note  TEXT`);
   })().catch((err) => {
     schemaReady = null; // allow retry on next call if the first attempt failed
     throw err;
