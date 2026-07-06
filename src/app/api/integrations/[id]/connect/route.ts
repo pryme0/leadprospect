@@ -21,7 +21,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
   // CRM/integration access is a Pro+ feature — gated on the 'email' module
   // (same tier boundary as Email Desk, see TIER_MODULES in tiers.ts).
-  if (!(await hasModule(user.sub, 'email'))) {
+  if (!(await hasModule(user.org, 'email'))) {
     return NextResponse.json({ message: 'Integrations require an active Pro or Max subscription.' }, { status: 402 });
   }
 
@@ -30,12 +30,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({ message: 'This integration does not support OAuth connect yet.' }, { status: 400 });
   }
 
-  const creds = resolveCreds(user.sub, id);
+  const creds = resolveCreds(user.org, id);
   if (!creds) {
     return NextResponse.json({ message: 'Add your app credentials for this integration first.', needs_credentials: true }, { status: 428 });
   }
 
-  const url = buildAuthorizeUrl(id, originFor(req), signState(user.sub, id), creds);
+  const url = buildAuthorizeUrl(id, originFor(req), signState(user.org, id), creds);
   if (!url) return NextResponse.json({ message: 'Could not build authorize URL.' }, { status: 500 });
   return NextResponse.json({ url });
 }

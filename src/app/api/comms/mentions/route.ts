@@ -22,12 +22,12 @@ export async function GET(req: Request) {
     };
 
     const db = getDb();
-    let rows = listMentions(db, user.sub, filter);
+    let rows = listMentions(db, user.org, filter);
 
     // Basic-tier daily mentions cap — display-only truncation. The true
     // rolling-30-day count (comms/stats KPIs, the chart) is computed
     // separately via countMentions() and is never affected by this.
-    const tier = await getUserTier(user.sub) ?? 'basic';
+    const tier = await getUserTier(user.org) ?? 'basic';
     const dailyLimit = TIER_LIMITS[tier].maxMentionsPerDay;
     if (dailyLimit !== null) {
       const todayStartSec = Math.floor(new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() / 1000);
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
       seen: m.seen === 1,
     }));
 
-    const profile = await getOrgProfile(user.sub);
+    const profile = await getOrgProfile(user.org);
     return NextResponse.json({
       mentions,
       count: mentions.length,
@@ -75,12 +75,12 @@ export async function POST(req: Request) {
     const db = getDb();
 
     if (body.action === 'seen') {
-      const changed = markMentionsSeen(db, user.sub, body.id);
+      const changed = markMentionsSeen(db, user.org, body.id);
       return NextResponse.json({ success: true, changed });
     }
 
     if (!body.id) return NextResponse.json({ error: 'Mention id is required' }, { status: 400 });
-    const ok = markMentionReplied(db, user.sub, body.id);
+    const ok = markMentionReplied(db, user.org, body.id);
     if (!ok) return NextResponse.json({ error: 'Mention not found' }, { status: 404 });
     if (body.text && body.text.trim()) {
       db.prepare('INSERT INTO sent_replies (conversation_id, text, tone, kb_enabled) VALUES (?, ?, ?, ?)')

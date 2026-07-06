@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   try {
     const user = getUserFromRequest(req);
     if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
-    const sub = await getUserSubscription(user.sub);
+    const sub = await getUserSubscription(user.org);
     return NextResponse.json({
       modules: sub?.modules ?? [],
       planTier: sub?.planTier ?? null,
@@ -43,8 +43,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Invalid or missing planTier.' }, { status: 400 });
     }
 
-    await setUserSubscription(user.sub, { planTier: body.planTier as PlanTier, billing: body.billing ?? null });
-    return NextResponse.json({ ok: true, modules: await getUserModules(user.sub) });
+    await setUserSubscription(user.org, { planTier: body.planTier as PlanTier, billing: body.billing ?? null });
+    return NextResponse.json({ ok: true, modules: await getUserModules(user.org) });
   } catch (err) {
     console.error('[POST /api/subscription/sync]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

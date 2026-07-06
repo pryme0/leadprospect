@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
-  if (!(await hasModule(user.sub, 'comms'))) {
+  if (!(await hasModule(user.org, 'comms'))) {
     return NextResponse.json({ message: 'Replying to leads requires an active Pulse subscription.' }, { status: 403 });
   }
   if (!llmConfigured()) {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   if (!row) return NextResponse.json({ message: 'Lead not found.' }, { status: 404 });
   const lead = toUiLead(row);
 
-  const profile = await getOrgProfile(user.sub);
+  const profile = await getOrgProfile(user.org);
   const system = `You write the FIRST outreach message from a company to a potential customer found on social media. Warm, human, and specific — never salesy or spammy. 1-3 short sentences, no links, no hashtags. Reference what the person actually posted so it feels personal, then offer help. Match a friendly ${lead.source} DM tone.`;
   const userContent = [
     `Our company: ${profile?.company_name || '(unknown)'}`,

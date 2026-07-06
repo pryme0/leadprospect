@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
-  const profile = await getOrgProfile(user.sub);
+  const profile = await getOrgProfile(user.org);
   const keywords = profile?.analysis?.keywords ?? [];
   if (keywords.length === 0) {
     return NextResponse.json(
@@ -26,15 +26,15 @@ export async function POST(req: NextRequest) {
 
   const analysis = profile!.analysis!;
   const provision = await provisionAndCrawl({
-    userId: user.sub,
+    userId: user.org,
     companyName: profile!.company_name,
     keywords,
     context: { summary: analysis.summary, target_audience: analysis.target_audience, pain_points: analysis.pain_points },
     startCrawl: false, // the crawler's cron picks up the SBU on its next tick
   });
 
-  const sbuId = provision.sbuId || sbuIdForUser(user.sub);
-  await setOrgAnalysis(user.sub, sbuId, profile!.analysis!);
+  const sbuId = provision.sbuId || sbuIdForUser(user.org);
+  await setOrgAnalysis(user.org, sbuId, profile!.analysis!);
 
   return NextResponse.json({
     ok: provision.sbuReady,

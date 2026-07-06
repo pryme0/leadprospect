@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     // Scope the asset to the uploading user (folder is applied separately) so
     // logos don't collide across orgs and re-uploads overwrite the same asset.
-    const result = await uploadImage(buffer, { folder, publicId: user.sub });
+    const result = await uploadImage(buffer, { folder, publicId: user.org });
     return NextResponse.json({ url: result.url, publicId: result.publicId, width: result.width, height: result.height });
   } catch (err) {
     console.error('[POST /api/upload]', err);

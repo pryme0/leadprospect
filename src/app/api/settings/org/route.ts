@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
-  const profile = await getOrgProfile(user.sub);
+  const profile = await getOrgProfile(user.org);
   return NextResponse.json({ profile });
 }
 
@@ -37,7 +37,7 @@ export async function PUT(req: NextRequest) {
     if (typeof v === 'string') data[key] = v;
   }
 
-  await upsertOrgProfile(user.sub, data);
+  await upsertOrgProfile(user.org, data);
 
   // Brand-monitoring terms are arrays — accept manual edits alongside the profile.
   const asArray = (v: unknown): string[] | undefined =>
@@ -46,8 +46,8 @@ export async function PUT(req: NextRequest) {
   const bh = asArray((body as Record<string, unknown>).brand_handles);
   const ex = asArray((body as Record<string, unknown>).exclude_terms);
   if (bk || bh || ex) {
-    await setBrandTerms(user.sub, { brand_keywords: bk, brand_handles: bh, exclude_terms: ex });
+    await setBrandTerms(user.org, { brand_keywords: bk, brand_handles: bh, exclude_terms: ex });
   }
 
-  return NextResponse.json({ profile: await getOrgProfile(user.sub) });
+  return NextResponse.json({ profile: await getOrgProfile(user.org) });
 }

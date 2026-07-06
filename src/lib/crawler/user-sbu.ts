@@ -19,6 +19,6 @@ import { sbuIdForUser } from '@/lib/crawler/control-client';
 export async function resolveUserSbu(req: Request): Promise<{ sbu: string | null; provisioned: boolean }> {
   const user = getUserFromRequest(req);
   if (!user) return { sbu: null, provisioned: false };
-  const stored = (await getOrgProfile(user.sub))?.crawler_sbu_id ?? null;
-  return { sbu: stored ?? sbuIdForUser(user.sub), provisioned: !!stored };
+  const stored = (await getOrgProfile(user.org))?.crawler_sbu_id ?? null;
+  return { sbu: stored ?? sbuIdForUser(user.org), provisioned: !!stored };
 }

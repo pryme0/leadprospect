@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 
     const db = getDb();
 
-    const mentionItems: NotificationItem[] = listMentions(db, user.sub, {}, 30).map((m) => ({
+    const mentionItems: NotificationItem[] = listMentions(db, user.org, {}, 30).map((m) => ({
       id: `mention:${m.id}`,
       type: 'mention',
       title: `New mention on ${label(m.platform)} · ${m.author}`,

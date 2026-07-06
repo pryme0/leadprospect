@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     const db = getDb();
     type DbRow = { channel_id: string; handle: string; connected_at: string };
-    const local = db.prepare('SELECT channel_id, handle, connected_at FROM connected_channels WHERE user_id = ?').all(user.sub) as DbRow[];
+    const local = db.prepare('SELECT channel_id, handle, connected_at FROM connected_channels WHERE user_id = ?').all(user.org) as DbRow[];
 
     /* Set of channel IDs managed by Unipile (we always defer to Unipile for these) */
     const unipileIds = new Set(Object.values(UNIPILE_TO_CHANNELS).flat());
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
           INSERT INTO connected_channels (channel_id, user_id, handle, connected_at)
           VALUES (?, ?, ?, ?)
           ON CONFLICT(user_id, channel_id) DO UPDATE SET handle = excluded.handle, connected_at = excluded.connected_at
-        `).run(channelId, user.sub, handle, now);
+        `).run(channelId, user.org, handle, now);
         unipileMapped.push({ channel_id: channelId, handle, connected_at: now });
       }
     }
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     const activeUnipileChannelIds = new Set(unipileMapped.map((u) => u.channel_id));
     Array.from(unipileIds).forEach((channelId) => {
       if (!activeUnipileChannelIds.has(channelId)) {
-        db.prepare('DELETE FROM connected_channels WHERE user_id = ? AND channel_id = ?').run(user.sub, channelId);
+        db.prepare('DELETE FROM connected_channels WHERE user_id = ? AND channel_id = ?').run(user.org, channelId);
       }
     });
 

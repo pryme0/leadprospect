@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
-  if (!(await hasModule(user.sub, 'comms'))) {
+  if (!(await hasModule(user.org, 'comms'))) {
     return NextResponse.json({ message: 'Replying to leads requires an active Pulse subscription.' }, { status: 403 });
   }
 
@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Record status + mirror into Pulse (both real and assisted sends).
-  recordOutreach(user.sub, { leadId, platform, handle, status: 'sent', message: text, channel });
-  mirrorOutreachToPulse(user.sub, {
+  recordOutreach(user.org, { leadId, platform, handle, status: 'sent', message: text, channel });
+  mirrorOutreachToPulse(user.org, {
     leadId, platform, handle, name: lead.first_name || null, url, text, postContent: lead.post_content,
   });
 

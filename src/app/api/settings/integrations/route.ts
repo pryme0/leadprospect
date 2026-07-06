@@ -26,7 +26,7 @@ interface ConnectorMeta {
  */
 export async function GET(req: Request) {
   const user = getUserFromRequest(req);
-  const conns = user ? listConnections(user.sub) : [];
+  const conns = user ? listConnections(user.org) : [];
   const byId = new Map(conns.map((c) => [c.integration_id, c]));
 
   const statuses: Record<string, ConnectorState> = {};
@@ -48,8 +48,8 @@ export async function GET(req: Request) {
     statuses[integration.id] = connected ? 'connected' : 'needs-setup';
     meta[integration.id] = {
       oauth,
-      provider_configured: oauth && !!user ? !!resolveCreds(user.sub, integration.id) : false,
-      has_credentials: oauth && !!user ? !!getCredentials(user.sub, integration.id)?.client_secret : false,
+      provider_configured: oauth && !!user ? !!resolveCreds(user.org, integration.id) : false,
+      has_credentials: oauth && !!user ? !!getCredentials(user.org, integration.id)?.client_secret : false,
       fields: oauth ? credentialFields(integration.id) : [],
       account_label: conn?.account_label ?? null,
       source,

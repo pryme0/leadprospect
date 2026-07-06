@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 
     const unipileCount = await fetchUnipileChatCount();
     const totalConversations = unipileCount + localConvoRow.count;
-    const mentionsDetected = countMentions(db, user.sub);
+    const mentionsDetected = countMentions(db, user.org);
 
     return NextResponse.json({
       activeConversations: totalConversations,

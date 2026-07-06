@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
-  const subscribed = await hasModule(user.sub, 'leads');
-  const profile = await getOrgProfile(user.sub);
+  const subscribed = await hasModule(user.org, 'leads');
+  const profile = await getOrgProfile(user.org);
 
   return NextResponse.json({
     subscribed,
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
   // 2. Server-side subscription gate — Lead Intelligence = the 'leads' module.
-  if (!(await hasModule(user.sub, 'leads'))) {
+  if (!(await hasModule(user.org, 'leads'))) {
     return NextResponse.json(
       { message: 'This feature requires an active Lead Intelligence subscription.' },
       { status: 403 },
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. Load the user's saved company profile.
-  const profile = await getOrgProfile(user.sub);
+  const profile = await getOrgProfile(user.org);
   if (!profile || !profile.website.trim()) {
     return NextResponse.json(
       { message: 'Add your company website in Settings before generating leads.' },
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
 
   // 6. Provision per-user SBU + keywords in the crawler (+ optional crawl).
   const provision = await provisionAndCrawl({
-    userId: user.sub,
+    userId: user.org,
     companyName: profile.company_name,
     keywords: analysis.keywords,
     socialKeywords: { tiktok: analysis.keywords_tiktok, instagram: analysis.keywords_instagram },
@@ -114,8 +114,8 @@ export async function POST(req: NextRequest) {
   // 7. Persist analysis + the SBU id used to scope this user's leads. Use the
   //    provisioned sbu id (always the deterministic per-user id) so lead reads
   //    can scope even when the crawler wasn't reachable this run.
-  const sbuId = provision.sbuId || sbuIdForUser(user.sub);
-  await setOrgAnalysis(user.sub, sbuId, analysis);
+  const sbuId = provision.sbuId || sbuIdForUser(user.org);
+  await setOrgAnalysis(user.org, sbuId, analysis);
 
   // 8. Return the summary + provisioning status.
   return NextResponse.json({

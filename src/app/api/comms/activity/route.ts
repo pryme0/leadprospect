@@ -12,8 +12,8 @@ export async function GET(req: Request) {
 
     const db = getDb();
     return NextResponse.json({
-      activity: listRecentActivity(db, user.sub, 10),
-      chart: commsActivitySeries(db, user.sub),
+      activity: listRecentActivity(db, user.org, 10),
+      chart: commsActivitySeries(db, user.org),
     });
   } catch (err) {
     console.error('[GET /api/comms/activity]', err);

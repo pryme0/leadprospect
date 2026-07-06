@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   // Connected-account cap — checked here (before opening Unipile's hosted-auth
   // popup) because a real Unipile connection completes on Unipile's own domain;
   // by the time our GET /api/comms/channels syncs it back, it already exists.
-  const cap = await checkConnectedAccountCap(getDb(), user.sub, channelId);
+  const cap = await checkConnectedAccountCap(getDb(), user.org, channelId);
   if (!cap.ok) {
     return NextResponse.json({ error: cap.message, code: 'account_limit' }, { status: 402 });
   }

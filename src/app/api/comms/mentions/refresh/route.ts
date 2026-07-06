@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   try { force = !!(await req.json())?.force; } catch { /* no body */ }
 
   try {
-    const result = await ingestForUser(user.sub, force);
+    const result = await ingestForUser(user.org, force);
     return NextResponse.json({ ...result, configured: configuredProviders() });
   } catch (err) {
     console.error('[POST /api/comms/mentions/refresh]', err);

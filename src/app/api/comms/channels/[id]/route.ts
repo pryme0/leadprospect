@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // Connected-account cap (Basic/Pro/Max) — only counts accounts other than
     // the one being (re)connected, so re-saving an existing channel never trips it.
-    const cap = await checkConnectedAccountCap(db, user.sub, id);
+    const cap = await checkConnectedAccountCap(db, user.org, id);
     if (!cap.ok) {
       return NextResponse.json({ error: cap.message, code: 'account_limit' }, { status: 402 });
     }
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       INSERT INTO connected_channels (channel_id, user_id, handle, connected_at)
       VALUES (?, ?, ?, ?)
       ON CONFLICT(user_id, channel_id) DO UPDATE SET handle = excluded.handle, connected_at = excluded.connected_at
-    `).run(id, user.sub, body.handle.trim(), now);
+    `).run(id, user.org, body.handle.trim(), now);
 
     return NextResponse.json({ success: true, account: { channelId: id, handle: body.handle.trim(), connectedAt: now } });
   } catch (err) {
@@ -117,8 +117,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     // 2. Remove the local connection + clear the platform's traction.
     const clear = db.transaction((channels: string[]) => {
       for (const cid of channels) {
-        db.prepare('DELETE FROM connected_channels WHERE user_id = ? AND channel_id = ?').run(user.sub, cid);
-        db.prepare('DELETE FROM mentions WHERE user_id = ? AND platform = ?').run(user.sub, cid);
+        db.prepare('DELETE FROM connected_channels WHERE user_id = ? AND channel_id = ?').run(user.org, cid);
+        db.prepare('DELETE FROM mentions WHERE user_id = ? AND platform = ?').run(user.org, cid);
         // Cascades to messages / ai_replies / timeline_events (foreign_keys ON).
         db.prepare('DELETE FROM conversations WHERE platform = ?').run(cid);
       }

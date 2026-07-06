@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth/session';
-import { getUserByEmail } from '@/lib/auth/db';
+import { getUserByEmail, getOrgId } from '@/lib/auth/db';
 import { setUserSubscription, getUserModules } from '@/lib/subscription/server-store';
 import { PLAN_TIERS, TIER_MODULES, type PlanTier } from '@/lib/subscription/tiers';
 
@@ -45,10 +45,13 @@ export async function POST(req: NextRequest) {
     // Persist entitlement server-side so it can be enforced without trusting the
     // browser. Prefer the authenticated user; fall back to the Paystack customer
     // email so a webhook-style call still lands on the right account.
+    // Subscriptions are ORGANIZATION-level: resolve the payer to their org so any
+    // admin's payment updates the shared workspace plan (not a personal one).
     const tokenUser = getUserFromRequest(req);
-    const userId =
+    const payerId =
       tokenUser?.sub ??
       (data.data.customer?.email ? getUserByEmail(data.data.customer.email)?.id : undefined);
+    const userId = tokenUser?.org ?? (payerId ? getOrgId(payerId) : undefined);
 
     if (userId) {
       try {

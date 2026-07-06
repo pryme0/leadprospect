@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Analysis is not configured (set OPENAI_API_KEY or GEMINI_API_KEY).' }, { status: 503 });
   }
 
-  const profile = await getOrgProfile(user.sub);
+  const profile = await getOrgProfile(user.org);
   if (!profile?.company_name && !profile?.website) {
     return NextResponse.json({ message: 'Add your company name and website in Settings first.' }, { status: 400 });
   }
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       summary: profile.analysis?.summary,
       websiteText,
     });
-    const updated = await setBrandTerms(user.sub, terms, true);
+    const updated = await setBrandTerms(user.org, terms, true);
     return NextResponse.json({ ok: true, brand: terms, profile: updated });
   } catch (err) {
     console.error('[POST /api/settings/brand/analyze]', err);

@@ -8,6 +8,9 @@ export interface TokenPayload {
   name: string;
   email: string;
   role: string;
+  /** Workspace/org id (= owner's user id). Optional for back-compat with old
+   *  tokens; getUserFromRequest resolves it from the DB when absent. */
+  org?: string;
   exp: number;   // unix ms expiry
 }
 

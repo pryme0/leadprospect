@@ -14,6 +14,6 @@ export async function GET(req: NextRequest) {
 
   const raw = new URL(req.url).searchParams.get('leadIds') ?? '';
   const leadIds = raw.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 500);
-  const statuses = getOutreachStatuses(user.sub, leadIds);
+  const statuses = getOutreachStatuses(user.org, leadIds);
   return NextResponse.json({ statuses });
 }

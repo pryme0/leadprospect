@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     let since: string | undefined;
     let dailyCapLimit = limit;
     if (user && intent === 'HIGH_INTENT') {
-      const tier = await getUserTier(user.sub) ?? 'basic';
+      const tier = await getUserTier(user.org) ?? 'basic';
       const cap = TIER_LIMITS[tier].maxHighIntentLeadsPerDay;
       if (cap !== null) {
         since = new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString();

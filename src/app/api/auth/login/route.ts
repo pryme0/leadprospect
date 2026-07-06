@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserByEmail, verifyPassword } from '@/lib/auth/db';
+import { getUserByEmail, verifyPassword, getOrgId } from '@/lib/auth/db';
 import { signToken } from '@/lib/auth/token';
+import { ensureOrgLinkage } from '@/lib/auth/org-linkage';
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,7 +24,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
     }
 
-    const token = signToken({ sub: user.id, name: user.name, email: user.email, role: user.role });
+    // One-time: link existing users into the shared organization (no-op after
+    // the first run) so the resolved org below is correct for teammates.
+    await ensureOrgLinkage();
+    const org = getOrgId(user.id);
+    const token = signToken({ sub: user.id, name: user.name, email: user.email, role: user.role, org });
 
     return NextResponse.json({
       token,

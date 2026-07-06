@@ -23,6 +23,9 @@ export interface DbUser {
   role: 'admin' | 'viewer';
   is_active: number;
   created_at: string;
+  /** The workspace this user belongs to (= the owner's user id). All data is
+   *  scoped by this so teammates share one organization. */
+  org_id: string;
 }
 
 function bootstrap(db: Database.Database) {
@@ -35,7 +38,8 @@ function bootstrap(db: Database.Database) {
       pwd_hash   TEXT NOT NULL,
       pwd_salt   TEXT NOT NULL,
       is_active  INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      org_id     TEXT
     );
 
     -- Per-user company/org profile. Server-side home for the fields that were
@@ -147,6 +151,14 @@ function bootstrap(db: Database.Database) {
     }
   }
 
+  // Organization linkage: users belong to a workspace (org_id = the owner's user
+  // id). Add the column on pre-existing DBs and default any NULL to self (each
+  // user is its own org) so the model is safe before the one-time cross-org
+  // merge (ensureOrgLinkage, run against Postgres) links teammates to the owner.
+  const userCols = new Set((db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name));
+  if (!userCols.has('org_id')) db.exec('ALTER TABLE users ADD COLUMN org_id TEXT');
+  db.exec("UPDATE users SET org_id = id WHERE org_id IS NULL OR org_id = ''");
+
   const seeded = db.prepare("SELECT COUNT(*) as c FROM users WHERE email = 'admin@synq.demo'").get() as { c: number };
   if (seeded.c === 0) {
     seedDemoUser(db);
@@ -158,9 +170,9 @@ function seedDemoUser(db: Database.Database) {
   const hash = pbkdf2Sync('demo-password', salt, 100_000, 64, 'sha512').toString('hex');
 
   db.prepare(`
-    INSERT INTO users (id, name, email, role, pwd_hash, pwd_salt, is_active, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-  `).run('usr_admin_001', 'SYNQ Admin', 'admin@synq.demo', 'admin', hash, salt, 'Jun 12, 2026');
+    INSERT INTO users (id, name, email, role, pwd_hash, pwd_salt, is_active, created_at, org_id)
+    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+  `).run('usr_admin_001', 'SYNQ Admin', 'admin@synq.demo', 'admin', hash, salt, 'Jun 12, 2026', 'usr_admin_001');
 }
 
 export function verifyPassword(plain: string, hash: string, salt: string): boolean {
@@ -181,26 +193,39 @@ function hashPassword(plain: string): { hash: string; salt: string } {
   return { hash, salt };
 }
 
-/** All team members, newest first. Excludes password fields. */
-export function listUsers(): DbUser[] {
+/** The workspace/org id a user belongs to (= the owner's user id). Falls back to
+ *  the user's own id if unset (they're their own org). */
+export function getOrgId(userId: string): string {
   const db = getAuthDb();
-  return db.prepare('SELECT id, name, email, role, is_active, created_at FROM users ORDER BY created_at DESC').all() as DbUser[];
+  const row = db.prepare('SELECT org_id FROM users WHERE id = ?').get(userId) as { org_id: string | null } | undefined;
+  return row?.org_id || userId;
 }
 
-/** Count active members — the number that counts against the seat limit. */
-export function countActiveUsers(): number {
+/** Reassign a user to an org (used by the one-time cross-org merge). */
+export function setUserOrg(userId: string, orgId: string): void {
+  getAuthDb().prepare('UPDATE users SET org_id = ? WHERE id = ?').run(orgId, userId);
+}
+
+/** All team members in an organization, newest first. Excludes password fields. */
+export function listUsersInOrg(orgId: string): DbUser[] {
   const db = getAuthDb();
-  const row = db.prepare('SELECT COUNT(*) AS n FROM users WHERE is_active = 1').get() as { n: number } | undefined;
+  return db.prepare('SELECT id, name, email, role, is_active, created_at, org_id FROM users WHERE org_id = ? ORDER BY created_at DESC').all(orgId) as DbUser[];
+}
+
+/** Count active members in an org — counts against that org's seat limit. */
+export function countActiveUsersInOrg(orgId: string): number {
+  const db = getAuthDb();
+  const row = db.prepare('SELECT COUNT(*) AS n FROM users WHERE is_active = 1 AND org_id = ?').get(orgId) as { n: number } | undefined;
   return row?.n ?? 0;
 }
 
 export function getUserById(id: string): DbUser | undefined {
   const db = getAuthDb();
-  return db.prepare('SELECT id, name, email, role, is_active, created_at FROM users WHERE id = ?').get(id) as DbUser | undefined;
+  return db.prepare('SELECT id, name, email, role, is_active, created_at, org_id FROM users WHERE id = ?').get(id) as DbUser | undefined;
 }
 
-/** Invite (create) a team member. Throws on duplicate email. */
-export function createTeamUser(input: { name: string; email: string; password: string; role: 'admin' | 'viewer' }): DbUser {
+/** Invite (create) a team member into an organization. Throws on duplicate email. */
+export function createTeamUser(orgId: string, input: { name: string; email: string; password: string; role: 'admin' | 'viewer' }): DbUser {
   const db = getAuthDb();
   const email = input.email.trim().toLowerCase();
   if (getUserByEmail(email)) throw new Error('A user with this email already exists.');
@@ -208,10 +233,10 @@ export function createTeamUser(input: { name: string; email: string; password: s
   const id = `usr_${randomBytes(8).toString('hex')}`;
   const created_at = new Date().toISOString();
   db.prepare(`
-    INSERT INTO users (id, name, email, role, pwd_hash, pwd_salt, is_active, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-  `).run(id, input.name.trim(), email, input.role, hash, salt, created_at);
-  return { id, name: input.name.trim(), email, role: input.role, is_active: 1, created_at };
+    INSERT INTO users (id, name, email, role, pwd_hash, pwd_salt, is_active, created_at, org_id)
+    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+  `).run(id, input.name.trim(), email, input.role, hash, salt, created_at, orgId);
+  return { id, name: input.name.trim(), email, role: input.role, is_active: 1, created_at, org_id: orgId };
 }
 
 /** Update a member's name/role/active/password. */
