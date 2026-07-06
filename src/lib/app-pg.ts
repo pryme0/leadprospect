@@ -59,6 +59,32 @@ export function ensureAppSchema(): Promise<void> {
     await p.query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS valid_until TEXT`);
     await p.query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS grant_kind  TEXT`);
     await p.query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS grant_note  TEXT`);
+
+    // Append-only transactions ledger — every Paystack payment + every manual
+    // super-admin grant/suspend, for the platform audit log + notifications.
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id         TEXT PRIMARY KEY,
+        org_id     TEXT NOT NULL,
+        type       TEXT NOT NULL,           -- 'payment' | 'grant' | 'suspend'
+        email      TEXT,
+        amount     BIGINT,                  -- minor units (kobo/cents); null for non-payments
+        currency   TEXT,
+        plan_tier  TEXT,
+        billing    TEXT,
+        reference  TEXT,                    -- Paystack reference (payments only)
+        status     TEXT,
+        channel    TEXT,
+        note       TEXT,
+        actor      TEXT,                    -- super-admin email for manual actions
+        paid_at    TEXT,
+        created_at TEXT NOT NULL,
+        seen       INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+    // Idempotent payment capture: a reference can only be recorded once.
+    await p.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_reference ON transactions(reference) WHERE reference IS NOT NULL`);
+    await p.query(`CREATE INDEX IF NOT EXISTS ix_transactions_created ON transactions(created_at DESC)`);
   })().catch((err) => {
     schemaReady = null; // allow retry on next call if the first attempt failed
     throw err;

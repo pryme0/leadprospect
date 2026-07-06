@@ -5,6 +5,7 @@ import { createOrgOwner } from '@/lib/auth/db';
 import { upsertOrgProfile } from '@/lib/settings/org-store';
 import { setUserSubscription } from '@/lib/subscription/server-store';
 import { enforceOrgAccess } from '@/lib/crawler/enforce';
+import { recordTransaction } from '@/lib/billing/transactions';
 import { PLAN_TIERS, type PlanTier } from '@/lib/subscription/tiers';
 
 export const dynamic = 'force-dynamic';
@@ -57,13 +58,15 @@ export async function POST(req: Request) {
     if (tier && (PLAN_TIERS as string[]).includes(tier)) {
       const days = body.grant?.days;
       const validUntil = days && days > 0 ? new Date(Date.now() + days * 86_400_000).toISOString() : null;
+      const note = validUntil ? `${days}-day ${tier} credit` : `${tier} subscription`;
       await setUserSubscription(owner.id, {
         planTier: tier as PlanTier,
         validUntil,
         grantKind: validUntil ? 'credit' : 'subscription',
-        grantNote: validUntil ? `${days}-day ${tier} credit` : `${tier} subscription`,
+        grantNote: note,
       });
       await enforceOrgAccess(owner.id);
+      await recordTransaction({ orgId: owner.id, type: 'grant', planTier: tier, status: 'granted', note: `New org · ${note}`, actor: auth.user.email, email: owner.email });
     }
 
     return NextResponse.json({

@@ -117,6 +117,8 @@ export interface SignalQuery {
   source?: string;
   /** Per-user scoping: only return signals tagged with this crawler SBU id. */
   sbu?: string;
+  /** Multi-SBU scoping (e.g. super-admin cross-org view over all org SBUs). */
+  sbus?: string[];
   minScore?: number;
   maxScore?: number;
   hasEmail?: boolean;
@@ -152,6 +154,8 @@ function buildWhere(q: SignalQuery): { sql: string; params: unknown[] } {
   // source is optional here (dashboard shows all platforms by default).
   if (q.source) push('source = ?', q.source);
   if (q.sbu) push('sbu_id = ?', q.sbu);
+  // Multi-SBU scoping (super-admin cross-org view = only the platform's orgs).
+  if (q.sbus && q.sbus.length) push('sbu_id = ANY(?)', q.sbus);
   if (q.intentLevel) push('intent_level = ?', q.intentLevel);
   if (q.intentCategory) push('intent_category = ?', q.intentCategory);
   if (q.ingestionCategory) push('ingestion_category = ?', q.ingestionCategory);

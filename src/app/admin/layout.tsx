@@ -191,6 +191,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [subscribedModules, setSubscribedModules] = useState<Set<ModuleId>>(new Set());
   const [accessExpired,     setAccessExpired]     = useState(false);
   const [newRequestCount,   setNewRequestCount]   = useState(0);
+  const [unseenTxnCount,    setUnseenTxnCount]    = useState(0);
   const [themeMode,         setThemeMode]         = useState<'dark' | 'light'>('light');
   const [signoutConfirm,    setSignoutConfirm]    = useState(false);
   const [idleWarning,       setIdleWarning]       = useState(false);
@@ -329,6 +330,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => { window.removeEventListener('synq:access-requests-changed', load); clearInterval(iv); };
   }, [authUser]);
 
+  /* Super-admin unseen-transaction count → the Transactions badge (the payment
+     notification). Polls + clears when the transactions page marks them seen. */
+  useEffect(() => {
+    if (authUser?.role !== 'superadmin') return;
+    const load = () => {
+      const token = localStorage.getItem('synq_admin_token');
+      if (!token) return;
+      fetch('/api/super/transactions', { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { unseenCount?: number } | null) => { if (d) setUnseenTxnCount(d.unseenCount ?? 0); })
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener('synq:transactions-seen', load);
+    const iv = setInterval(load, 30_000);
+    return () => { window.removeEventListener('synq:transactions-seen', load); clearInterval(iv); };
+  }, [authUser]);
+
   /* Single logout path — used by the sign-out confirm modal and the idle timer. */
   const doLogout = useCallback(() => {
     localStorage.removeItem('synq_admin_token');
@@ -416,6 +435,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             label: 'Organizations',
             badge: undefined as string | undefined,
             icon: (<svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><path fillRule="evenodd" d="M4 2a1 1 0 00-1 1v14a1 1 0 001 1h5v-3a1 1 0 112 0v3h5a1 1 0 001-1V3a1 1 0 00-1-1H4zm2 3h2v2H6V5zm0 4h2v2H6V9zm6-4h2v2h-2V5zm0 4h2v2h-2V9z" clipRule="evenodd" /></svg>),
+          },
+          {
+            href: '/admin/platform/leads',
+            label: 'Leads',
+            badge: undefined as string | undefined,
+            icon: (<svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 8a7 7 0 1114 0H3z" /></svg>),
+          },
+          {
+            href: '/admin/platform/transactions',
+            label: 'Transactions',
+            badge: unseenTxnCount > 0 ? String(unseenTxnCount) : undefined,
+            icon: (<svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h2a1 1 0 110 2H5a1 1 0 01-1-1z" clipRule="evenodd" /></svg>),
           },
           {
             href: '/admin/platform/requests',

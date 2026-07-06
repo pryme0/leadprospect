@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth/session';
 import { getUserByEmail, getOrgId } from '@/lib/auth/db';
 import { setUserSubscription, getUserModules } from '@/lib/subscription/server-store';
+import { recordTransaction } from '@/lib/billing/transactions';
 import { PLAN_TIERS, TIER_MODULES, type PlanTier } from '@/lib/subscription/tiers';
 
 export async function POST(req: NextRequest) {
@@ -26,6 +27,8 @@ export async function POST(req: NextRequest) {
         status: string;
         amount: number;
         currency: string;
+        channel?: string;
+        paid_at?: string;
         customer?: { email?: string };
         metadata?: { planTier?: string; billing?: string };
       };
@@ -56,6 +59,20 @@ export async function POST(req: NextRequest) {
     if (userId) {
       try {
         await setUserSubscription(userId, { planTier, billing, paystackRef: reference });
+        // Record the payment in the audit ledger (idempotent on reference).
+        await recordTransaction({
+          orgId: userId,
+          type: 'payment',
+          email: data.data.customer?.email ?? null,
+          amount: data.data.amount,
+          currency: data.data.currency,
+          planTier,
+          billing,
+          reference,
+          status: 'success',
+          channel: data.data.channel ?? null,
+          paidAt: data.data.paid_at ?? null,
+        });
       } catch (err) {
         console.error('[subscription/verify] persist failed', err);
       }

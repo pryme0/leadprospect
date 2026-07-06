@@ -3,6 +3,7 @@ import { requireSuperAdmin } from '@/lib/super/guard';
 import { getUserById } from '@/lib/auth/db';
 import { getUserSubscription, setUserSubscription } from '@/lib/subscription/server-store';
 import { enforceOrgAccess } from '@/lib/crawler/enforce';
+import { recordTransaction } from '@/lib/billing/transactions';
 import { PLAN_TIERS, type PlanTier } from '@/lib/subscription/tiers';
 
 export const dynamic = 'force-dynamic';
@@ -33,12 +34,14 @@ export async function PATCH(req: Request, { params }: { params: { orgId: string 
       }
       const days = body.days;
       const validUntil = days && days > 0 ? new Date(Date.now() + days * 86_400_000).toISOString() : null;
+      const note = validUntil ? `${days}-day ${tier} credit` : `${tier} subscription`;
       await setUserSubscription(orgId, {
         planTier: tier as PlanTier,
         validUntil,
         grantKind: validUntil ? 'credit' : 'subscription',
-        grantNote: validUntil ? `${days}-day ${tier} credit` : `${tier} subscription`,
+        grantNote: note,
       });
+      await recordTransaction({ orgId, type: 'grant', planTier: tier, status: 'granted', note, actor: auth.user.email, email: owner.email });
     } else if (body.action === 'suspend') {
       const current = await getUserSubscription(orgId);
       if (!current?.planTier) return NextResponse.json({ message: 'Nothing to suspend — no active plan.' }, { status: 400 });
@@ -49,6 +52,7 @@ export async function PATCH(req: Request, { params }: { params: { orgId: string 
         grantKind: current.grantKind ?? 'subscription',
         grantNote: 'Suspended by super admin',
       });
+      await recordTransaction({ orgId, type: 'suspend', planTier: current.planTier, status: 'suspended', note: 'Suspended by super admin', actor: auth.user.email, email: owner.email });
     } else {
       return NextResponse.json({ message: 'Unknown action.' }, { status: 400 });
     }
