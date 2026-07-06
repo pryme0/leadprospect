@@ -184,23 +184,39 @@ function seedDemoUser(db: Database.Database) {
 const DEFAULT_SUPERADMIN_PASSWORD = 'Synq-Super-2026!';
 
 /**
- * Seed the platform super-admin (manages ALL organizations). Idempotent: only
- * creates the account when its email doesn't already exist. Email/password are
- * env-overridable (SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD). role='superadmin',
- * org_id=self so it's never part of any org's workspace.
+ * Seed / maintain the platform super-admin (manages ALL organizations).
+ * role='superadmin', org_id=self so it's never part of any org's workspace.
+ * Email/password are env-overridable (SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD).
+ *
+ * SUPERADMIN_PASSWORD is AUTHORITATIVE when set: if the account already exists we
+ * re-sync its password to the env on every boot, so setting the env + redeploy is
+ * a reliable password reset. When the env is unset we only create the account
+ * once (with the default password) and never touch an existing one.
  */
 function seedSuperAdmin(db: Database.Database) {
   const email = (process.env.SUPERADMIN_EMAIL || 'superadmin@synq.africa').trim().toLowerCase();
-  const exists = db.prepare('SELECT COUNT(*) AS c FROM users WHERE email = ? COLLATE NOCASE').get(email) as { c: number };
-  if (exists.c > 0) return;
-  const password = process.env.SUPERADMIN_PASSWORD || DEFAULT_SUPERADMIN_PASSWORD;
+  const envPassword = process.env.SUPERADMIN_PASSWORD?.trim() || '';
+  const existing = db.prepare('SELECT id FROM users WHERE email = ? COLLATE NOCASE').get(email) as { id: string } | undefined;
+
+  if (existing) {
+    // Only mutate an existing account when the env explicitly sets a password —
+    // then keep it in sync (also restore role/active in case they drifted).
+    if (envPassword) {
+      const salt = randomBytes(32).toString('hex');
+      const hash = pbkdf2Sync(envPassword, salt, 100_000, 64, 'sha512').toString('hex');
+      db.prepare("UPDATE users SET pwd_hash = ?, pwd_salt = ?, role = 'superadmin', is_active = 1 WHERE id = ?").run(hash, salt, existing.id);
+    }
+    return;
+  }
+
+  const password = envPassword || DEFAULT_SUPERADMIN_PASSWORD;
   const salt = randomBytes(32).toString('hex');
   const hash = pbkdf2Sync(password, salt, 100_000, 64, 'sha512').toString('hex');
   const id = 'usr_super_001';
   db.prepare(`
     INSERT INTO users (id, name, email, role, pwd_hash, pwd_salt, is_active, created_at, org_id)
-    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
-  `).run(id, 'Platform Super Admin', email, 'superadmin', hash, salt, new Date().toISOString(), id);
+    VALUES (?, ?, ?, 'superadmin', ?, ?, 1, ?, ?)
+  `).run(id, 'Platform Super Admin', email, hash, salt, new Date().toISOString(), id);
 }
 
 export function verifyPassword(plain: string, hash: string, salt: string): boolean {
