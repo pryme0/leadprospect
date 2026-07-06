@@ -190,6 +190,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [authUser,          setAuthUser]          = useState<AuthUser | null>(null);
   const [subscribedModules, setSubscribedModules] = useState<Set<ModuleId>>(new Set());
   const [accessExpired,     setAccessExpired]     = useState(false);
+  const [newRequestCount,   setNewRequestCount]   = useState(0);
   const [themeMode,         setThemeMode]         = useState<'dark' | 'light'>('light');
   const [signoutConfirm,    setSignoutConfirm]    = useState(false);
   const [idleWarning,       setIdleWarning]       = useState(false);
@@ -310,6 +311,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!isSuper && inPlatform) router.replace('/admin');
   }, [authUser, pathname, router]);
 
+  /* Super-admin new-access-request count → the sidebar badge (the "new request"
+     notification). Polls + refreshes when a request's status changes. */
+  useEffect(() => {
+    if (authUser?.role !== 'superadmin') return;
+    const load = () => {
+      const token = localStorage.getItem('synq_admin_token');
+      if (!token) return;
+      fetch('/api/super/access-requests', { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { newCount?: number } | null) => { if (d) setNewRequestCount(d.newCount ?? 0); })
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener('synq:access-requests-changed', load);
+    const iv = setInterval(load, 30_000);
+    return () => { window.removeEventListener('synq:access-requests-changed', load); clearInterval(iv); };
+  }, [authUser]);
+
   /* Single logout path — used by the sign-out confirm modal and the idle timer. */
   const doLogout = useCallback(() => {
     localStorage.removeItem('synq_admin_token');
@@ -384,6 +403,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (pathname === '/admin/login') return <>{children}</>;
 
+  /* Super admins get a platform nav (working links) instead of the org sidebar,
+     which for them only bounced back to the console. The Access Requests badge is
+     the live new-request count — the super-admin "new request" notification. */
+  const isSuper = authUser?.role === 'superadmin';
+  const navToRender = isSuper
+    ? [{
+        title: 'Platform',
+        items: [
+          {
+            href: '/admin/platform',
+            label: 'Organizations',
+            badge: undefined as string | undefined,
+            icon: (<svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><path fillRule="evenodd" d="M4 2a1 1 0 00-1 1v14a1 1 0 001 1h5v-3a1 1 0 112 0v3h5a1 1 0 001-1V3a1 1 0 00-1-1H4zm2 3h2v2H6V5zm0 4h2v2H6V9zm6-4h2v2h-2V5zm0 4h2v2h-2V9z" clipRule="evenodd" /></svg>),
+          },
+          {
+            href: '/admin/platform/requests',
+            label: 'Access Requests',
+            badge: newRequestCount > 0 ? String(newRequestCount) : undefined,
+            icon: (<svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><path d="M1 11.27V15a2 2 0 002 2h14a2 2 0 002-2v-3.73A2 2 0 0018.5 10l-1.9-5.32A2 2 0 0014.72 3H5.28a2 2 0 00-1.88 1.68L1.5 10A2 2 0 001 11.27zM6 12a2 2 0 014 0h6v3H3v-3h3z" /></svg>),
+          },
+        ],
+      }]
+    : navGroups;
+
   const workspace = getWorkspaceConfig();
   // Sidebar/header display name prefers the saved organization name.
   const displayName = orgName || authUser?.name || workspace.shortName;
@@ -443,7 +486,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-2.5 py-4 space-y-5">
-          {navGroups.map((group) => (
+          {navToRender.map((group) => (
             <div key={group.title}>
               {/* Group label (expanded) → thin divider (collapsed, desktop) */}
               <p className={`mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/20 ${collapsed ? 'lg:hidden' : ''}`}>
