@@ -70,6 +70,7 @@ export default function SignalsPage() {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(initialFilters);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const fetchSignals = useCallback(async () => {
     setLoading(true);
@@ -106,6 +107,37 @@ export default function SignalsPage() {
   const handleSearchChange = (value: string) => {
     setSearch(value);
     setPage(1);
+  };
+
+  /* Export all matching signals to CSV — contact/follow-up fields, the challenge
+     (pain points), and a suggested reply per row. Honors the current intent /
+     email filters so you can export just HIGH-intent, contactable, etc. */
+  const handleExport = async () => {
+    setExporting(true);
+    setFetchError(null);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+      const qs = new URLSearchParams();
+      if (filters.intent_level) qs.set('intent_level', filters.intent_level);
+      if (filters.has_email === 'true') qs.set('with_email', 'true');
+      const res = await fetch(`/api/crawler/signals/export?${qs.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`Export failed (${res.status}). Please try again.`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `synq-signals-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setFetchError(err?.message || 'Export failed');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
@@ -172,6 +204,27 @@ export default function SignalsPage() {
             <p className="mt-1.5 text-sm text-white/50">
               Demand events ranked by intent, urgency, and contactability.
             </p>
+            <button
+              onClick={handleExport}
+              disabled={exporting || loading}
+              title="Download all signals as CSV — contact details, the challenge they're facing, and a suggested reply for each"
+              className="mt-3 inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ background: 'var(--t-accent-soft)', color: theme.accent, border: `1px solid ${theme.accent}40` }}
+            >
+              {exporting ? (
+                <>
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Preparing export…
+                </>
+              ) : (
+                <>
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 15v4a2 2 0 002 2h12a2 2 0 002-2v-4" />
+                  </svg>
+                  Export CSV
+                </>
+              )}
+            </button>
           </div>
 
           {/* Stat tiles — dark inset so they read on both light and dark card */}
