@@ -1122,7 +1122,7 @@ export default function CommHubPage() {
                     Set up mention monitoring to track what people say about your company across the web.
                   </p>
                 </div>
-                <a href="/admin/settings" className="rounded-lg bg-[#6D5EF9] px-3.5 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-[#5B4FE8]">
+                <a href="/admin/settings#mention-monitoring" className="rounded-lg bg-[#6D5EF9] px-3.5 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-[#5B4FE8]">
                   Configure in Settings
                 </a>
               </div>
@@ -1150,7 +1150,7 @@ export default function CommHubPage() {
                         <>
                           <span className="material-symbols-outlined text-[26px] text-white/20">radar</span>
                           <p className="text-[12px] font-medium text-white/50">Mention monitoring isn&apos;t set up yet</p>
-                          <a href="/admin/settings" className="text-[11px] font-semibold text-[#6D5EF9] hover:underline">Configure your brand terms →</a>
+                          <a href="/admin/settings#mention-monitoring" className="text-[11px] font-semibold text-[#6D5EF9] hover:underline">Configure your brand terms →</a>
                         </>
                       ) : !mentionsLoaded ? (
                         <p className="text-[12px] font-medium text-white/40">Loading mentions…</p>

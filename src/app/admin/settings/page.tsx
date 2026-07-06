@@ -300,6 +300,17 @@ export default function SettingsPage() {
     adminApi.getIntegrationStatus().then((r) => setIntegrationStatus(r.data)).catch(() => {});
   }, []);
 
+  /* Deep-link support: /admin/settings#mention-monitoring (from the Pulse
+     "Configure" banner) opens the Profile tab and scrolls to that section. */
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.location.hash) return;
+    const id = window.location.hash.slice(1);
+    if (id === 'mention-monitoring') setTab('profile');
+    // Wait for the section to render/hydrate, then scroll it into view.
+    const t = setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
+    return () => clearTimeout(t);
+  }, []);
+
   const saveOrg = async () => {
     setOrgSaving(true);
     // Mirror to localStorage for instant reload; persist to the server so the
@@ -649,6 +660,7 @@ export default function SettingsPage() {
             <SaveButton onClick={saveOrg} saving={orgSaving} saved={orgSaved} />
           </div>
 
+          <div id="mention-monitoring" className="scroll-mt-24" />
           <Section
             title="Mention monitoring (Pulse)"
             subtitle="Track what people say about your company across X, Reddit, YouTube, news and the web. These terms drive the Mentions feed in Pulse."
