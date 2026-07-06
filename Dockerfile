@@ -47,6 +47,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+# su-exec lets the entrypoint drop from root to nextjs after fixing volume perms.
+RUN apk add --no-cache su-exec
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
@@ -61,16 +63,22 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 RUN npm install --no-save --no-package-lock sharp@0.35.3
 
 # Writable location for the app's SQLite databases (app.db / comms.db / leads.db).
-# /app is root-owned and the app runs as the non-root `nextjs` user, so it cannot
-# create DB files there (SQLITE_CANTOPEN). This dir is owned by nextjs and is the
-# default DATA_DIR. Mount a persistent Railway volume at /data to keep data across
-# redeploys — otherwise it is writable but ephemeral.
+# Mount a PERSISTENT Railway volume at /data to keep data (users, mentions,
+# connected accounts, captured leads) across restarts and redeploys — otherwise
+# the container filesystem is ephemeral and it's wiped on every restart. The
+# entrypoint chowns this to nextjs at startup so a root-owned mounted volume is
+# still writable by the app.
 RUN mkdir -p /data && chown nextjs:nodejs /data
 ENV DATA_DIR=/data
 
-USER nextjs
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# NOTE: no `USER nextjs` here — the container starts as root so the entrypoint can
+# fix the volume's ownership, then drops to nextjs (via su-exec) to run the app.
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "server.js"]
