@@ -123,9 +123,10 @@ async function fetchUnipileChats(apiKey: string, dsn: string): Promise<UnipileCh
   const accountIds = (accountsData?.items ?? []).map((a) => a.id).filter((id): id is string => !!id);
 
   if (accountIds.length === 0) {
-    // Fallback: no account list available, use the old unscoped call rather than returning nothing.
-    const data = await unipileGet<{ items?: UnipileChat[] }>('/api/v1/chats?limit=50', apiKey, dsn);
-    return data?.items ?? [];
+    // No connected accounts → return NO chats. We must NOT fall back to an
+    // unscoped /api/v1/chats call: after a user disconnects every account, that
+    // fallback would still leak conversations (privacy). No accounts = no chats.
+    return [];
   }
 
   const perAccount = await Promise.all(

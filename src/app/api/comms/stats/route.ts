@@ -10,6 +10,16 @@ async function fetchUnipileChatCount(): Promise<number> {
   if (!apiKey || !dsn) return 0;
 
   try {
+    // Only count chats for CURRENTLY connected accounts. With no accounts we must
+    // return 0 rather than an unscoped /chats call — otherwise the KPI keeps
+    // showing conversations after a user disconnects everything (privacy).
+    const accRes = await fetch(`${dsn}/api/v1/accounts`, {
+      headers: { 'X-API-KEY': apiKey, 'accept': 'application/json' },
+      cache: 'no-store',
+    });
+    const accounts = accRes.ok ? (((await accRes.json()) as { items?: unknown[] }).items ?? []) : [];
+    if (accounts.length === 0) return 0;
+
     const res = await fetch(`${dsn}/api/v1/chats?limit=50`, {
       headers: { 'X-API-KEY': apiKey, 'accept': 'application/json' },
       cache: 'no-store',
