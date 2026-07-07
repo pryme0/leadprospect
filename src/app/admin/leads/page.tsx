@@ -99,10 +99,18 @@ export default function LeadsPage() {
   // Pulse subscription (client) + connected social channels.
   useEffect(() => {
     const loadSub = () => setHasPulse((getSubscription()?.modules ?? []).includes('comms'));
-    loadSub();
+    loadSub(); // instant paint from the local cache…
     window.addEventListener('synq:subscription-changed', loadSub);
     const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
     if (token) {
+      // …then reconcile with the SHARED server (Postgres), the source of truth.
+      // Without this a stale/empty local cache (e.g. a super-admin-granted plan
+      // or a different browser) wrongly shows the "Subscribe to Pulse" banner
+      // even though the account already has Pulse (the 'comms' module).
+      fetch('/api/subscription/sync', { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d && Array.isArray(d.modules)) setHasPulse(d.modules.includes('comms')); })
+        .catch(() => {});
       fetch('/api/comms/channels', { headers: { Authorization: `Bearer ${token}` } })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => setConnected(new Set(((d?.connected ?? []) as { channel_id: string }[]).map((c) => c.channel_id))))
