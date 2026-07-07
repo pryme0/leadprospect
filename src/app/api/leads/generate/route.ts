@@ -132,3 +132,83 @@ export async function POST(req: NextRequest) {
     },
   });
 }
+
+/**
+ * PATCH /api/leads/generate — save user-edited search signals (keywords) without
+ * re-running the website analysis. Syncs the new set to the crawler and
+ * deactivates any removed terms so crawls streamline to exactly what the user
+ * wants. Body: { keywords: string[] }.
+ */
+export async function PATCH(req: NextRequest) {
+  const user = getUserFromRequest(req);
+  if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
+
+  if (!(await hasModule(user.org, 'leads'))) {
+    return NextResponse.json(
+      { message: 'This feature requires an active Lead Intelligence subscription.' },
+      { status: 403 },
+    );
+  }
+
+  const profile = await getOrgProfile(user.org);
+  if (!profile?.analysis) {
+    return NextResponse.json(
+      { message: 'Run "Analyse & generate" once before editing search signals.' },
+      { status: 400 },
+    );
+  }
+
+  let raw: unknown = [];
+  try {
+    const body = await req.json();
+    raw = body?.keywords;
+  } catch { /* fall through to validation below */ }
+
+  if (!Array.isArray(raw)) {
+    return NextResponse.json({ message: 'keywords must be an array of strings.' }, { status: 400 });
+  }
+
+  // Sanitize: trim, drop empties/over-long, de-dupe case-insensitively, cap count.
+  const seen = new Set<string>();
+  const keywords: string[] = [];
+  for (const item of raw) {
+    const k = typeof item === 'string' ? item.trim() : '';
+    if (!k || k.length > 120) continue;
+    const key = k.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    keywords.push(k);
+    if (keywords.length >= 40) break;
+  }
+
+  if (keywords.length === 0) {
+    return NextResponse.json({ message: 'Keep at least one search signal.' }, { status: 422 });
+  }
+
+  const updated = { ...profile.analysis, keywords };
+
+  // Sync to the crawler: upsert the current set + deactivate anything removed.
+  const provision = await provisionAndCrawl({
+    userId: user.org,
+    companyName: profile.company_name,
+    keywords,
+    socialKeywords: { tiktok: updated.keywords_tiktok, instagram: updated.keywords_instagram },
+    context: { summary: updated.summary, target_audience: updated.target_audience, pain_points: updated.pain_points },
+    startCrawl: false,
+    deactivateMissing: true,
+  });
+
+  const sbuId = profile.crawler_sbu_id || provision.sbuId || sbuIdForUser(user.org);
+  await setOrgAnalysis(user.org, sbuId, updated);
+
+  return NextResponse.json({
+    ok: true,
+    analysis: updated,
+    provisioning: {
+      crawler_connected: !provision.skipped,
+      sbu_ready: provision.sbuReady,
+      keywords_added: provision.keywordsAdded,
+      errors: provision.errors,
+    },
+  });
+}
