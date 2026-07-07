@@ -16,7 +16,7 @@ export const metadata: Metadata = pageMetadata({
 const FAQ = [
   { q: 'Can I switch plans after signing up?', a: 'Yes — switch between Basic, Pro, and Max at any time from your subscription settings. Switching charges the new plan\'s full price immediately; there\'s no proration.' },
   { q: 'What happens to my leads and mentions if I downgrade?', a: 'Nothing is ever deleted. Downgrading just lowers your daily allowance going forward — anything already generated stays in your account and reappears in full the moment you upgrade again.' },
-  { q: 'What counts toward the daily lead and mention limits?', a: 'Basic includes 5 HIGH-intent leads and 10 brand mentions per day. Pro raises that to 50 leads and 200 mentions per day. Max is unlimited on both.' },
+  { q: 'What counts toward the daily lead and mention limits?', a: 'Basic includes 10 HIGH-intent leads and 10 brand mentions per day. Pro raises that to 20 leads and 200 mentions per day. Max delivers 30–40 HIGH-intent leads per day with unlimited brand mentions.' },
   { q: 'Is there a minimum commitment?', a: 'Monthly plans have no minimum commitment — cancel anytime. Annual plans are paid upfront at a 20% discount and are non-refundable after 30 days.' },
   { q: 'How many team members can use one account?', a: 'Basic includes 1 seat, Pro includes 5 seats, and Max includes unlimited team seats.' },
 ];

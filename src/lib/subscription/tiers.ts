@@ -30,9 +30,9 @@ export interface TierLimits {
 }
 
 export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
-  basic: { maxConnectedAccounts: 1, maxHighIntentLeadsPerDay: 5, maxMentionsPerDay: 10, seats: 1, crmIntegration: false },
-  pro: { maxConnectedAccounts: 5, maxHighIntentLeadsPerDay: 50, maxMentionsPerDay: 200, seats: 5, crmIntegration: true },
-  max: { maxConnectedAccounts: 10, maxHighIntentLeadsPerDay: null, maxMentionsPerDay: null, seats: null, crmIntegration: true },
+  basic: { maxConnectedAccounts: 1, maxHighIntentLeadsPerDay: 10, maxMentionsPerDay: 10, seats: 1, crmIntegration: false },
+  pro: { maxConnectedAccounts: 3, maxHighIntentLeadsPerDay: 20, maxMentionsPerDay: 200, seats: 5, crmIntegration: true },
+  max: { maxConnectedAccounts: 5, maxHighIntentLeadsPerDay: 40, maxMentionsPerDay: null, seats: null, crmIntegration: true },
 };
 
 export interface TierPricing {
@@ -40,14 +40,22 @@ export interface TierPricing {
   ngn: number;
 }
 
-/** Basic = ₦25,000/mo, converted at the real mid-market rate on 2026-07-03
- * (₦1,371.80 = $1, CBN/Wise/XE) and rounded to a clean checkout price.
- * Pro = 3× Basic, Max = 5× Basic, per the requested pricing formula. */
+/** Base pricing (₦1,371.80 = $1 mid-market rate, CBN/Wise/XE), then a flat
+ * +$5.50 connected-account surcharge added to every tier — in both currencies
+ * (≈ ₦7,500 at that rate) — to cover the per-account provider cost (Unipile).
+ *   Basic $19 + $5.50 = $24.50  ·  ₦25,000 + ₦7,500 = ₦32,500
+ *   Pro   $57 + $5.50 = $62.50  ·  ₦75,000 + ₦7,500 = ₦82,500
+ *   Max   $95 + $5.50 = $100.50 ·  ₦125,000 + ₦7,500 = ₦132,500 */
 export const TIER_PRICING: Record<PlanTier, TierPricing> = {
-  basic: { usd: 19, ngn: 25_000 },
-  pro: { usd: 57, ngn: 75_000 },
-  max: { usd: 95, ngn: 125_000 },
+  basic: { usd: 24.5, ngn: 32_500 },
+  pro: { usd: 62.5, ngn: 82_500 },
+  max: { usd: 100.5, ngn: 132_500 },
 };
+
+/** Format a USD price string: whole numbers stay clean ("$62"), fractional
+ * amounts show two decimals ("$62.50"). Use anywhere a TIER_PRICING.usd or a
+ * derived USD amount is rendered so half-dollar prices don't show as "$62.5". */
+export const fmtUSD = (n: number): string => (Number.isInteger(n) ? String(n) : n.toFixed(2));
 
 export interface TierDef {
   id: PlanTier;
@@ -66,7 +74,7 @@ export const TIER_DEFS: Record<PlanTier, TierDef> = {
     color: '#21F2A6',
     gradient: 'from-emerald-500 to-teal-500',
     features: [
-      '5 HIGH-intent leads / day',
+      '10 HIGH-intent leads / day',
       'AI lead scoring & intent signals',
       'Explorer & research, pipeline management',
       '1 connected social/messaging account',
@@ -82,9 +90,9 @@ export const TIER_DEFS: Record<PlanTier, TierDef> = {
     color: '#6D5EF9',
     gradient: 'from-violet-500 to-indigo-500',
     features: [
-      '50 HIGH-intent leads / day',
+      '20 HIGH-intent leads / day',
       'Everything in Basic',
-      '5 connected accounts',
+      '3 connected accounts',
       '200 brand mentions / day, AI reply suggestions',
       'Email Desk — AI sequences, A/B testing, deliverability monitor',
       'CRM integration (Salesforce sync)',
@@ -98,9 +106,9 @@ export const TIER_DEFS: Record<PlanTier, TierDef> = {
     color: '#FFB547',
     gradient: 'from-amber-500 to-orange-500',
     features: [
-      'Unlimited HIGH-intent leads',
+      '30–40 HIGH-intent leads / day',
       'Everything in Pro',
-      '10 connected accounts',
+      '5 connected accounts',
       'Unlimited brand mentions',
       'Routing Desk — intelligent assignment, SLA & escalations, workflow automation',
       'Unlimited team seats',

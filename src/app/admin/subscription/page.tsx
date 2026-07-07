@@ -12,6 +12,7 @@ import {
   TIER_PRICING,
   TIER_LIMITS,
   TIER_MODULES,
+  fmtUSD,
   type PlanTier,
   type ModuleId,
 } from '@/lib/subscription/tiers';
@@ -36,7 +37,7 @@ type Currency = 'USD' | 'NGN';
 function formatPrice(tier: PlanTier, billing: Billing, currency: Currency): string {
   const usd = TIER_PRICING[tier].usd;
   const monthly = billing === 'annual' ? Math.round(usd * 0.8) : usd;
-  if (currency === 'USD') return `$${monthly}`;
+  if (currency === 'USD') return `$${fmtUSD(monthly)}`;
   const ngn = billing === 'annual' ? Math.round(TIER_PRICING[tier].ngn * 0.8) : TIER_PRICING[tier].ngn;
   return `₦${ngn.toLocaleString()}`;
 }
@@ -419,7 +420,7 @@ export default function SubscriptionPage() {
                 <span className="text-[#10B981]">Annual discount (20%)</span>
                 <span className="font-semibold text-[#10B981]">
                   {currency === 'USD'
-                    ? `−$${TIER_PRICING[selectedTier].usd - usdTotal}/mo`
+                    ? `−$${fmtUSD(TIER_PRICING[selectedTier].usd - usdTotal)}/mo`
                     : `−₦${(TIER_PRICING[selectedTier].ngn - ngnTotal).toLocaleString()}/mo`}
                 </span>
               </div>
@@ -430,12 +431,12 @@ export default function SubscriptionPage() {
                 <p className="text-[10px] text-white/25">Total / month</p>
                 {billing === 'annual' && (
                   <p className="text-[10px] text-white/20">
-                    {currency === 'USD' ? `$${usdTotal * 12}/yr billed` : `₦${(ngnTotal * 12).toLocaleString()}/yr billed`}
+                    {currency === 'USD' ? `$${fmtUSD(usdTotal * 12)}/yr billed` : `₦${(ngnTotal * 12).toLocaleString()}/yr billed`}
                   </p>
                 )}
               </div>
               <div className="text-right">
-                <span className="text-[26px] font-bold text-white">{currency === 'USD' ? `$${usdTotal}` : `₦${ngnTotal.toLocaleString()}`}</span>
+                <span className="text-[26px] font-bold text-white">{currency === 'USD' ? `$${fmtUSD(usdTotal)}` : `₦${ngnTotal.toLocaleString()}`}</span>
                 <span className="text-[11px] text-white/30">/mo</span>
               </div>
             </div>
@@ -498,7 +499,7 @@ export default function SubscriptionPage() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-white/40">USD (monthly)</span>
-                <span className="text-[12px] font-semibold text-white">${TIER_PRICING[selectedTier].usd}/mo</span>
+                <span className="text-[12px] font-semibold text-white">${fmtUSD(TIER_PRICING[selectedTier].usd)}/mo</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-white/40">NGN (monthly)</span>
@@ -508,7 +509,7 @@ export default function SubscriptionPage() {
                 <div style={{ borderTop: '1px solid var(--a-border)' }} className="pt-1.5 mt-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-white/40">USD (annual, −20%)</span>
-                    <span className="text-[12px] font-semibold text-[#10B981]">${usdTotal}/mo</span>
+                    <span className="text-[12px] font-semibold text-[#10B981]">${fmtUSD(usdTotal)}/mo</span>
                   </div>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-[11px] text-white/40">NGN (annual, −20%)</span>

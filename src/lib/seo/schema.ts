@@ -1,5 +1,5 @@
 import { SITE, SITE_URL, absoluteUrl } from './config';
-import { PLAN_TIERS, TIER_DEFS, TIER_PRICING } from '@/lib/subscription/tiers';
+import { PLAN_TIERS, TIER_DEFS, TIER_PRICING, fmtUSD } from '@/lib/subscription/tiers';
 
 /**
  * JSON-LD builders. Kept honest: no fabricated aggregateRating / review counts.
@@ -58,7 +58,7 @@ export function softwareApplicationSchema() {
     offers: PLAN_TIERS.map((tier) => ({
       '@type': 'Offer',
       name: TIER_DEFS[tier].name,
-      price: String(TIER_PRICING[tier].usd),
+      price: fmtUSD(TIER_PRICING[tier].usd),
       priceCurrency: 'USD',
       category: 'subscription',
     })),

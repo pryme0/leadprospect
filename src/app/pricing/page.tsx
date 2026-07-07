@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { PLAN_TIERS, TIER_DEFS, TIER_PRICING, TIER_LIMITS } from '@/lib/subscription/tiers';
+import { PLAN_TIERS, TIER_DEFS, TIER_PRICING, TIER_LIMITS, fmtUSD } from '@/lib/subscription/tiers';
 
 const limitLabel = (n: number | null, unit = '') => (n === null ? 'Unlimited' : unit ? `${n} ${unit}` : String(n));
 
@@ -75,9 +75,9 @@ export default function PricingPage() {
                 </div>
                 <div className="mb-8 flex items-baseline gap-1">
                   {isYearly && (
-                    <span className="text-on-surface-variant text-lg line-through opacity-50">${pricing.usd}</span>
+                    <span className="text-on-surface-variant text-lg line-through opacity-50">${fmtUSD(pricing.usd)}</span>
                   )}
-                  <span className="font-display-lg text-display-lg">${monthly}</span>
+                  <span className="font-display-lg text-display-lg">${fmtUSD(monthly)}</span>
                   <span className="text-on-surface-variant">/mo</span>
                 </div>
                 <ul className="space-y-4 mb-12 flex-grow">
