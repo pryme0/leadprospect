@@ -158,6 +158,107 @@ function StatusDot({ ok }: { ok: boolean }) {
   );
 }
 
+// ── Social handle helpers ───────────────────────────────────────────────────
+/** Reduce any pasted value (URL, @handle, plain username) to a bare username. */
+function normalizeHandle(input: string): string {
+  let s = (input || '').trim();
+  if (/^https?:\/\//i.test(s) || s.includes('/')) {
+    s = s.replace(/[?#].*$/, '').replace(/\/+$/, '');
+    const parts = s.split('/');
+    s = parts[parts.length - 1] || s;
+  }
+  return s.replace(/^@+/, '').split(/[?#]/)[0].trim();
+}
+
+/** Returns an error string if the handle is invalid, or null when it's valid. */
+function validateHandle(input: string): string | null {
+  const s = normalizeHandle(input);
+  if (!s) return 'Enter a handle or profile link.';
+  if (s.length > 30) return 'Handles are at most 30 characters.';
+  if (!/^[a-zA-Z0-9._-]+$/.test(s)) return 'Only letters, numbers and . _ - are allowed.';
+  return null;
+}
+
+/** Modal to add & validate a single brand handle before it's tracked. */
+function AddHandleModal({ open, existing, onClose, onAdd }: {
+  open: boolean; existing: string[]; onClose: () => void; onAdd: (handle: string) => void;
+}) {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { if (open) { setValue(''); setError(null); } }, [open]);
+  if (!open) return null;
+
+  const submit = () => {
+    const err = validateHandle(value);
+    if (err) { setError(err); return; }
+    const norm = normalizeHandle(value);
+    if (existing.some((h) => h.toLowerCase() === norm.toLowerCase())) {
+      setError('That handle is already being tracked.'); return;
+    }
+    onAdd(norm);
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border p-5 shadow-2xl"
+        style={{ background: 'var(--a-card)', borderColor: 'var(--a-border2)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--a-text)' }}>Add a handle</h3>
+            <p className="mt-1 text-xs text-white/40">Enter a username or paste a profile link — we&apos;ll validate the format and track it.</p>
+          </div>
+          <button onClick={onClose} className="text-white/30 hover:text-white/70 text-lg leading-none">×</button>
+        </div>
+
+        <div className="mt-4">
+          <div className="flex items-center rounded-xl border" style={{ background: 'var(--a-input-bg)', borderColor: error ? 'rgba(239,68,68,0.5)' : 'var(--a-border2)' }}>
+            <span className="pl-3 text-white/30 text-sm select-none">@</span>
+            <input
+              autoFocus
+              value={value}
+              onChange={(e) => { setValue(e.target.value); if (error) setError(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+              placeholder="acmehq"
+              className="w-full bg-transparent px-2 py-2.5 text-sm focus:outline-none"
+              style={{ color: 'var(--a-text)' }}
+            />
+          </div>
+          {error
+            ? <p className="mt-1.5 text-[11px] text-red-400">{error}</p>
+            : <p className="mt-1.5 text-[11px] text-white/25">e.g. acmehq, @acme, or https://x.com/acme</p>}
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-white/50 hover:text-white/80 transition-colors">Cancel</button>
+          <button
+            onClick={submit}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-[#00CEC8]/10 border border-[#00CEC8]/30 text-[#00CEC8] hover:bg-[#00CEC8]/15 transition-all"
+          >
+            <PlusIcon /> Add handle
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+      <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+    </svg>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -189,6 +290,7 @@ export default function SettingsPage() {
   const [brandAnalyzing, setBrandAnalyzing] = useState(false);
   const [brandError, setBrandError] = useState<string | null>(null);
   const [mentionsAnalyzedAt, setMentionsAnalyzedAt] = useState<string | null>(null);
+  const [handleModalOpen, setHandleModalOpen] = useState(false);
 
   // Lead Intelligence — website analysis + lead generation
   interface LeadAnalysis { summary: string; target_audience: string; pain_points: string[]; keywords: string[]; }
@@ -198,6 +300,11 @@ export default function SettingsPage() {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [genStatus, setGenStatus] = useState<string | null>(null);
+  // Search-signal editing (add / delete + persist to crawler)
+  const [signalDraft, setSignalDraft] = useState('');
+  const [signalsSaving, setSignalsSaving] = useState(false);
+  const [signalsSaved, setSignalsSaved] = useState(false);
+  const [signalsError, setSignalsError] = useState<string | null>(null);
 
   // Admin profile — read from localStorage token + display settings
   const [admin, setAdmin] = useState<AdminProfile>({
@@ -393,6 +500,55 @@ export default function SettingsPage() {
       setTimeout(() => setBrandSaved(false), 2500);
     } catch { setBrandError('Could not save. Try again.'); }
     finally { setBrandSaving(false); }
+  };
+
+  // ── Brand handles: managed as chips (stored as newline text saveBrand parses) ──
+  const handlesList = parseList(brand.brand_handles);
+  const addHandle = (h: string) =>
+    setBrand((b) => ({ ...b, brand_handles: [...parseList(b.brand_handles), h].join('\n') }));
+  const removeHandle = (h: string) =>
+    setBrand((b) => ({ ...b, brand_handles: parseList(b.brand_handles).filter((x) => x !== h).join('\n') }));
+
+  // ── Search signals: add / delete then persist to the crawler ──
+  const removeSignal = (k: string) => {
+    setLeadAnalysis((a) => (a ? { ...a, keywords: a.keywords.filter((x) => x !== k) } : a));
+    setSignalsSaved(false);
+    setSignalsError(null);
+  };
+  const addSignalFromDraft = () => {
+    if (!leadAnalysis) return;
+    const k = signalDraft.trim();
+    if (!k) return;
+    if (k.length > 120) { setSignalsError('That signal is too long.'); return; }
+    if (leadAnalysis.keywords.some((x) => x.toLowerCase() === k.toLowerCase())) {
+      setSignalsError('That signal is already in the list.');
+      setSignalDraft('');
+      return;
+    }
+    setLeadAnalysis({ ...leadAnalysis, keywords: [...leadAnalysis.keywords, k] });
+    setSignalDraft('');
+    setSignalsSaved(false);
+    setSignalsError(null);
+  };
+  const saveSignals = async () => {
+    if (!leadAnalysis) return;
+    if (leadAnalysis.keywords.length === 0) { setSignalsError('Keep at least one search signal.'); return; }
+    setSignalsSaving(true);
+    setSignalsError(null);
+    const token = localStorage.getItem('synq_admin_token');
+    try {
+      const res = await fetch('/api/leads/generate', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ keywords: leadAnalysis.keywords }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setSignalsError(data?.message || 'Could not save signals.'); return; }
+      if (data.analysis) setLeadAnalysis(data.analysis);
+      setSignalsSaved(true);
+      setTimeout(() => setSignalsSaved(false), 2500);
+    } catch { setSignalsError('Network error — please try again.'); }
+    finally { setSignalsSaving(false); }
   };
 
   const analyzeBrandTerms = async () => {
@@ -684,9 +840,36 @@ export default function SettingsPage() {
             <Field label="Brand keywords" hint="Company & product names people mention — one per line">
               <Textarea value={brand.brand_keywords} onChange={(v) => setBrand({ ...brand, brand_keywords: v })} placeholder={'Acme\nAcme CRM\nAcme Analytics'} rows={4} />
             </Field>
-            <Field label="Handles" hint="Social usernames for your brand — one per line">
-              <Textarea value={brand.brand_handles} onChange={(v) => setBrand({ ...brand, brand_handles: v })} placeholder={'@acme\nacmehq'} rows={2} />
+            <Field label="Handles" hint="Social usernames for your brand — added one at a time and validated">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {handlesList.map((h) => (
+                  <span key={h} className="inline-flex items-center gap-1 text-[12px] pl-2.5 pr-1 py-1 rounded-lg border" style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}>
+                    <span className="text-white/40">@</span>{h}
+                    <button
+                      onClick={() => removeHandle(h)}
+                      aria-label={`Remove @${h}`}
+                      className="ml-0.5 flex h-4 w-4 items-center justify-center rounded text-white/30 hover:bg-red-500/15 hover:text-red-400 transition-colors"
+                    >×</button>
+                  </span>
+                ))}
+                <button
+                  onClick={() => setHandleModalOpen(true)}
+                  className="inline-flex items-center gap-1 text-[12px] px-2.5 py-1 rounded-lg border border-dashed text-[#00CEC8]/80 hover:text-[#00CEC8] hover:border-[#00CEC8]/50 transition-colors"
+                  style={{ borderColor: 'var(--a-border2)' }}
+                >
+                  <PlusIcon /> Add handle
+                </button>
+              </div>
+              {handlesList.length === 0 && (
+                <p className="mt-1.5 text-[11px] text-white/25">No handles yet — add the usernames you want Pulse to track.</p>
+              )}
             </Field>
+            <AddHandleModal
+              open={handleModalOpen}
+              existing={handlesList}
+              onClose={() => setHandleModalOpen(false)}
+              onAdd={addHandle}
+            />
             <Field label="Exclude terms" hint="Filter out false positives if your name is a common word — one per line (optional)">
               <Textarea value={brand.exclude_terms} onChange={(v) => setBrand({ ...brand, exclude_terms: v })} placeholder={'wile e coyote\nlooney tunes'} rows={2} />
             </Field>
@@ -754,16 +937,64 @@ export default function SettingsPage() {
                       <p className="text-white/40 text-[10px] uppercase tracking-[0.18em]">Target audience</p>
                       <p className="text-white/70 text-sm mt-1">{leadAnalysis.target_audience}</p>
                     </div>
-                    {leadAnalysis.keywords?.length > 0 && (
-                      <div>
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
                         <p className="text-white/40 text-[10px] uppercase tracking-[0.18em]">Search signals ({leadAnalysis.keywords.length})</p>
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {leadAnalysis.keywords.map((k) => (
-                            <span key={k} className="text-[11px] px-2 py-1 rounded-lg bg-white/5 text-white/60 border border-white/8">{k}</span>
-                          ))}
-                        </div>
+                        <span className="text-white/20 text-[10px]">Add or remove signals to streamline what the crawler searches for.</span>
                       </div>
-                    )}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {leadAnalysis.keywords.map((k) => (
+                          <span key={k} className="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-1 rounded-lg bg-white/5 text-white/60 border border-white/8">
+                            {k}
+                            <button
+                              onClick={() => removeSignal(k)}
+                              aria-label={`Remove ${k}`}
+                              className="flex h-4 w-4 items-center justify-center rounded text-white/30 hover:bg-red-500/15 hover:text-red-400 transition-colors"
+                            >×</button>
+                          </span>
+                        ))}
+                        {leadAnalysis.keywords.length === 0 && (
+                          <span className="text-[11px] text-white/25 py-1">No signals — add one below to keep collecting leads.</span>
+                        )}
+                      </div>
+
+                      <div className="mt-2.5 flex items-center gap-2">
+                        <input
+                          value={signalDraft}
+                          onChange={(e) => { setSignalDraft(e.target.value); if (signalsError) setSignalsError(null); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSignalFromDraft(); } }}
+                          placeholder="Add a search signal, e.g. worried about my travel deposit"
+                          className="flex-1 rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:border-[#00CEC8]/40 transition-colors border placeholder:text-white/20"
+                          style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
+                        />
+                        <button
+                          onClick={addSignalFromDraft}
+                          className="flex items-center gap-1 px-3 py-2 rounded-lg text-[12px] font-medium border text-[#00CEC8]/80 hover:text-[#00CEC8] hover:border-[#00CEC8]/50 transition-colors"
+                          style={{ borderColor: 'var(--a-border2)' }}
+                        >
+                          <PlusIcon /> Add
+                        </button>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        {signalsError
+                          ? <p className="text-[11px] text-red-400">{signalsError}</p>
+                          : <span className="text-[11px] text-white/25">Changes take effect on the crawler after you save.</span>}
+                        <button
+                          onClick={saveSignals}
+                          disabled={signalsSaving}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-medium transition-all border ${
+                            signalsSaved
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                              : 'bg-[#00CEC8]/10 border-[#00CEC8]/30 text-[#00CEC8] hover:bg-[#00CEC8]/15'
+                          } disabled:opacity-50`}
+                        >
+                          {signalsSaving
+                            ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Saving…</>
+                            : signalsSaved ? <>✓ Saved</> : <>Save signals</>}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

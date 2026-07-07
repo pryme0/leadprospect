@@ -37,6 +37,9 @@ export async function provisionSbuInDb(
   name: string,
   keywords: string[] | PlatformKeywords,
   context?: SbuContext,
+  /** When true, keywords already on the SBU that are NOT in this call are set
+   *  inactive — so user edits that remove a term stop the crawler using it. */
+  opts?: { deactivateMissing?: boolean },
 ): Promise<DbProvisionResult> {
   const pool = getSignalsPool();
   if (!pool) return { sbuReady: false, keywordsUpserted: 0, activeKeywords: 0 };
@@ -87,6 +90,16 @@ export async function provisionSbuInDb(
         [sbuId, keyword, platform],
       );
       upserted += r.rowCount ?? 0;
+    }
+
+    // Reconcile removals: deactivate any keyword still active on this SBU that
+    // the caller didn't include this time. Passing an empty set deactivates all.
+    if (opts?.deactivateMissing) {
+      await client.query(
+        `UPDATE sbu_keywords SET active = false, updated_at = now()
+          WHERE sbu_id = $1 AND active AND keyword <> ALL($2::text[])`,
+        [sbuId, pairs.map((p) => p.keyword)],
+      );
     }
 
     const chk = await client.query(

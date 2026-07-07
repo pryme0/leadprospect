@@ -2041,7 +2041,7 @@ function ChannelCard({
             <button
               onClick={onConnect}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white transition-all hover:opacity-90"
-              style={{ background: ch.color }}
+              style={{ background: '#3B82F6' }}
             >
               <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3">
                 <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
@@ -2563,7 +2563,16 @@ function PlatformLogo({ id, size = 40 }: { id: string; size?: number }) {
     );
     case 'instagram': return (
       <svg width={S} height={S} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx={R} fill="#E1306C"/>
+        <defs>
+          <radialGradient id="ig-gradient" cx="30%" cy="107%" r="150%">
+            <stop offset="0%"  stopColor="#FDF497"/>
+            <stop offset="5%"  stopColor="#FDF497"/>
+            <stop offset="45%" stopColor="#FD5949"/>
+            <stop offset="60%" stopColor="#D6249F"/>
+            <stop offset="90%" stopColor="#285AEB"/>
+          </radialGradient>
+        </defs>
+        <rect width="40" height="40" rx={R} fill="url(#ig-gradient)"/>
         <rect x="12" y="12" width="16" height="16" rx="5" stroke="white" strokeWidth="1.8" fill="none"/>
         <circle cx="20" cy="20" r="4.5" stroke="white" strokeWidth="1.8" fill="none"/>
         <circle cx="27" cy="13" r="1.5" fill="white"/>

@@ -76,6 +76,8 @@ export async function provisionAndCrawl(input: {
   context?: SbuContext;
   startCrawl?: boolean;
   maxCrawls?: number;
+  /** Deactivate keywords removed by the user so the crawler stops using them. */
+  deactivateMissing?: boolean;
 }): Promise<ProvisionResult> {
   const sbuId = sbuIdForUser(input.userId);
   const result: ProvisionResult = {
@@ -96,6 +98,7 @@ export async function provisionAndCrawl(input: {
       input.companyName || sbuId,
       { linkedin: input.keywords, tiktok: input.socialKeywords?.tiktok, instagram: input.socialKeywords?.instagram },
       input.context,
+      { deactivateMissing: input.deactivateMissing },
     );
     if (db.sbuReady) {
       result.sbuReady = true;
