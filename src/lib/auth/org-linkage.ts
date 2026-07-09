@@ -1,75 +1,55 @@
 /**
- * One-time organization merge.
+ * Optional organization merge — an explicit admin escape hatch.
  *
- * The app used to be single-tenant-per-user. This links every existing user into
- * ONE shared organization (owner = the account that holds the company profile +
- * paid subscription), so teammates share the same workspace instead of each
- * getting an empty one. Runs once (guarded by the stored owner in app_meta);
- * after that, new invites inherit the inviter's org via createTeamUser().
+ * Users now live in the shared Postgres with a correct per-user `org_id`
+ * (owners are their own org; invited teammates inherit the inviter's org via
+ * createTeamUser). So NO automatic merge is needed or safe — auto-detecting an
+ * owner and sweeping every user into it would collapse separate organizations
+ * into one.
  *
- * OWNER SELECTION (in priority order):
- *   1. ORG_OWNER_EMAIL env — an explicit, deterministic override. Set this on the
- *      deployment to the real primary account; it also lets an admin CORRECT a
- *      wrong owner later (changing it + redeploying re-merges to the new owner).
- *   2. Postgres subscription/profile holder that also exists locally (per-env,
- *      since Postgres is shared but users are per-env).
- *   3. The earliest local admin.
+ * This remains ONLY as a deliberate override: set `ORG_OWNER_EMAIL` to force
+ * every non-superadmin user into that owner's org. It was used once historically
+ * to fix the old "each user is their own org" bug. It is guarded by a PERSISTENT
+ * Postgres flag (`app_meta.org_owner`) so it runs at most once per owner value —
+ * unlike the previous SQLite guard, which lived in an ephemeral per-env file and
+ * silently re-ran on every redeploy.
+ *
+ * ⚠️ If your deployment now uses multiple organizations (super-admin created
+ * orgs), leave `ORG_OWNER_EMAIL` UNSET — otherwise the one merge would pull all
+ * of them into a single workspace.
  */
-import { getAuthDb, getUserByEmail } from './db';
+import { getUserByEmail } from './db';
 import { appPool, ensureAppSchema } from '@/lib/app-pg';
 
 let ranThisProcess = false;
 
-async function detectOwner(localUserIds: Set<string>): Promise<string | null> {
-  // 1. Explicit override.
-  const ownerEmail = process.env.ORG_OWNER_EMAIL?.trim();
-  if (ownerEmail) {
-    const u = getUserByEmail(ownerEmail);
-    if (u && localUserIds.has(u.id)) return u.id;
-  }
-  // 2. Postgres subscription/profile holder that's a local user (deterministic).
-  try {
-    const pool = appPool();
-    if (pool) {
-      await ensureAppSchema();
-      const q = await pool.query<{ user_id: string }>(`
-        SELECT s.user_id
-        FROM subscriptions s
-        LEFT JOIN org_profiles p ON p.user_id = s.user_id
-        ORDER BY (p.company_name IS NOT NULL AND p.company_name <> '') DESC,
-                 CASE s.plan_tier WHEN 'max' THEN 3 WHEN 'pro' THEN 2 ELSE 1 END DESC,
-                 s.updated_at ASC, s.user_id ASC`);
-      for (const r of q.rows) if (localUserIds.has(r.user_id)) return r.user_id;
-      const p2 = await pool.query<{ user_id: string }>(
-        `SELECT user_id FROM org_profiles WHERE company_name IS NOT NULL AND company_name <> '' ORDER BY updated_at ASC, user_id ASC`);
-      for (const r of p2.rows) if (localUserIds.has(r.user_id)) return r.user_id;
-    }
-  } catch (err) {
-    console.error('[org-linkage] Postgres owner detection failed', err);
-  }
-  // 3. Earliest local admin.
-  const admin = getAuthDb().prepare("SELECT id FROM users WHERE role = 'admin' ORDER BY created_at ASC LIMIT 1").get() as { id: string } | undefined;
-  return admin?.id ?? null;
-}
-
 export async function ensureOrgLinkage(): Promise<void> {
   if (ranThisProcess) return;
-  const db = getAuthDb();
-  db.exec('CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT)');
-  const stored = (db.prepare("SELECT value FROM app_meta WHERE key = 'org_owner'").get() as { value: string } | undefined)?.value;
-  const envForced = !!process.env.ORG_OWNER_EMAIL?.trim();
-
-  const localUserIds = new Set((db.prepare('SELECT id FROM users').all() as { id: string }[]).map((r) => r.id));
-  const owner = await detectOwner(localUserIds);
-
-  // Skip if already merged to this owner. Re-merge only when an EXPLICIT env
-  // override names a different owner (an intentional admin correction) — never
-  // on auto-detection drift, so genuinely-separate orgs are never re-merged.
-  if (!owner || (stored && (stored === owner || !envForced))) { ranThisProcess = true; return; }
-
-  // Never sweep the platform super-admin into an org.
-  db.prepare("UPDATE users SET org_id = ? WHERE role != 'superadmin'").run(owner);
-  db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('org_owner', ?)").run(owner);
-  console.log(`[org-linkage] merged ${localUserIds.size} users into org ${owner}`);
   ranThisProcess = true;
+
+  const ownerEmail = process.env.ORG_OWNER_EMAIL?.trim();
+  if (!ownerEmail) return; // no explicit override → safe no-op (per-user org_id is authoritative)
+
+  try {
+    await ensureAppSchema();
+    const pool = appPool();
+    await pool.query('CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT)');
+
+    const owner = await getUserByEmail(ownerEmail);
+    if (!owner) return;
+
+    const stored = (await pool.query("SELECT value FROM app_meta WHERE key = 'org_owner'")).rows[0]?.value;
+    if (stored === owner.id) return; // already merged to this owner
+
+    // Never sweep the platform super-admin into an org.
+    const res = await pool.query("UPDATE users SET org_id = $1 WHERE role != 'superadmin'", [owner.id]);
+    await pool.query(
+      `INSERT INTO app_meta (key, value) VALUES ('org_owner', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [owner.id],
+    );
+    console.log(`[org-linkage] merged ${res.rowCount ?? 0} users into org ${owner.id} (ORG_OWNER_EMAIL=${ownerEmail})`);
+  } catch (err) {
+    console.error('[org-linkage] failed', err);
+  }
 }

@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { verifyToken, TokenPayload } from './token';
-import { getOrgId } from './db';
 
 /**
  * The authenticated caller. `sub` = the individual user id (identity — use it
@@ -26,8 +25,11 @@ export function getUserFromRequest(req: NextRequest | Request): AuthUser | null 
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : auth;
   const payload = verifyToken(token);
   if (!payload) return null;
-  // Resolve the workspace id — token claim first (fast), then the DB (so old
-  // tokens issued before organizations still scope correctly, no re-login).
-  const org = payload.org || getOrgId(payload.sub) || payload.sub;
+  // Resolve the workspace id from the token claim (issued at login). Users now
+  // live in shared Postgres (async), so we no longer do a synchronous DB lookup
+  // here — every current token carries `org`. A pre-organization legacy token
+  // (no `org`) scopes to the user's own id; a teammate on such a token re-logs
+  // in once to pick up their real org.
+  const org = payload.org || payload.sub;
   return { ...payload, org };
 }

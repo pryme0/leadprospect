@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     // All orgs + their SBU ids + company names (for the filter + per-lead label).
     // Prefer the stored crawler_sbu_id (what resolveUserSbu uses) so leads map
     // to their org; fall back to the deterministic id.
-    const owners = listOrgOwners();
+    const owners = await listOrgOwners();
     const orgs = await Promise.all(owners.map(async (o) => {
       const profile = await getOrgProfile(o.id);
       return {

@@ -28,7 +28,7 @@ export interface OrgSummary {
 }
 
 export async function listOrganizations(): Promise<OrgSummary[]> {
-  const owners = listOrgOwners();
+  const owners = await listOrgOwners();
 
   // Fetch all SBU active flags in one query.
   const sbuActive = new Map<string, boolean>();
@@ -42,7 +42,9 @@ export async function listOrganizations(): Promise<OrgSummary[]> {
 
   const out: OrgSummary[] = [];
   for (const o of owners) {
-    const [profile, access] = await Promise.all([getOrgProfile(o.id), getOrgAccess(o.id)]);
+    const [profile, access, members] = await Promise.all([
+      getOrgProfile(o.id), getOrgAccess(o.id), countActiveUsersInOrg(o.id),
+    ]);
     const sbuId = sbuIdForUser(o.id);
     out.push({
       orgId: o.id,
@@ -50,7 +52,7 @@ export async function listOrganizations(): Promise<OrgSummary[]> {
       ownerEmail: o.email,
       companyName: profile?.company_name ?? null,
       website: profile?.website ?? null,
-      members: countActiveUsersInOrg(o.id),
+      members,
       tier: access.tier,
       grantKind: access.grantKind,
       validUntil: access.validUntil,

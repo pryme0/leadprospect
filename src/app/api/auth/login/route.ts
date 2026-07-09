@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Email and password are required.' }, { status: 400 });
     }
 
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
 
     if (!user || !user.is_active) {
       return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     // One-time: link existing users into the shared organization (no-op after
     // the first run) so the resolved org below is correct for teammates.
     await ensureOrgLinkage();
-    const org = getOrgId(user.id);
+    const org = await getOrgId(user.id);
     const token = signToken({ sub: user.id, name: user.name, email: user.email, role: user.role, org });
 
     return NextResponse.json({

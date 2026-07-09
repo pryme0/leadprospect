@@ -21,7 +21,7 @@ export async function PATCH(req: Request, { params }: { params: { orgId: string 
   if ('error' in auth) return auth.error;
 
   const orgId = params.orgId;
-  const owner = getUserById(orgId);
+  const owner = await getUserById(orgId);
   if (!owner || owner.org_id !== orgId) return NextResponse.json({ message: 'Organization not found.' }, { status: 404 });
 
   let body: { action?: string; tier?: string; days?: number } = {};

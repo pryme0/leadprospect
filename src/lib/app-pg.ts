@@ -20,6 +20,26 @@ export function ensureAppSchema(): Promise<void> {
   if (schemaReady) return schemaReady;
   schemaReady = (async () => {
     const p = appPool();
+    // Authentication users — the login source of truth, shared across every
+    // environment (local ↔ prod) so an account created anywhere logs in
+    // everywhere. Hashing scheme is unchanged from the old SQLite store
+    // (pbkdf2 100k/sha512) so migrated hashes/salts verify as-is.
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        email      TEXT NOT NULL,
+        role       TEXT NOT NULL DEFAULT 'viewer',
+        pwd_hash   TEXT NOT NULL,
+        pwd_salt   TEXT NOT NULL,
+        is_active  INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        org_id     TEXT
+      );
+    `);
+    // Case-insensitive unique email (the SQLite table used COLLATE NOCASE).
+    await p.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email_lower ON users(lower(email))`);
+    await p.query(`CREATE INDEX IF NOT EXISTS ix_users_org ON users(org_id)`);
     await p.query(`
       CREATE TABLE IF NOT EXISTS org_profiles (
         user_id              TEXT PRIMARY KEY,

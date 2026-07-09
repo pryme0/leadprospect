@@ -13,7 +13,7 @@ async function seatInfo(orgId: string) {
   const modules = await getUserModules(orgId);
   const tier = await getUserTier(orgId);
   const limit = seatLimitForTier(tier);
-  const used = countActiveUsersInOrg(orgId);
+  const used = await countActiveUsersInOrg(orgId);
   const remaining = limit === null ? null : Math.max(0, limit - used);
   return { modules, tier, limit, used, remaining };
 }
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
   const s = await seatInfo(user.org);
-  return NextResponse.json({ users: listUsersInOrg(user.org), seats: { used: s.used, limit: s.limit, remaining: s.remaining, modules: s.modules, tier: s.tier } });
+  return NextResponse.json({ users: await listUsersInOrg(user.org), seats: { used: s.used, limit: s.limit, remaining: s.remaining, modules: s.modules, tier: s.tier } });
 }
 
 /**
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // New teammate joins the inviter's organization.
-    const created = createTeamUser(user.org, { name, email, password, role });
+    const created = await createTeamUser(user.org, { name, email, password, role });
     const after = await seatInfo(user.org);
     return NextResponse.json({ user: created, seats: { used: after.used, limit: after.limit, remaining: after.remaining } });
   } catch (err) {

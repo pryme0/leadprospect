@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const orgIds = listOrgOwners().map((o) => o.id);
+    const orgIds = (await listOrgOwners()).map((o) => o.id);
     const results = await enforceOrgs(orgIds);
     const stopped = results.filter((r) => r.active === false).length;
     const running = results.filter((r) => r.active === true).length;

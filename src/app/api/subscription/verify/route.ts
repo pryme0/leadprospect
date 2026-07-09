@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
     const tokenUser = getUserFromRequest(req);
     const payerId =
       tokenUser?.sub ??
-      (data.data.customer?.email ? getUserByEmail(data.data.customer.email)?.id : undefined);
-    const userId = tokenUser?.org ?? (payerId ? getOrgId(payerId) : undefined);
+      (data.data.customer?.email ? (await getUserByEmail(data.data.customer.email))?.id : undefined);
+    const userId = tokenUser?.org ?? (payerId ? await getOrgId(payerId) : undefined);
 
     if (userId) {
       try {

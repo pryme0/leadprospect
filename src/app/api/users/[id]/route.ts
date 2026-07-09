@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
   if (user.role !== 'admin') return NextResponse.json({ message: 'Only admins can manage team members.' }, { status: 403 });
 
-  const target = getUserById(params.id);
+  const target = await getUserById(params.id);
   if (!target) return NextResponse.json({ message: 'User not found.' }, { status: 404 });
   // Same-org guard: an admin can only manage members of their own organization.
   if (target.org_id !== user.org) return NextResponse.json({ message: 'User not found.' }, { status: 404 });
@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ message: 'Password must be at least 8 characters.' }, { status: 400 });
   }
 
-  const updated = updateTeamUser(params.id, {
+  const updated = await updateTeamUser(params.id, {
     name: body.name,
     role: body.role === 'admin' || body.role === 'viewer' ? body.role : undefined,
     is_active: typeof body.is_active === 'boolean' ? body.is_active : undefined,
@@ -43,10 +43,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (user.role !== 'admin') return NextResponse.json({ message: 'Only admins can remove team members.' }, { status: 403 });
   if (params.id === user.sub) return NextResponse.json({ message: 'You cannot remove your own account.' }, { status: 400 });
   // Same-org guard: can only remove members of your own organization.
-  const target = getUserById(params.id);
+  const target = await getUserById(params.id);
   if (!target || target.org_id !== user.org) return NextResponse.json({ message: 'User not found.' }, { status: 404 });
 
-  const ok = deleteTeamUser(params.id);
+  const ok = await deleteTeamUser(params.id);
   if (!ok) return NextResponse.json({ message: 'User not found.' }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

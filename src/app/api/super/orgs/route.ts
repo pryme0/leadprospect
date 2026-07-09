@@ -50,7 +50,7 @@ export async function POST(req: Request) {
   if (!companyName) return NextResponse.json({ message: 'Company name is required.' }, { status: 400 });
 
   try {
-    const owner = createOrgOwner({ name: ownerName, email: ownerEmail, password });
+    const owner = await createOrgOwner({ name: ownerName, email: ownerEmail, password });
     await upsertOrgProfile(owner.id, { company_name: companyName, website: (body.website ?? '').trim() });
 
     // Optional initial grant.
