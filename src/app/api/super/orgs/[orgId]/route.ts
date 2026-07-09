@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic';
  * Body actions:
  *   { action: 'grant', tier, days? } — days>0 = time-boxed credit; omitted = ongoing subscription
  *   { action: 'suspend' }            — end the access window now (locks the org)
+ *   { action: 'reactivate' }         — restore a suspended/expired org to an ongoing subscription
  * Each syncs the crawler kill-switch via enforceOrgAccess.
  */
 export async function PATCH(req: Request, { params }: { params: { orgId: string } }) {
@@ -53,6 +54,18 @@ export async function PATCH(req: Request, { params }: { params: { orgId: string 
         grantNote: 'Suspended by super admin',
       });
       await recordTransaction({ orgId, type: 'suspend', planTier: current.planTier, status: 'suspended', note: 'Suspended by super admin', actor: auth.user.email, email: owner.email });
+    } else if (body.action === 'reactivate') {
+      const current = await getUserSubscription(orgId);
+      if (!current?.planTier) return NextResponse.json({ message: 'Nothing to reactivate — no plan on record. Use Assign instead.' }, { status: 400 });
+      // Clear the expiry set by suspend → org is active again as an ongoing
+      // subscription on its existing tier. (For a time-boxed window, use Assign.)
+      await setUserSubscription(orgId, {
+        planTier: current.planTier,
+        validUntil: null,
+        grantKind: 'subscription',
+        grantNote: 'Reactivated by super admin',
+      });
+      await recordTransaction({ orgId, type: 'reactivate', planTier: current.planTier, status: 'reactivated', note: 'Reactivated by super admin', actor: auth.user.email, email: owner.email });
     } else {
       return NextResponse.json({ message: 'Unknown action.' }, { status: 400 });
     }

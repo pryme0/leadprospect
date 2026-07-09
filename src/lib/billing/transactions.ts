@@ -6,7 +6,7 @@
 import { appPool, ensureAppSchema } from '@/lib/app-pg';
 import { randomBytes } from 'crypto';
 
-export type TransactionType = 'payment' | 'grant' | 'suspend';
+export type TransactionType = 'payment' | 'grant' | 'suspend' | 'reactivate';
 
 export interface TransactionInput {
   orgId: string;

@@ -212,6 +212,11 @@ export default function PlatformConsole() {
     load();
   };
 
+  const reactivate = async (o: OrgRow) => {
+    await fetch(`/api/super/orgs/${o.orgId}`, { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ action: 'reactivate' }) }).catch(() => {});
+    load();
+  };
+
   const stats = {
     total: orgs.length,
     active: orgs.filter((o) => o.active).length,
@@ -277,6 +282,7 @@ export default function PlatformConsole() {
             <div className="flex justify-end gap-1.5">
               <button onClick={() => setGrantFor(o)} className="rounded-lg border px-2.5 py-1.5 text-[12px] font-medium text-white/70 hover:text-white" style={{ borderColor: 'var(--a-border)' }}>Assign</button>
               {o.active && <button onClick={() => suspend(o)} className="rounded-lg border px-2.5 py-1.5 text-[12px] font-medium" style={{ borderColor: `${RED}44`, color: RED }}>Suspend</button>}
+              {!o.active && o.tier && <button onClick={() => reactivate(o)} className="rounded-lg border px-2.5 py-1.5 text-[12px] font-medium" style={{ borderColor: `${MINT}44`, color: MINT }}>Reactivate</button>}
             </div>
           </div>
         ))}
