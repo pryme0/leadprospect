@@ -283,6 +283,11 @@ export default function SettingsPage() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
 
+  // Company Context — one-click auto-fill by crawling the company website.
+  const [autofilling, setAutofilling] = useState(false);
+  const [autofillError, setAutofillError] = useState<string | null>(null);
+  const [autofillNote, setAutofillNote] = useState<string | null>(null);
+
   // Mention monitoring (Pulse) — brand terms tracked across the web.
   const [brand, setBrand] = useState({ brand_keywords: '', brand_handles: '', exclude_terms: '' });
   const [brandSaving, setBrandSaving] = useState(false);
@@ -437,6 +442,43 @@ export default function SettingsPage() {
     setOrgSaving(false);
     setOrgSaved(true);
     setTimeout(() => setOrgSaved(false), 3000);
+  };
+
+  // Crawl the company website and draft the Company Context fields. Only fills
+  // the form (leaving anything the model can't derive untouched) — the user
+  // reviews and hits Save Changes to persist.
+  const autofillContext = async () => {
+    setAutofillError(null);
+    setAutofillNote(null);
+    if (!org.website?.trim()) {
+      setAutofillError('Add your website above first, then try auto-fill.');
+      return;
+    }
+    setAutofilling(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+      const res = await fetch('/api/settings/context/autofill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ website: org.website }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setAutofillError(data.message || 'Auto-fill failed. Please try again.'); return; }
+      const c = data.context || {};
+      setOrg((prev) => ({
+        ...prev,
+        industry: c.industry || prev.industry,
+        about: c.about || prev.about,
+        services: c.services || prev.services,
+        expectations: c.expectations || prev.expectations,
+      }));
+      const pages = data.pagesFetched ? ` (read ${data.pagesFetched} page${data.pagesFetched === 1 ? '' : 's'})` : '';
+      setAutofillNote(`Drafted from your website${pages} — review and hit Save Changes.`);
+    } catch {
+      setAutofillError('Unable to reach the server. Please try again.');
+    } finally {
+      setAutofilling(false);
+    }
   };
 
   const handleLogoFile = async (file: File | undefined) => {
@@ -779,6 +821,27 @@ export default function SettingsPage() {
             title="Company Context"
             subtitle="Tell SYNQ what your business does. This context personalises lead scoring, AI reply drafts, and routing to your goals."
           >
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-1 border-b" style={{ borderColor: 'var(--a-border)' }}>
+              <p className="text-white/40 text-xs max-w-md">
+                {org.website?.trim()
+                  ? <>Don&apos;t want to type it all out? Let SYNQ read <span className="text-white/70">{org.website}</span> and draft these for you.</>
+                  : 'Add your website in Organization Profile above to enable one-click auto-fill.'}
+              </p>
+              <button
+                type="button"
+                onClick={autofillContext}
+                disabled={autofilling || !org.website?.trim()}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-[#00CEC8]/10 border-[#00CEC8]/30 text-[#00CEC8] hover:bg-[#00CEC8]/15 disabled:opacity-50"
+              >
+                {autofilling ? (
+                  <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Reading your website…</>
+                ) : (
+                  <>✨ Auto-fill from website</>
+                )}
+              </button>
+            </div>
+            {autofillError && <p className="mb-2 text-xs text-red-400">{autofillError}</p>}
+            {autofillNote && <p className="mb-2 text-xs text-emerald-400">{autofillNote}</p>}
             <Field label="Industry" hint="e.g. B2B SaaS, Fintech, Real Estate, Agency">
               <Input
                 value={org.industry}

@@ -141,6 +141,71 @@ export async function analyzeWebsite(input: {
   };
 }
 
+/* ── Company Context auto-fill (settings profile) ─────────────────────────────── */
+
+export interface CompanyContext {
+  industry: string;
+  about: string;
+  services: string;
+  expectations: string;
+}
+
+const CONTEXT_SYSTEM_PROMPT = `You help a business fill out its company profile inside a lead-intelligence platform, using text crawled from its OWN website. Write first-party copy as the company itself ("we"), grounded ONLY in the provided website text and notes. Do NOT invent facts, awards, metrics, or offerings that the text does not support.
+
+Produce:
+1. industry: 2-5 words naming the company's industry/vertical (e.g. "Real Estate", "B2B SaaS", "Fintech", "Travel & Tourism", "Marketing Agency").
+2. about: 1-3 sentences on who the company is and what it does, first person ("We ...").
+3. services: 1-3 sentences on what they sell and who they serve (products/services + ideal customers).
+4. expectations: 1-2 sentences describing a great outcome from using a lead platform, inferred from what the business does (the kind of customers they'd want to reach and how they'd want leads handled).
+
+Rules: Be specific and concrete, not generic marketing fluff. If the website text is thin, keep it short rather than fabricating. Plain text only — no markdown, no bullet points, no surrounding quotes.`;
+
+const CONTEXT_SCHEMA = {
+  type: 'object',
+  properties: {
+    industry: { type: 'string' },
+    about: { type: 'string' },
+    services: { type: 'string' },
+    expectations: { type: 'string' },
+  },
+  required: ['industry', 'about', 'services', 'expectations'],
+  additionalProperties: false,
+} as const;
+
+/**
+ * Derive the settings "Company Context" fields (industry / about / services /
+ * expectations) from a crawl of the company's website. Existing operator notes
+ * are passed in as hints but the website text is the primary source.
+ */
+export async function analyzeCompanyContext(input: {
+  companyName: string;
+  website: string;
+  industry?: string;
+  about?: string;
+  services?: string;
+  websiteText: string;
+}): Promise<CompanyContext> {
+  const userContent = [
+    `Company name: ${input.companyName || '(unknown)'}`,
+    `Website: ${input.website}`,
+    input.industry ? `Existing industry note: ${input.industry}` : '',
+    input.about ? `Existing about note:\n${input.about}` : '',
+    input.services ? `Existing services note:\n${input.services}` : '',
+    '',
+    'Website text (may be truncated):',
+    input.websiteText,
+  ].filter(Boolean).join('\n');
+
+  const parsed = await llmJson(CONTEXT_SYSTEM_PROMPT, userContent, CONTEXT_SCHEMA, 900);
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+  return {
+    industry: str(parsed.industry).slice(0, 120),
+    about: str(parsed.about).slice(0, 1000),
+    services: str(parsed.services).slice(0, 1000),
+    expectations: str(parsed.expectations).slice(0, 1000),
+  };
+}
+
 /* ── Brand mention monitoring terms ──────────────────────────────────────────── */
 
 const BRAND_SYSTEM_PROMPT = `You configure a social-listening tool. Given a company's website and notes, produce the terms to MONITOR the web/social for MENTIONS OF THIS COMPANY (its brand, products, and people) — the opposite of prospect pain phrases.
