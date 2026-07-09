@@ -4,8 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+// Hero (Pexels, free license): a hand holding a phone with a "social media"
+// folder open — LinkedIn, Instagram, WhatsApp, Messenger, Telegram, X, Facebook —
+// which literally depicts SYNQ's core promise: connect all your social handles
+// and reply from one place. The near-black background blends into the midnight
+// theme and the dark left gradient. Served compressed & sized via Pexels' CDN
+// params (auto=compress, w=1920). Swap the photo id to change the image.
 const BRAND_IMAGE =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuBq7RRn6A_9vewcVKW6ZEvxg8abZPEY_PX1_QdzwcvLsI_X1s9SZFQdGNDdpD0Ik_Nkn1rykRptrK0aYrUqGcRJiALzL8KL3FykGGJV_J4QHXu4ZB6OTcLO7NLexa1bB-MN3qoGufF5JIGMd-cPQ68fn4Osw1u3GDMbFq4fYkd7f4H5oT72NuBEIx3lwn4P371de8pEv-rQ-nCqHRPGSs74IvzO3sz6GfYhbKNC85wUFEuH0SrLmiqWBvszsdHnHKOEPWXETZqJDFMs";
+  "https://images.pexels.com/photos/2818118/pexels-photo-2818118.jpeg?auto=compress&cs=tinysrgb&w=1920";
 
 export default function AdminLoginPage() {
   const router = useRouter();
