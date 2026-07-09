@@ -1,10 +1,12 @@
 /**
- * Per-user integration connection store (app.db `integration_connections`).
- * OAuth tokens are encrypted at rest with an AUTH_SECRET-derived key (AES-256-GCM).
- * The plaintext tokens never leave the server.
+ * Per-user integration store — now on the SHARED Postgres (`integration_credentials`
+ * + `integration_connections`), so a channel/app connected in any environment is
+ * visible everywhere. OAuth tokens & client secrets are encrypted at rest with an
+ * AUTH_SECRET-derived key (AES-256-GCM); plaintext never leaves the server.
  */
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'crypto';
-import { getAuthDb } from '@/lib/auth/db';
+import { appPool, ensureAppSchema } from '@/lib/app-pg';
+import { migrateSqliteTable } from '@/lib/pg-migrate';
 
 const KEY = createHash('sha256').update(process.env.AUTH_SECRET ?? 'synq-internal-2026-xk9m').digest(); // 32 bytes
 
@@ -27,6 +29,28 @@ function decrypt(blob: string | null | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+/* ── Readiness: schema + one-time migration of the old app.db integration rows ── */
+
+let ready: Promise<void> | null = null;
+function ensureReady(): Promise<void> {
+  if (ready) return ready;
+  ready = (async () => {
+    await ensureAppSchema();
+    await migrateSqliteTable({
+      file: 'app.db', table: 'integration_credentials',
+      columns: ['user_id', 'integration_id', 'client_id', 'client_secret', 'config_json', 'updated_at'],
+      conflict: 'ON CONFLICT (user_id, integration_id) DO NOTHING',
+    });
+    await migrateSqliteTable({
+      file: 'app.db', table: 'integration_connections',
+      columns: ['user_id', 'integration_id', 'access_token', 'refresh_token', 'instance_url',
+                'account_label', 'scopes', 'extra_json', 'connected_at', 'updated_at'],
+      conflict: 'ON CONFLICT (user_id, integration_id) DO NOTHING',
+    });
+  })().catch((err) => { ready = null; throw err; });
+  return ready;
 }
 
 export interface IntegrationConnection {
@@ -67,17 +91,19 @@ function toConn(r: Row): IntegrationConnection {
   };
 }
 
-export function getConnection(userId: string, integrationId: string): IntegrationConnection | null {
-  const db = getAuthDb();
-  const row = db.prepare('SELECT * FROM integration_connections WHERE user_id = ? AND integration_id = ?')
-    .get(userId, integrationId) as Row | undefined;
-  return row ? toConn(row) : null;
+export async function getConnection(userId: string, integrationId: string): Promise<IntegrationConnection | null> {
+  await ensureReady();
+  const r = await appPool().query(
+    'SELECT * FROM integration_connections WHERE user_id = $1 AND integration_id = $2',
+    [userId, integrationId],
+  );
+  return r.rows[0] ? toConn(r.rows[0] as Row) : null;
 }
 
-export function listConnections(userId: string): IntegrationConnection[] {
-  const db = getAuthDb();
-  const rows = db.prepare('SELECT * FROM integration_connections WHERE user_id = ?').all(userId) as Row[];
-  return rows.map(toConn);
+export async function listConnections(userId: string): Promise<IntegrationConnection[]> {
+  await ensureReady();
+  const r = await appPool().query('SELECT * FROM integration_connections WHERE user_id = $1', [userId]);
+  return (r.rows as Row[]).map(toConn);
 }
 
 export interface UpsertInput {
@@ -89,42 +115,44 @@ export interface UpsertInput {
   extra?: Record<string, unknown>;
 }
 
-export function upsertConnection(userId: string, integrationId: string, data: UpsertInput): IntegrationConnection {
-  const db = getAuthDb();
+export async function upsertConnection(userId: string, integrationId: string, data: UpsertInput): Promise<IntegrationConnection> {
+  await ensureReady();
   const now = new Date().toISOString();
-  const existing = getConnection(userId, integrationId);
-  db.prepare(`
-    INSERT INTO integration_connections
-      (user_id, integration_id, access_token, refresh_token, instance_url, account_label, scopes, extra_json, connected_at, updated_at)
-    VALUES (@user_id, @integration_id, @access_token, @refresh_token, @instance_url, @account_label, @scopes, @extra_json, @connected_at, @updated_at)
-    ON CONFLICT(user_id, integration_id) DO UPDATE SET
-      access_token  = excluded.access_token,
-      refresh_token = COALESCE(excluded.refresh_token, integration_connections.refresh_token),
-      instance_url  = excluded.instance_url,
-      account_label = excluded.account_label,
-      scopes        = excluded.scopes,
-      extra_json    = excluded.extra_json,
-      updated_at    = excluded.updated_at
-  `).run({
-    user_id: userId,
-    integration_id: integrationId,
-    access_token: encrypt(data.access_token),
-    refresh_token: data.refresh_token !== undefined ? encrypt(data.refresh_token) : null,
-    instance_url: data.instance_url ?? null,
-    account_label: data.account_label ?? null,
-    scopes: data.scopes ?? null,
-    extra_json: JSON.stringify(data.extra ?? {}),
-    connected_at: existing?.connected_at ?? now,
-    updated_at: now,
-  });
-  return getConnection(userId, integrationId)!;
+  const existing = await getConnection(userId, integrationId);
+  await appPool().query(
+    `INSERT INTO integration_connections
+       (user_id, integration_id, access_token, refresh_token, instance_url, account_label, scopes, extra_json, connected_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+     ON CONFLICT (user_id, integration_id) DO UPDATE SET
+       access_token  = EXCLUDED.access_token,
+       refresh_token = COALESCE(EXCLUDED.refresh_token, integration_connections.refresh_token),
+       instance_url  = EXCLUDED.instance_url,
+       account_label = EXCLUDED.account_label,
+       scopes        = EXCLUDED.scopes,
+       extra_json    = EXCLUDED.extra_json,
+       updated_at    = EXCLUDED.updated_at`,
+    [
+      userId, integrationId,
+      encrypt(data.access_token),
+      data.refresh_token !== undefined ? encrypt(data.refresh_token) : null,
+      data.instance_url ?? null,
+      data.account_label ?? null,
+      data.scopes ?? null,
+      JSON.stringify(data.extra ?? {}),
+      existing?.connected_at ?? now,
+      now,
+    ],
+  );
+  return (await getConnection(userId, integrationId))!;
 }
 
-export function deleteConnection(userId: string, integrationId: string): boolean {
-  const db = getAuthDb();
-  const res = db.prepare('DELETE FROM integration_connections WHERE user_id = ? AND integration_id = ?')
-    .run(userId, integrationId);
-  return res.changes > 0;
+export async function deleteConnection(userId: string, integrationId: string): Promise<boolean> {
+  await ensureReady();
+  const r = await appPool().query(
+    'DELETE FROM integration_connections WHERE user_id = $1 AND integration_id = $2',
+    [userId, integrationId],
+  );
+  return (r.rowCount ?? 0) > 0;
 }
 
 /* ── Per-user OAuth app credentials (Consumer Key/Secret etc.) ────────────────── */
@@ -135,47 +163,51 @@ export interface IntegrationCredentials {
   config: Record<string, string>;
 }
 
-export function saveCredentials(userId: string, integrationId: string, data: { client_id: string; client_secret?: string | null; config?: Record<string, string> }): void {
-  const db = getAuthDb();
+export async function saveCredentials(userId: string, integrationId: string, data: { client_id: string; client_secret?: string | null; config?: Record<string, string> }): Promise<void> {
+  await ensureReady();
   const now = new Date().toISOString();
-  const existing = getCredentials(userId, integrationId);
-  db.prepare(`
-    INSERT INTO integration_credentials (user_id, integration_id, client_id, client_secret, config_json, updated_at)
-    VALUES (@user_id, @integration_id, @client_id, @client_secret, @config_json, @updated_at)
-    ON CONFLICT(user_id, integration_id) DO UPDATE SET
-      client_id     = excluded.client_id,
-      client_secret = COALESCE(excluded.client_secret, integration_credentials.client_secret),
-      config_json   = excluded.config_json,
-      updated_at    = excluded.updated_at
-  `).run({
-    user_id: userId,
-    integration_id: integrationId,
-    client_id: data.client_id,
-    // Only re-encrypt when a new secret is supplied; otherwise keep the existing one.
-    client_secret: data.client_secret ? encrypt(data.client_secret) : null,
-    config_json: JSON.stringify(data.config ?? existing?.config ?? {}),
-    updated_at: now,
-  });
+  const existing = await getCredentials(userId, integrationId);
+  await appPool().query(
+    `INSERT INTO integration_credentials (user_id, integration_id, client_id, client_secret, config_json, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6)
+     ON CONFLICT (user_id, integration_id) DO UPDATE SET
+       client_id     = EXCLUDED.client_id,
+       client_secret = COALESCE(EXCLUDED.client_secret, integration_credentials.client_secret),
+       config_json   = EXCLUDED.config_json,
+       updated_at    = EXCLUDED.updated_at`,
+    [
+      userId, integrationId, data.client_id,
+      // Only re-encrypt when a new secret is supplied; otherwise keep the existing one.
+      data.client_secret ? encrypt(data.client_secret) : null,
+      JSON.stringify(data.config ?? existing?.config ?? {}),
+      now,
+    ],
+  );
 }
 
-export function getCredentials(userId: string, integrationId: string): IntegrationCredentials | null {
-  const db = getAuthDb();
-  const row = db.prepare('SELECT client_id, client_secret, config_json FROM integration_credentials WHERE user_id = ? AND integration_id = ?')
-    .get(userId, integrationId) as { client_id: string; client_secret: string | null; config_json: string | null } | undefined;
+export async function getCredentials(userId: string, integrationId: string): Promise<IntegrationCredentials | null> {
+  await ensureReady();
+  const r = await appPool().query(
+    'SELECT client_id, client_secret, config_json FROM integration_credentials WHERE user_id = $1 AND integration_id = $2',
+    [userId, integrationId],
+  );
+  const row = r.rows[0] as { client_id: string; client_secret: string | null; config_json: string | null } | undefined;
   if (!row) return null;
   let config: Record<string, string> = {};
   if (row.config_json) { try { config = JSON.parse(row.config_json); } catch { config = {}; } }
   return { client_id: row.client_id, client_secret: decrypt(row.client_secret), config };
 }
 
-export function hasCredentials(userId: string, integrationId: string): boolean {
-  const c = getCredentials(userId, integrationId);
+export async function hasCredentials(userId: string, integrationId: string): Promise<boolean> {
+  const c = await getCredentials(userId, integrationId);
   return !!(c?.client_id && c.client_secret);
 }
 
-export function deleteCredentials(userId: string, integrationId: string): boolean {
-  const db = getAuthDb();
-  const res = db.prepare('DELETE FROM integration_credentials WHERE user_id = ? AND integration_id = ?')
-    .run(userId, integrationId);
-  return res.changes > 0;
+export async function deleteCredentials(userId: string, integrationId: string): Promise<boolean> {
+  await ensureReady();
+  const r = await appPool().query(
+    'DELETE FROM integration_credentials WHERE user_id = $1 AND integration_id = $2',
+    [userId, integrationId],
+  );
+  return (r.rowCount ?? 0) > 0;
 }

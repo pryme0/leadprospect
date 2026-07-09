@@ -4,7 +4,7 @@
  * in comms_meta so it's safe to call on every page load.
  */
 import { createHash } from 'crypto';
-import { getDb, upsertMention, getMeta, setMeta, MENTION_WINDOW_DAYS } from '@/lib/comms/db';
+import { getDb, upsertMention, getMeta, setMeta, ensureCommsReady, MENTION_WINDOW_DAYS } from '@/lib/comms/db';
 import { getOrgProfile, hasBrandTerms } from '@/lib/settings/org-store';
 import { classifyMentions } from './classify';
 import type { MentionProvider, BrandQuery, RawMention } from './providers/types';
@@ -73,7 +73,7 @@ export async function ingestForUser(userId: string, force = false): Promise<Inge
   if (!hasBrandTerms(profile)) return { ran: false, reason: 'no_terms', providers: [], scanned: 0, inserted: 0 };
 
   const metaKey = `mentions_fetch:${userId}`;
-  const last = Number(getMeta(db, metaKey) ?? 0);
+  const last = Number(await getMeta(db, metaKey) ?? 0);
   const now = Math.floor(Date.now() / 1000);
   if (!force && now - last < COOLDOWN_SEC) {
     return { ran: false, reason: 'cooldown', providers: configuredProviders(), scanned: 0, inserted: 0 };
@@ -97,14 +97,16 @@ export async function ingestForUser(userId: string, force = false): Promise<Inge
   const hashes = Array.from(byHash.keys());
   const scanned = hashes.length;
   if (scanned === 0) {
-    setMeta(db, metaKey, String(now));
+    await setMeta(db, metaKey, String(now));
     return { ran: true, providers: providers.map((p) => p.name), scanned: 0, inserted: 0 };
   }
 
+  await ensureCommsReady();
   const existing = new Set(
-    (db.prepare(
-      `SELECT content_hash FROM mentions WHERE user_id = ? AND content_hash IN (${hashes.map(() => '?').join(',')})`,
-    ).all(userId, ...hashes) as { content_hash: string }[]).map((r) => r.content_hash),
+    ((await db.query(
+      `SELECT content_hash FROM mentions WHERE user_id = $1 AND content_hash = ANY($2)`,
+      [userId, hashes],
+    )).rows as { content_hash: string }[]).map((r) => r.content_hash),
   );
   const fresh = Array.from(byHash.entries()).filter(([h]) => !existing.has(h));
 
@@ -112,10 +114,11 @@ export async function ingestForUser(userId: string, force = false): Promise<Inge
   const verdicts = await classifyMentions(query.companyName, query.summary ?? '', fresh.map(([, m]) => m.text));
 
   let inserted = 0;
-  fresh.forEach(([hash, m], i) => {
+  for (let i = 0; i < fresh.length; i++) {
+    const [hash, m] = fresh[i];
     const v = verdicts[i] ?? { relevant: true, sentiment: 'neutral' as const };
-    if (!v.relevant) return;
-    const ok = upsertMention(db, userId, {
+    if (!v.relevant) continue;
+    const ok = await upsertMention(db, userId, {
       platform: m.platform,
       author: decodeEntities(m.author),
       handle: m.handle,
@@ -129,8 +132,8 @@ export async function ingestForUser(userId: string, force = false): Promise<Inge
       detected_at: m.ts,
     });
     if (ok) inserted += 1;
-  });
+  }
 
-  setMeta(db, metaKey, String(now));
+  await setMeta(db, metaKey, String(now));
   return { ran: true, providers: providers.map((p) => p.name), scanned, inserted };
 }

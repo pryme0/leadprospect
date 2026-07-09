@@ -30,7 +30,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({ message: 'This integration does not support OAuth connect yet.' }, { status: 400 });
   }
 
-  const creds = resolveCreds(user.org, id);
+  const creds = await resolveCreds(user.org, id);
   if (!creds) {
     return NextResponse.json({ message: 'Add your app credentials for this integration first.', needs_credentials: true }, { status: 428 });
   }

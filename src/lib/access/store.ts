@@ -1,10 +1,10 @@
 /**
  * Access requests — people who ask to be onboarded via /signup. Stored in the
- * app.db SQLite (persisted once a /data volume is mounted) and surfaced to the
- * super admin in the platform console. No user account is created; the super
- * admin reaches out and provisions the org.
+ * SHARED Postgres and surfaced to the super admin in the platform console. No
+ * user account is created; the super admin reaches out and provisions the org.
  */
-import { getAuthDb } from '@/lib/auth/db';
+import { appPool, ensureAppSchema } from '@/lib/app-pg';
+import { migrateSqliteTable } from '@/lib/pg-migrate';
 import { randomBytes } from 'crypto';
 
 export type AccessRequestStatus = 'new' | 'contacted' | 'archived';
@@ -20,59 +20,56 @@ export interface AccessRequest {
   created_at: string;
 }
 
-let ensured = false;
-function db() {
-  const d = getAuthDb();
-  if (!ensured) {
-    d.exec(`
-      CREATE TABLE IF NOT EXISTS access_requests (
-        id         TEXT PRIMARY KEY,
-        name       TEXT NOT NULL,
-        email      TEXT NOT NULL,
-        company    TEXT,
-        phone      TEXT,
-        message    TEXT,
-        status     TEXT NOT NULL DEFAULT 'new',
-        created_at TEXT NOT NULL
-      );
-    `);
-    ensured = true;
-  }
-  return d;
+let ready: Promise<void> | null = null;
+async function ensureReady(): Promise<void> {
+  if (ready) return ready;
+  ready = (async () => {
+    await ensureAppSchema();
+    await migrateSqliteTable({
+      file: 'app.db', table: 'access_requests',
+      columns: ['id', 'name', 'email', 'company', 'phone', 'message', 'status', 'created_at'],
+      conflict: 'ON CONFLICT (id) DO NOTHING',
+    });
+  })().catch((err) => { ready = null; throw err; });
+  return ready;
 }
 
-export function createAccessRequest(input: { name: string; email: string; company?: string; phone?: string; message?: string }): AccessRequest {
-  const d = db();
-  const id = `req_${randomBytes(8).toString('hex')}`;
-  const created_at = new Date().toISOString();
+export async function createAccessRequest(input: { name: string; email: string; company?: string; phone?: string; message?: string }): Promise<AccessRequest> {
+  await ensureReady();
   const row: AccessRequest = {
-    id,
+    id: `req_${randomBytes(8).toString('hex')}`,
     name: input.name.trim(),
     email: input.email.trim().toLowerCase(),
     company: input.company?.trim() || null,
     phone: input.phone?.trim() || null,
     message: input.message?.trim() || null,
     status: 'new',
-    created_at,
+    created_at: new Date().toISOString(),
   };
-  d.prepare(`INSERT INTO access_requests (id, name, email, company, phone, message, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, 'new', ?)`)
-    .run(row.id, row.name, row.email, row.company, row.phone, row.message, row.created_at);
+  await appPool().query(
+    `INSERT INTO access_requests (id, name, email, company, phone, message, status, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,'new',$7)`,
+    [row.id, row.name, row.email, row.company, row.phone, row.message, row.created_at],
+  );
   return row;
 }
 
-export function listAccessRequests(status?: AccessRequestStatus): AccessRequest[] {
-  const d = db();
-  return (status
-    ? d.prepare('SELECT * FROM access_requests WHERE status = ? ORDER BY created_at DESC').all(status)
-    : d.prepare('SELECT * FROM access_requests ORDER BY created_at DESC').all()) as AccessRequest[];
+export async function listAccessRequests(status?: AccessRequestStatus): Promise<AccessRequest[]> {
+  await ensureReady();
+  const r = status
+    ? await appPool().query('SELECT * FROM access_requests WHERE status = $1 ORDER BY created_at DESC', [status])
+    : await appPool().query('SELECT * FROM access_requests ORDER BY created_at DESC');
+  return r.rows as AccessRequest[];
 }
 
-export function countNewRequests(): number {
-  const r = db().prepare("SELECT COUNT(*) AS n FROM access_requests WHERE status = 'new'").get() as { n: number } | undefined;
-  return r?.n ?? 0;
+export async function countNewRequests(): Promise<number> {
+  await ensureReady();
+  const r = await appPool().query("SELECT COUNT(*)::int AS n FROM access_requests WHERE status = 'new'");
+  return (r.rows[0]?.n as number) ?? 0;
 }
 
-export function updateAccessRequestStatus(id: string, status: AccessRequestStatus): boolean {
-  return db().prepare('UPDATE access_requests SET status = ? WHERE id = ?').run(status, id).changes > 0;
+export async function updateAccessRequestStatus(id: string, status: AccessRequestStatus): Promise<boolean> {
+  await ensureReady();
+  const r = await appPool().query('UPDATE access_requests SET status = $1 WHERE id = $2', [status, id]);
+  return (r.rowCount ?? 0) > 0;
 }

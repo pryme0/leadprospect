@@ -28,7 +28,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const st = sp.get('state') ? verifyState(sp.get('state')!) : null;
   if (!code || !st || st.integration !== id) return back('error=invalid_state');
 
-  const creds = resolveCreds(st.sub, id);
+  const creds = await resolveCreds(st.sub, id);
   if (!creds) return back('error=missing_credentials');
 
   try {

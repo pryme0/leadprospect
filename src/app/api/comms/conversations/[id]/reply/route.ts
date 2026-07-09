@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/comms/db';
+import { getDb, ensureCommsReady } from '@/lib/comms/db';
 
 async function sendUnipileMessage(chatId: string, text: string): Promise<{ id?: string; error?: string }> {
   const apiKey = process.env.UNIPILE_API_KEY;
@@ -44,17 +44,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const now  = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
     const db = getDb();
-    const localConvo = db.prepare('SELECT id FROM conversations WHERE id = ?').get(id);
+    await ensureCommsReady();
+    const localConvo = (await db.query('SELECT id FROM conversations WHERE id = $1', [id])).rows[0];
 
     if (localConvo) {
       /* Local (Telegram, Discord, etc.) — persist to DB only */
-      db.prepare(`INSERT INTO sent_replies (conversation_id, text, tone, kb_enabled) VALUES (?, ?, ?, ?)`)
-        .run(id, text, body.tone ?? 'professional', body.kb_enabled ? 1 : 0);
+      await db.query(`INSERT INTO sent_replies (conversation_id, text, tone, kb_enabled) VALUES ($1, $2, $3, $4)`,
+        [id, text, body.tone ?? 'professional', body.kb_enabled ? 1 : 0]);
 
       const msgId = `sent_${Date.now()}`;
-      db.prepare(`INSERT INTO messages (id, conversation_id, from_type, text, time) VALUES (?, ?, 'agent', ?, ?)`)
-        .run(msgId, id, text, now);
-      db.prepare('UPDATE conversations SET unread = 0 WHERE id = ?').run(id);
+      await db.query(`INSERT INTO messages (id, conversation_id, from_type, text, time) VALUES ($1, $2, 'agent', $3, $4)`,
+        [msgId, id, text, now]);
+      await db.query('UPDATE conversations SET unread = 0 WHERE id = $1', [id]);
 
       return NextResponse.json({ success: true, messageId: msgId, sentAt: now });
     }
@@ -67,8 +68,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     /* Log the sent reply for stats tracking */
     try {
-      db.prepare(`INSERT INTO sent_replies (conversation_id, text, tone, kb_enabled) VALUES (?, ?, ?, ?)`)
-        .run(id, text, body.tone ?? 'professional', body.kb_enabled ? 1 : 0);
+      await db.query(`INSERT INTO sent_replies (conversation_id, text, tone, kb_enabled) VALUES ($1, $2, $3, $4)`,
+        [id, text, body.tone ?? 'professional', body.kb_enabled ? 1 : 0]);
     } catch { /* non-critical */ }
 
     const msgId = result.id ?? `sent_${Date.now()}`;

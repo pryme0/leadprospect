@@ -6,8 +6,8 @@
  * notifications endpoint can reuse the exact same data. Adds a numeric
  * `last_activity_ts` (unix seconds) so callers can sort / detect "new" items.
  */
-import type Database from 'better-sqlite3';
-import { getDb } from './db';
+import type { Pool } from 'pg';
+import { getDb, ensureCommsReady } from './db';
 
 /* Unipile account_type → our channel id */
 export const ACCOUNT_TYPE_TO_CHANNEL: Record<string, string> = {
@@ -141,7 +141,8 @@ async function fetchUnipileChats(apiKey: string, dsn: string): Promise<UnipileCh
  * Returns the merged conversation list (Unipile + local), optionally filtered by
  * platform. Each item carries a numeric `last_activity_ts` (unix seconds).
  */
-export async function getConversations(db: Database.Database, platform = 'all'): Promise<ConversationItem[]> {
+export async function getConversations(db: Pool, platform = 'all'): Promise<ConversationItem[]> {
+  await ensureCommsReady();
   const apiKey = process.env.UNIPILE_API_KEY;
   const dsn = process.env.UNIPILE_DSN;
 
@@ -186,10 +187,10 @@ export async function getConversations(db: Database.Database, platform = 'all'):
     created_at: number;
   };
   const unipilePlatforms = Array.from(new Set(Object.values(ACCOUNT_TYPE_TO_CHANNEL)));
-  const placeholders = unipilePlatforms.map(() => '?').join(',');
-  const localRows = db.prepare(
-    `SELECT * FROM conversations WHERE platform NOT IN (${placeholders}) ORDER BY created_at DESC`,
-  ).all(...unipilePlatforms) as DbRow[];
+  const localRows = (await db.query(
+    `SELECT * FROM conversations WHERE NOT (platform = ANY($1)) ORDER BY created_at DESC`,
+    [unipilePlatforms],
+  )).rows as DbRow[];
 
   const localConvos: ConversationItem[] = localRows.map((r) => ({
     id: r.id,
@@ -205,7 +206,7 @@ export async function getConversations(db: Database.Database, platform = 'all'):
     intent: r.intent,
     urgency: r.urgency,
     first_contact: r.first_contact,
-    last_activity_ts: r.created_at ?? Math.floor(Date.now() / 1000),
+    last_activity_ts: r.created_at != null ? Number(r.created_at) : Math.floor(Date.now() / 1000),
   }));
 
   const all = [...unipileConvos, ...localConvos];

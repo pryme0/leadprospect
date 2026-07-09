@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const id = params.id;
   if (!isOAuthIntegration(id)) return NextResponse.json({ message: 'Not an OAuth integration.' }, { status: 400 });
 
-  const c = getCredentials(user.org, id);
+  const c = await getCredentials(user.org, id);
   return NextResponse.json({
     fields: credentialFields(id),
     has_credentials: !!(c?.client_id && c.client_secret),
@@ -36,7 +36,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!clientId) return NextResponse.json({ message: 'Client ID / Consumer Key is required.' }, { status: 400 });
 
   const secretRaw = typeof body.client_secret === 'string' ? body.client_secret.trim() : '';
-  const existing = getCredentials(user.org, id);
+  const existing = await getCredentials(user.org, id);
   // Allow updating other fields without re-entering the secret (only saved if provided).
   if (!secretRaw && !existing?.client_secret) {
     return NextResponse.json({ message: 'Client Secret / Consumer Secret is required.' }, { status: 400 });
@@ -50,7 +50,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (typeof v === 'string') config[f.key] = v.trim();
   }
 
-  saveCredentials(user.org, id, { client_id: clientId, client_secret: secretRaw || null, config });
+  await saveCredentials(user.org, id, { client_id: clientId, client_secret: secretRaw || null, config });
   return NextResponse.json({ ok: true });
 }
 
@@ -58,6 +58,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
-  deleteCredentials(user.org, params.id);
+  await deleteCredentials(user.org, params.id);
   return NextResponse.json({ ok: true });
 }

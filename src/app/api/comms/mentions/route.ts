@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, listMentions, markMentionReplied, markMentionsSeen, type MentionFilter } from '@/lib/comms/db';
+import { getDb, listMentions, markMentionReplied, markMentionsSeen, ensureCommsReady, type MentionFilter } from '@/lib/comms/db';
 import { getUserFromRequest } from '@/lib/auth/session';
 import { getOrgProfile, hasBrandTerms } from '@/lib/settings/org-store';
 import { getUserTier } from '@/lib/subscription/server-store';
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     };
 
     const db = getDb();
-    let rows = listMentions(db, user.org, filter);
+    let rows = await listMentions(db, user.org, filter);
 
     // Basic-tier daily mentions cap — display-only truncation. The true
     // rolling-30-day count (comms/stats KPIs, the chart) is computed
@@ -75,16 +75,17 @@ export async function POST(req: Request) {
     const db = getDb();
 
     if (body.action === 'seen') {
-      const changed = markMentionsSeen(db, user.org, body.id);
+      const changed = await markMentionsSeen(db, user.org, body.id);
       return NextResponse.json({ success: true, changed });
     }
 
     if (!body.id) return NextResponse.json({ error: 'Mention id is required' }, { status: 400 });
-    const ok = markMentionReplied(db, user.org, body.id);
+    const ok = await markMentionReplied(db, user.org, body.id);
     if (!ok) return NextResponse.json({ error: 'Mention not found' }, { status: 404 });
     if (body.text && body.text.trim()) {
-      db.prepare('INSERT INTO sent_replies (conversation_id, text, tone, kb_enabled) VALUES (?, ?, ?, ?)')
-        .run(`mention:${body.id}`, body.text.trim(), 'professional', 1);
+      await ensureCommsReady();
+      await db.query('INSERT INTO sent_replies (conversation_id, text, tone, kb_enabled) VALUES ($1, $2, $3, $4)',
+        [`mention:${body.id}`, body.text.trim(), 'professional', 1]);
     }
     return NextResponse.json({ success: true });
   } catch (err) {

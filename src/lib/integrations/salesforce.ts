@@ -24,7 +24,7 @@ export interface SalesforceRecord {
 interface QueryResult<T> { totalSize: number; done: boolean; records: T[] }
 
 async function sfFetch(userId: string, path: string): Promise<Response> {
-  let conn = getConnection(userId, INTEGRATION_ID);
+  let conn = await getConnection(userId, INTEGRATION_ID);
   if (!conn?.access_token || !conn.instance_url) throw new Error('Salesforce is not connected.');
 
   const doGet = (c: IntegrationConnection) =>
@@ -36,10 +36,10 @@ async function sfFetch(userId: string, path: string): Promise<Response> {
   let res = await doGet(conn);
   if (res.status === 401 && conn.refresh_token) {
     // Access token expired — refresh (with this user's app creds) and retry once.
-    const creds = resolveCreds(userId, INTEGRATION_ID);
+    const creds = await resolveCreds(userId, INTEGRATION_ID);
     if (!creds) throw new Error('Salesforce app credentials are missing — reconnect.');
     const t = await refreshAccessToken(INTEGRATION_ID, conn.refresh_token, creds);
-    conn = upsertConnection(userId, INTEGRATION_ID, {
+    conn = await upsertConnection(userId, INTEGRATION_ID, {
       access_token: t.access_token,
       refresh_token: conn.refresh_token,
       instance_url: t.instance_url ?? conn.instance_url,

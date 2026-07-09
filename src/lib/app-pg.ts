@@ -40,6 +40,50 @@ export function ensureAppSchema(): Promise<void> {
     // Case-insensitive unique email (the SQLite table used COLLATE NOCASE).
     await p.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email_lower ON users(lower(email))`);
     await p.query(`CREATE INDEX IF NOT EXISTS ix_users_org ON users(org_id)`);
+
+    // Per-user integration OAuth app credentials (client id/secret; secret encrypted).
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS integration_credentials (
+        user_id        TEXT NOT NULL,
+        integration_id TEXT NOT NULL,
+        client_id      TEXT NOT NULL,
+        client_secret  TEXT,
+        config_json    TEXT,
+        updated_at     TEXT NOT NULL,
+        PRIMARY KEY (user_id, integration_id)
+      );
+    `);
+    // Per-user integration connections (OAuth tokens, encrypted at rest).
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS integration_connections (
+        user_id        TEXT NOT NULL,
+        integration_id TEXT NOT NULL,
+        access_token   TEXT,
+        refresh_token  TEXT,
+        instance_url   TEXT,
+        account_label  TEXT,
+        scopes         TEXT,
+        extra_json     TEXT,
+        connected_at   TEXT NOT NULL,
+        updated_at     TEXT NOT NULL,
+        PRIMARY KEY (user_id, integration_id)
+      );
+    `);
+    // Signup access requests (was per-env SQLite).
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS access_requests (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        email      TEXT NOT NULL,
+        company    TEXT,
+        phone      TEXT,
+        message    TEXT,
+        status     TEXT NOT NULL DEFAULT 'new',
+        created_at TEXT NOT NULL
+      );
+    `);
+    // Small key/value used by org-linkage (persistent guard).
+    await p.query(`CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT)`);
     await p.query(`
       CREATE TABLE IF NOT EXISTS org_profiles (
         user_id              TEXT PRIMARY KEY,

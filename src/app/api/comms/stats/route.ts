@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, countMentions } from '@/lib/comms/db';
+import { getDb, countMentions, ensureCommsReady } from '@/lib/comms/db';
 import { getUserFromRequest } from '@/lib/auth/session';
 
 export const dynamic = 'force-dynamic';
@@ -38,13 +38,14 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
     const db = getDb();
-    const sentRow   = db.prepare('SELECT COUNT(*) as count FROM sent_replies').get() as { count: number };
-    const channelRow = db.prepare('SELECT COUNT(*) as count FROM connected_channels').get() as { count: number };
-    const localConvoRow = db.prepare('SELECT COUNT(*) as count FROM conversations').get() as { count: number };
+    await ensureCommsReady();
+    const sentRow   = (await db.query('SELECT COUNT(*)::int as count FROM sent_replies')).rows[0] as { count: number };
+    const channelRow = (await db.query('SELECT COUNT(*)::int as count FROM connected_channels')).rows[0] as { count: number };
+    const localConvoRow = (await db.query('SELECT COUNT(*)::int as count FROM conversations')).rows[0] as { count: number };
 
     const unipileCount = await fetchUnipileChatCount();
     const totalConversations = unipileCount + localConvoRow.count;
-    const mentionsDetected = countMentions(db, user.org);
+    const mentionsDetected = await countMentions(db, user.org);
 
     return NextResponse.json({
       activeConversations: totalConversations,

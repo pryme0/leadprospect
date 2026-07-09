@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/comms/db';
+import { getDb, ensureCommsReady } from '@/lib/comms/db';
 
 type UnipileMessage = {
   id?: string;
@@ -42,11 +42,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const { id } = params;
 
     /* Try local DB first (Telegram, Discord, etc.) */
-    const convo = db.prepare('SELECT * FROM conversations WHERE id = ?').get(id);
+    await ensureCommsReady();
+    const convo = (await db.query('SELECT * FROM conversations WHERE id = $1', [id])).rows[0];
     if (convo) {
-      const messages = db.prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC').all(id);
-      const timeline = db.prepare('SELECT * FROM timeline_events WHERE conversation_id = ? ORDER BY id ASC').all(id);
-      const aiReply  = db.prepare('SELECT text FROM ai_replies WHERE conversation_id = ?').get(id) as { text: string } | undefined;
+      const messages = (await db.query('SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC', [id])).rows;
+      const timeline = (await db.query('SELECT * FROM timeline_events WHERE conversation_id = $1 ORDER BY id ASC', [id])).rows;
+      const aiReply  = (await db.query('SELECT text FROM ai_replies WHERE conversation_id = $1', [id])).rows[0] as { text: string } | undefined;
       return NextResponse.json({ conversation: convo, messages, timeline, aiReply: aiReply?.text ?? '' });
     }
 

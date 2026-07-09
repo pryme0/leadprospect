@@ -8,7 +8,7 @@
  * reads as "you reached out". For real Unipile DMs the native chat also syncs;
  * this local mirror guarantees every outreach — assisted included — appears.
  */
-import { getDb, upsertMention } from '@/lib/comms/db';
+import { getDb, upsertMention, ensureCommsReady } from '@/lib/comms/db';
 import { randomBytes } from 'crypto';
 
 function initialsOf(name: string): string {
@@ -16,14 +16,14 @@ function initialsOf(name: string): string {
 }
 
 /** Log an outbound outreach as a replied Pulse mention thread. */
-export function mirrorOutreachToPulse(
+export async function mirrorOutreachToPulse(
   userId: string,
   input: { leadId: string; platform: string; handle: string | null; name: string | null; url: string | null; text: string; postContent?: string | null },
-): void {
+): Promise<void> {
   try {
     const db = getDb();
     const author = input.name || (input.handle ? `@${input.handle}` : 'Lead');
-    upsertMention(db, userId, {
+    await upsertMention(db, userId, {
       platform: input.platform,
       author,
       handle: input.handle ? `@${input.handle.replace(/^@/, '')}` : '',
@@ -37,12 +37,13 @@ export function mirrorOutreachToPulse(
       detected_at: Math.floor(Date.now() / 1000),
     });
     // Mark it replied + log the reply text so Pulse shows the thread as handled.
-    const row = db.prepare('SELECT id FROM mentions WHERE user_id = ? AND content_hash LIKE ? ORDER BY detected_at DESC LIMIT 1')
-      .get(userId, `outreach:${input.leadId}:%`) as { id: string } | undefined;
+    await ensureCommsReady();
+    const row = (await db.query('SELECT id FROM mentions WHERE user_id = $1 AND content_hash ILIKE $2 ORDER BY detected_at DESC LIMIT 1',
+      [userId, `outreach:${input.leadId}:%`])).rows[0] as { id: string } | undefined;
     if (row) {
-      db.prepare('UPDATE mentions SET replied = 1, seen = 1 WHERE user_id = ? AND id = ?').run(userId, row.id);
-      db.prepare('INSERT INTO sent_replies (conversation_id, text, tone, kb_enabled) VALUES (?, ?, ?, ?)')
-        .run(`lead:${input.leadId}`, input.text.trim(), 'professional', 1);
+      await db.query('UPDATE mentions SET replied = 1, seen = 1 WHERE user_id = $1 AND id = $2', [userId, row.id]);
+      await db.query('INSERT INTO sent_replies (conversation_id, text, tone, kb_enabled) VALUES ($1, $2, $3, $4)',
+        [`lead:${input.leadId}`, input.text.trim(), 'professional', 1]);
     }
   } catch (err) {
     console.error('[mirrorOutreachToPulse]', err);

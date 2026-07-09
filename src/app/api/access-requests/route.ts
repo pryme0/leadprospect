@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return NextResponse.json({ message: 'Enter a valid email address.' }, { status: 400 });
 
   try {
-    const request = createAccessRequest({ name, email, company: body.company, phone: body.phone, message: body.message });
+    const request = await createAccessRequest({ name, email, company: body.company, phone: body.phone, message: body.message });
     return NextResponse.json({ ok: true, id: request.id });
   } catch (err) {
     console.error('[POST /api/access-requests]', err);

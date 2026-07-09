@@ -1,25 +1,65 @@
 /**
- * Singleton SQLite connection for the Lead engine.
- * Persists real leads captured from the site (homepage prompt / capture forms).
- * better-sqlite3 is synchronous — safe to call from Next.js Route Handlers.
+ * Lead engine store — real leads captured from the site (homepage prompt /
+ * capture forms), now on the SHARED Postgres so captures are consistent across
+ * environments. There is intentionally NO seed/demo data: every row is a real
+ * capture.
  *
- * There is intentionally NO seed/demo data here: every row is a real capture.
+ * `getLeadsDb()` returns the shared pool; the read/write helpers are async.
  */
-import Database from 'better-sqlite3';
+import type { Pool } from 'pg';
 import { randomBytes } from 'crypto';
-import { sqliteFile } from '@/lib/sqlite-path';
+import { appPool, ensureAppSchema } from '@/lib/app-pg';
+import { migrateSqliteTable } from '@/lib/pg-migrate';
 
-const DB_PATH = sqliteFile('leads.db');
+const LEAD_COLUMNS = [
+  'id', 'first_name', 'email', 'phone_number', 'timeline_to_start', 'income_goal',
+  'source_tool', 'intent_level', 'consent_call', 'consent_email', 'consented',
+  'ghl_contact_id', 'lead_source', 'utm_source', 'utm_medium', 'utm_campaign',
+  'utm_term', 'utm_content', 'referrer', 'landing_path', 'created_at',
+] as const;
 
-let _db: Database.Database | null = null;
+let ready: Promise<void> | null = null;
+function ensureReady(): Promise<void> {
+  if (ready) return ready;
+  ready = (async () => {
+    await ensureAppSchema();
+    const p = appPool();
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id                TEXT PRIMARY KEY,
+        first_name        TEXT NOT NULL DEFAULT '',
+        email             TEXT NOT NULL,
+        phone_number      TEXT NOT NULL DEFAULT '',
+        timeline_to_start TEXT NOT NULL DEFAULT '',
+        income_goal       TEXT NOT NULL DEFAULT '',
+        source_tool       TEXT NOT NULL DEFAULT '',
+        intent_level      TEXT NOT NULL DEFAULT 'MEDIUM_INTENT',
+        consent_call      INTEGER NOT NULL DEFAULT 0,
+        consent_email     INTEGER NOT NULL DEFAULT 0,
+        consented         INTEGER NOT NULL DEFAULT 0,
+        ghl_contact_id    TEXT,
+        lead_source       TEXT,
+        utm_source        TEXT,
+        utm_medium        TEXT,
+        utm_campaign      TEXT,
+        utm_term          TEXT,
+        utm_content       TEXT,
+        referrer          TEXT,
+        landing_path      TEXT,
+        created_at        TEXT NOT NULL
+      );
+    `);
+    await p.query('CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at)');
+    await p.query('CREATE INDEX IF NOT EXISTS idx_leads_source_tool ON leads(source_tool)');
+    await p.query('CREATE INDEX IF NOT EXISTS idx_leads_intent_level ON leads(intent_level)');
+    await migrateSqliteTable({ file: 'leads.db', table: 'leads', columns: LEAD_COLUMNS as unknown as string[], conflict: 'ON CONFLICT (id) DO NOTHING' });
+  })().catch((err) => { ready = null; throw err; });
+  return ready;
+}
 
-export function getLeadsDb(): Database.Database {
-  if (_db) return _db;
-  _db = new Database(DB_PATH);
-  _db.pragma('journal_mode = WAL');
-  _db.pragma('foreign_keys = ON');
-  bootstrap(_db);
-  return _db;
+/** Returns the shared Postgres pool (kept for call-site parity with the old API). */
+export function getLeadsDb(): Pool {
+  return appPool();
 }
 
 type IntentLevel = 'HIGH_INTENT' | 'MEDIUM_INTENT' | 'LOW_INTENT';
@@ -38,42 +78,6 @@ export interface LeadRow {
   lead_source: string | null;
   created_at: string;
 }
-
-/* ── Schema ──────────────────────────────────────────────────────────────────── */
-
-function bootstrap(db: Database.Database) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS leads (
-      id                TEXT PRIMARY KEY,
-      first_name        TEXT NOT NULL DEFAULT '',
-      email             TEXT NOT NULL,
-      phone_number      TEXT NOT NULL DEFAULT '',
-      timeline_to_start TEXT NOT NULL DEFAULT '',
-      income_goal       TEXT NOT NULL DEFAULT '',
-      source_tool       TEXT NOT NULL DEFAULT '',
-      intent_level      TEXT NOT NULL DEFAULT 'MEDIUM_INTENT',
-      consent_call      INTEGER NOT NULL DEFAULT 0,
-      consent_email     INTEGER NOT NULL DEFAULT 0,
-      consented         INTEGER NOT NULL DEFAULT 0,
-      ghl_contact_id    TEXT,
-      lead_source       TEXT,
-      utm_source        TEXT,
-      utm_medium        TEXT,
-      utm_campaign      TEXT,
-      utm_term          TEXT,
-      utm_content       TEXT,
-      referrer          TEXT,
-      landing_path      TEXT,
-      created_at        TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_leads_created_at   ON leads(created_at);
-    CREATE INDEX IF NOT EXISTS idx_leads_source_tool  ON leads(source_tool);
-    CREATE INDEX IF NOT EXISTS idx_leads_intent_level ON leads(intent_level);
-  `);
-}
-
-/* ── Types ───────────────────────────────────────────────────────────────────── */
 
 export interface LeadInsert {
   first_name: string;
@@ -106,51 +110,33 @@ export interface LeadQuery {
 /* ── Writes ──────────────────────────────────────────────────────────────────── */
 
 /** Insert a captured lead. Returns the generated id. */
-export function insertLead(db: Database.Database, data: LeadInsert): string {
-  const id = `lead_${cryptoRandomId()}`;
-  db.prepare(`
-    INSERT INTO leads (
-      id, first_name, email, phone_number, timeline_to_start, income_goal,
-      source_tool, intent_level, consent_call, consent_email, consented,
-      ghl_contact_id, lead_source,
-      utm_source, utm_medium, utm_campaign, utm_term, utm_content,
-      referrer, landing_path, created_at
-    ) VALUES (
-      @id, @first_name, @email, @phone_number, @timeline_to_start, @income_goal,
-      @source_tool, @intent_level, @consent_call, @consent_email, @consented,
-      NULL, @lead_source,
-      @utm_source, @utm_medium, @utm_campaign, @utm_term, @utm_content,
-      @referrer, @landing_path, @created_at
-    )
-  `).run({
-    id,
-    first_name: data.first_name,
-    email: data.email,
-    phone_number: data.phone_number,
-    timeline_to_start: data.timeline_to_start ?? '',
-    income_goal: data.income_goal ?? '',
-    source_tool: data.source_tool,
-    intent_level: data.intent_level,
-    consent_call: data.consent_call ? 1 : 0,
-    consent_email: data.consent_email ? 1 : 0,
-    consented: data.consented ? 1 : 0,
-    lead_source: data.lead_source,
-    utm_source: data.utm_source ?? null,
-    utm_medium: data.utm_medium ?? null,
-    utm_campaign: data.utm_campaign ?? null,
-    utm_term: data.utm_term ?? null,
-    utm_content: data.utm_content ?? null,
-    referrer: data.referrer ?? null,
-    landing_path: data.landing_path ?? null,
-    created_at: new Date().toISOString(),
-  });
+export async function insertLead(_db: Pool, data: LeadInsert): Promise<string> {
+  await ensureReady();
+  const id = `lead_${randomBytes(9).toString('hex')}`;
+  await appPool().query(
+    `INSERT INTO leads (
+       id, first_name, email, phone_number, timeline_to_start, income_goal,
+       source_tool, intent_level, consent_call, consent_email, consented,
+       ghl_contact_id, lead_source,
+       utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+       referrer, landing_path, created_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULL,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+    [
+      id, data.first_name, data.email, data.phone_number, data.timeline_to_start ?? '', data.income_goal ?? '',
+      data.source_tool, data.intent_level, data.consent_call ? 1 : 0, data.consent_email ? 1 : 0, data.consented ? 1 : 0,
+      data.lead_source,
+      data.utm_source ?? null, data.utm_medium ?? null, data.utm_campaign ?? null, data.utm_term ?? null, data.utm_content ?? null,
+      data.referrer ?? null, data.landing_path ?? null, new Date().toISOString(),
+    ],
+  );
   return id;
 }
 
 /** Attach a CRM contact id to a lead (used once real CRM sync succeeds). */
-export function markLeadSynced(db: Database.Database, id: string, ghlContactId: string): boolean {
-  const res = db.prepare('UPDATE leads SET ghl_contact_id = ? WHERE id = ?').run(ghlContactId, id);
-  return res.changes > 0;
+export async function markLeadSynced(_db: Pool, id: string, ghlContactId: string): Promise<boolean> {
+  await ensureReady();
+  const r = await appPool().query('UPDATE leads SET ghl_contact_id = $1 WHERE id = $2', [ghlContactId, id]);
+  return (r.rowCount ?? 0) > 0;
 }
 
 /* ── Reads ───────────────────────────────────────────────────────────────────── */
@@ -162,28 +148,31 @@ export interface LeadPage {
 }
 
 /** Paginated, filterable list of captured leads, newest first. */
-export function listLeads(db: Database.Database, q: LeadQuery = {}): LeadPage {
+export async function listLeads(_db: Pool, q: LeadQuery = {}): Promise<LeadPage> {
+  await ensureReady();
   const page = Math.max(1, Number(q.page ?? 1));
   const limit = Math.max(1, Number(q.limit ?? 20));
 
   const where: string[] = [];
-  const params: Record<string, string> = {};
-  if (q.source_tool) { where.push('source_tool = @source_tool'); params.source_tool = q.source_tool; }
-  if (q.intent_level) { where.push('intent_level = @intent_level'); params.intent_level = q.intent_level; }
+  const params: unknown[] = [];
+  if (q.source_tool)  { params.push(q.source_tool);  where.push(`source_tool = $${params.length}`); }
+  if (q.intent_level) { params.push(q.intent_level); where.push(`intent_level = $${params.length}`); }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-  const total = (db.prepare(`SELECT COUNT(*) as c FROM leads ${whereSql}`).get(params) as { c: number }).c;
+  const totalRes = await appPool().query(`SELECT COUNT(*)::int AS c FROM leads ${whereSql}`, params);
+  const total = (totalRes.rows[0]?.c as number) ?? 0;
   const total_pages = Math.max(1, Math.ceil(total / limit));
   const offset = (page - 1) * limit;
 
-  const rows = db.prepare(`
-    SELECT id, first_name, email, phone_number, timeline_to_start, income_goal,
-           source_tool, intent_level, consented, ghl_contact_id, lead_source, created_at
-    FROM leads
-    ${whereSql}
-    ORDER BY created_at DESC
-    LIMIT @limit OFFSET @offset
-  `).all({ ...params, limit, offset }) as (Omit<LeadRow, 'consented'> & { consented: number })[];
+  const listParams = [...params, limit, offset];
+  const rows = (await appPool().query(
+    `SELECT id, first_name, email, phone_number, timeline_to_start, income_goal,
+            source_tool, intent_level, consented, ghl_contact_id, lead_source, created_at
+     FROM leads ${whereSql}
+     ORDER BY created_at DESC
+     LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+    listParams,
+  )).rows as (Omit<LeadRow, 'consented'> & { consented: number })[];
 
   return {
     leads: rows.map((r) => ({ ...r, consented: !!r.consented })),
@@ -193,12 +182,8 @@ export function listLeads(db: Database.Database, q: LeadQuery = {}): LeadPage {
 }
 
 /** Leads with no CRM contact id yet. */
-export function listUnsynced(db: Database.Database): { id: string }[] {
-  return db.prepare('SELECT id FROM leads WHERE ghl_contact_id IS NULL').all() as { id: string }[];
-}
-
-/* ── utils ───────────────────────────────────────────────────────────────────── */
-
-function cryptoRandomId(): string {
-  return randomBytes(9).toString('hex');
+export async function listUnsynced(_db: Pool): Promise<{ id: string }[]> {
+  await ensureReady();
+  const r = await appPool().query('SELECT id FROM leads WHERE ghl_contact_id IS NULL');
+  return r.rows as { id: string }[];
 }

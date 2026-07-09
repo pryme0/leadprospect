@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const source_tool = (body.source_tool || body.utm_source || 'homepage').toString();
 
     const db = getLeadsDb();
-    const id = insertLead(db, {
+    const id = await insertLead(db, {
       first_name,
       email,
       phone_number,
@@ -84,7 +84,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const db = getLeadsDb();
-    const { leads, total, total_pages } = listLeads(db, {
+    const { leads, total, total_pages } = await listLeads(db, {
       page: Number(searchParams.get('page') ?? 1),
       limit: Number(searchParams.get('limit') ?? 20),
       source_tool: searchParams.get('source_tool') ?? undefined,

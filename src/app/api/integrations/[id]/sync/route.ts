@@ -18,7 +18,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 
   const id = params.id;
-  if (!getConnection(user.org, id)?.access_token) {
+  if (!(await getConnection(user.org, id))?.access_token) {
     return NextResponse.json({ message: 'Not connected.' }, { status: 409 });
   }
 

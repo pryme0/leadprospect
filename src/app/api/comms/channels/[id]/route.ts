@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/comms/db';
+import { getDb, ensureCommsReady } from '@/lib/comms/db';
 import { getUserFromRequest } from '@/lib/auth/session';
 import { checkConnectedAccountCap } from '@/lib/subscription/limits';
 
@@ -69,11 +69,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const now = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-    db.prepare(`
+    await ensureCommsReady();
+    await db.query(`
       INSERT INTO connected_channels (channel_id, user_id, handle, connected_at)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(user_id, channel_id) DO UPDATE SET handle = excluded.handle, connected_at = excluded.connected_at
-    `).run(id, user.org, body.handle.trim(), now);
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (user_id, channel_id) DO UPDATE SET handle = EXCLUDED.handle, connected_at = EXCLUDED.connected_at
+    `, [id, user.org, body.handle.trim(), now]);
 
     return NextResponse.json({ success: true, account: { channelId: id, handle: body.handle.trim(), connectedAt: now } });
   } catch (err) {
@@ -115,15 +116,13 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     }
 
     // 2. Remove the local connection + clear the platform's traction.
-    const clear = db.transaction((channels: string[]) => {
-      for (const cid of channels) {
-        db.prepare('DELETE FROM connected_channels WHERE user_id = ? AND channel_id = ?').run(user.org, cid);
-        db.prepare('DELETE FROM mentions WHERE user_id = ? AND platform = ?').run(user.org, cid);
-        // Cascades to messages / ai_replies / timeline_events (foreign_keys ON).
-        db.prepare('DELETE FROM conversations WHERE platform = ?').run(cid);
-      }
-    });
-    clear(affected);
+    await ensureCommsReady();
+    for (const cid of affected) {
+      await db.query('DELETE FROM connected_channels WHERE user_id = $1 AND channel_id = $2', [user.org, cid]);
+      await db.query('DELETE FROM mentions WHERE user_id = $1 AND platform = $2', [user.org, cid]);
+      // Cascades to messages / ai_replies / timeline_events (foreign_keys ON).
+      await db.query('DELETE FROM conversations WHERE platform = $1', [cid]);
+    }
 
     return NextResponse.json({ success: true, cleared: affected });
   } catch (err) {

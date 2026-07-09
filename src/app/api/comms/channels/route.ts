@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/comms/db';
+import { getDb, ensureCommsReady } from '@/lib/comms/db';
 import { getUserFromRequest } from '@/lib/auth/session';
 
 /* Unipile provider name → our internal channel IDs */
@@ -41,8 +41,9 @@ export async function GET(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const db = getDb();
+    await ensureCommsReady();
     type DbRow = { channel_id: string; handle: string; connected_at: string };
-    const local = db.prepare('SELECT channel_id, handle, connected_at FROM connected_channels WHERE user_id = ?').all(user.org) as DbRow[];
+    const local = (await db.query('SELECT channel_id, handle, connected_at FROM connected_channels WHERE user_id = $1', [user.org])).rows as DbRow[];
 
     /* Set of channel IDs managed by Unipile (we always defer to Unipile for these) */
     const unipileIds = new Set(Object.values(UNIPILE_TO_CHANNELS).flat());
@@ -61,11 +62,11 @@ export async function GET(req: NextRequest) {
       /* Best display name: connection_params username > name > account id */
       const handle = account.connection_params?.im?.username ?? account.name ?? account.email ?? account.id;
       for (const channelId of channelIds) {
-        db.prepare(`
+        await db.query(`
           INSERT INTO connected_channels (channel_id, user_id, handle, connected_at)
-          VALUES (?, ?, ?, ?)
-          ON CONFLICT(user_id, channel_id) DO UPDATE SET handle = excluded.handle, connected_at = excluded.connected_at
-        `).run(channelId, user.org, handle, now);
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (user_id, channel_id) DO UPDATE SET handle = EXCLUDED.handle, connected_at = EXCLUDED.connected_at
+        `, [channelId, user.org, handle, now]);
         unipileMapped.push({ channel_id: channelId, handle, connected_at: now });
       }
     }
@@ -73,11 +74,11 @@ export async function GET(req: NextRequest) {
     /* Remove this user's Unipile channels from DB that are no longer connected
      * in Unipile — scoped by user_id so disconnecting doesn't touch other users. */
     const activeUnipileChannelIds = new Set(unipileMapped.map((u) => u.channel_id));
-    Array.from(unipileIds).forEach((channelId) => {
+    for (const channelId of Array.from(unipileIds)) {
       if (!activeUnipileChannelIds.has(channelId)) {
-        db.prepare('DELETE FROM connected_channels WHERE user_id = ? AND channel_id = ?').run(user.org, channelId);
+        await db.query('DELETE FROM connected_channels WHERE user_id = $1 AND channel_id = $2', [user.org, channelId]);
       }
-    });
+    }
 
     return NextResponse.json({ connected: [...nonUnipile, ...unipileMapped] });
   } catch (err) {

@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function POST() {
   try {
     const db = getLeadsDb();
-    const unsynced = listUnsynced(db);
+    const unsynced = await listUnsynced(db);
 
     const configured = !!(process.env.GHL_API_KEY && process.env.GHL_LOCATION_ID);
     if (!configured) {
