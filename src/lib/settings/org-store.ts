@@ -143,6 +143,20 @@ export async function getOrgProfile(userId: string): Promise<OrgProfileRecord | 
   return rows[0] ? rowToRecord(rows[0] as Row) : null;
 }
 
+/**
+ * Lightweight roster of every org that has a profile — {user_id, company_name,
+ * crawler_sbu_id}. Used by the super-admin cross-org views so leads still show
+ * even when the SQLite→Postgres `users` table is sparse (org_profiles carries
+ * the company + crawler SBU that leads are actually keyed on).
+ */
+export async function listOrgProfilesLite(): Promise<{ user_id: string; company_name: string | null; crawler_sbu_id: string | null }[]> {
+  await ensureAppSchema();
+  const { rows } = await appPool().query(
+    'SELECT user_id, company_name, crawler_sbu_id FROM org_profiles ORDER BY updated_at DESC',
+  );
+  return rows as { user_id: string; company_name: string | null; crawler_sbu_id: string | null }[];
+}
+
 /** Insert or replace the editable profile fields, preserving crawler/analysis columns. */
 export async function upsertOrgProfile(userId: string, data: Partial<OrgProfile>): Promise<OrgProfileRecord> {
   await ensureAppSchema();

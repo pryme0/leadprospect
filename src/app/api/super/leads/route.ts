@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireSuperAdmin } from '@/lib/super/guard';
 import { listSignals, type SignalQuery } from '@/lib/crawler/signals-db';
 import { toUiLead } from '@/lib/crawler/map';
-import { listOrgOwners } from '@/lib/auth/db';
-import { sbuIdForUser } from '@/lib/crawler/control-client';
-import { getOrgProfile } from '@/lib/settings/org-store';
+import { orgLeadRoster } from '@/lib/super/orgs';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,19 +26,17 @@ export async function GET(req: Request) {
     const rawIntent = url.searchParams.get('intent_level') || '';
     const intentLevel = INTENT.includes(rawIntent as SignalQuery['intentLevel']) ? (rawIntent as SignalQuery['intentLevel']) : undefined;
     const source = url.searchParams.get('source') || undefined;
+    const search = url.searchParams.get('q')?.trim() || undefined;
+    // Date range: `days` = trailing window (7/30/90); converted to an ISO `since`.
+    const days = parseInt(url.searchParams.get('days') || '', 10);
+    const since = Number.isFinite(days) && days > 0
+      ? new Date(Date.now() - days * 86400_000).toISOString()
+      : undefined;
 
     // All orgs + their SBU ids + company names (for the filter + per-lead label).
-    // Prefer the stored crawler_sbu_id (what resolveUserSbu uses) so leads map
-    // to their org; fall back to the deterministic id.
-    const owners = await listOrgOwners();
-    const orgs = await Promise.all(owners.map(async (o) => {
-      const profile = await getOrgProfile(o.id);
-      return {
-        orgId: o.id,
-        company: profile?.company_name || o.name || o.email,
-        sbu: profile?.crawler_sbu_id || sbuIdForUser(o.id),
-      };
-    }));
+    // Sourced from org_profiles ∪ users so leads still map to a company even when
+    // the users table is sparse.
+    const orgs = await orgLeadRoster();
     const companyBySbu = new Map(orgs.map((o) => [o.sbu, o.company]));
     const sbuByOrg = new Map(orgs.map((o) => [o.orgId, o.sbu]));
 
@@ -54,6 +50,8 @@ export async function GET(req: Request) {
       sbus: chosenSbu ? undefined : allOrgSbus,
       intentLevel,
       source,
+      search,
+      since,
       excludeNonProspects: true,
       deduplicateByPerson: true,
       orderBy: 'urgency_score',
@@ -65,6 +63,9 @@ export async function GET(req: Request) {
       ...toUiLead(s),
       company: (s.sbu_id && companyBySbu.get(s.sbu_id)) || '—',
       sbuId: s.sbu_id,
+      location: s.location || null,
+      urgency: s.urgency_score ?? null,
+      summary: s.summary || null,
     }));
 
     return NextResponse.json({

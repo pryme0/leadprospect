@@ -39,7 +39,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       account_label = await fetchSalesforceIdentity(t.access_token, t.id);
     }
 
-    upsertConnection(st.sub, id, {
+    await upsertConnection(st.sub, id, {
       access_token: t.access_token,
       refresh_token: t.refresh_token ?? null,
       instance_url: t.instance_url ?? null,

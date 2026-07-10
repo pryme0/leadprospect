@@ -8,6 +8,6 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
-  const removed = deleteConnection(user.org, params.id);
+  const removed = await deleteConnection(user.org, params.id);
   return NextResponse.json({ ok: true, removed });
 }

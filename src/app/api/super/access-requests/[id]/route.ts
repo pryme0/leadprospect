@@ -16,7 +16,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!body.status || !VALID.includes(body.status as AccessRequestStatus)) {
     return NextResponse.json({ message: 'Valid status is required.' }, { status: 400 });
   }
-  const ok = updateAccessRequestStatus(params.id, body.status as AccessRequestStatus);
+  const ok = await updateAccessRequestStatus(params.id, body.status as AccessRequestStatus);
   if (!ok) return NextResponse.json({ message: 'Request not found.' }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

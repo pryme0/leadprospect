@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Record status + mirror into Pulse (both real and assisted sends).
-  recordOutreach(user.org, { leadId, platform, handle, status: 'sent', message: text, channel });
+  await recordOutreach(user.org, { leadId, platform, handle, status: 'sent', message: text, channel });
   mirrorOutreachToPulse(user.org, {
     leadId, platform, handle, name: lead.first_name || null, url, text, postContent: lead.post_content,
   });

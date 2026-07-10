@@ -5,7 +5,7 @@
  */
 import { listOrgOwners, countActiveUsersInOrg } from '@/lib/auth/db';
 import { getOrgAccess, type GrantKind } from '@/lib/subscription/server-store';
-import { getOrgProfile } from '@/lib/settings/org-store';
+import { getOrgProfile, listOrgProfilesLite } from '@/lib/settings/org-store';
 import { appPool } from '@/lib/app-pg';
 import { sbuIdForUser } from '@/lib/crawler/control-client';
 import type { PlanTier } from '@/lib/subscription/tiers';
@@ -25,6 +25,38 @@ export interface OrgSummary {
   /** Crawler SBU active flag: true/false when the org has an SBU, null when it
    *  has never been provisioned. */
   crawlingActive: boolean | null;
+}
+
+export interface OrgLeadScope { orgId: string; company: string; sbu: string }
+
+/**
+ * Roster of orgs (id, company, crawler SBU) for the cross-org leads/analytics
+ * views. Merges the users-table owners with org_profiles, so leads still surface
+ * when the users table is sparse (org_profiles carries the company + SBU that
+ * leads are keyed on). Deduped by org id.
+ */
+export async function orgLeadRoster(): Promise<OrgLeadScope[]> {
+  const [owners, profiles] = await Promise.all([
+    listOrgOwners().catch(() => []),
+    listOrgProfilesLite().catch(() => []),
+  ]);
+  const byId = new Map<string, OrgLeadScope>();
+  for (const p of profiles) {
+    byId.set(p.user_id, {
+      orgId: p.user_id,
+      company: p.company_name || p.user_id,
+      sbu: p.crawler_sbu_id || sbuIdForUser(p.user_id),
+    });
+  }
+  for (const o of owners) {
+    const existing = byId.get(o.id);
+    byId.set(o.id, {
+      orgId: o.id,
+      company: existing && existing.company !== o.id ? existing.company : (o.name || o.email),
+      sbu: existing?.sbu || sbuIdForUser(o.id),
+    });
+  }
+  return Array.from(byId.values());
 }
 
 export async function listOrganizations(): Promise<OrgSummary[]> {
