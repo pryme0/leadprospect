@@ -4,12 +4,12 @@ import JsonLd from '@/components/JsonLd';
 import { pageMetadata } from '@/lib/seo/config';
 import { softwareApplicationSchema } from '@/lib/seo/schema';
 
-const HOME_TITLE = 'SYNQ — Lead Intelligence Platform for Revenue Teams';
+const HOME_TITLE = 'SYNQ — Get Your Business Found Online & Find New Customers';
 export const metadata: Metadata = {
   ...pageMetadata({
     title: HOME_TITLE,
     description:
-      'Unify cross-channel buying signals, AI intent scoring, and automated lead routing in one revenue command center — so your team works the right accounts first.',
+      'SYNQ helps your business get found on Google and AI search, and connects you with people already looking to buy what you sell — so you can reach out and win.',
     path: '/',
   }),
   // Home is the brand root — no "| SYNQ" suffix from the template.
@@ -29,27 +29,27 @@ export default function HomePage() {
           <div className="space-y-stack-md">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container border border-glass-stroke">
               <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse" />
-              <span className="font-mono-label text-mono-label uppercase text-on-surface-variant">V2.4 Intelligence Engine Live</span>
+              <span className="font-mono-label text-mono-label uppercase text-on-surface-variant">Now live across Africa</span>
             </div>
             <h1 className="font-display-xl text-display-xl text-white">
-              The Command Center for Modern <span className="text-primary">Revenue Teams.</span>
+              Get found online. <span className="text-primary">Get more customers.</span>
             </h1>
             <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
-              Synthesize your pipeline, automate outbound precision, and dominate your market with technical intelligence that scales.
+              SYNQ puts your business where buyers are searching, and shows you real people who are ready to buy what you sell — so you can reach out and win the sale.
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
               <Link
                 href="/signup"
                 className="btn-primary px-8 py-4 rounded-xl text-white font-bold text-lg hover:brightness-110 transition-all flex items-center gap-2"
               >
-                Start free trial
+                Start free
                 <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
               </Link>
               <Link
-                href="/signup"
+                href="/features"
                 className="glass-card px-8 py-4 rounded-xl text-white font-bold text-lg border border-glass-stroke hover:bg-white/10 transition-all"
               >
-                Book demo
+                See how it works
               </Link>
             </div>
           </div>
@@ -70,7 +70,7 @@ export default function HomePage() {
       {/* Integration Bar */}
       <section className="py-12 border-y border-glass-stroke bg-midnight/30">
         <div className="max-w-container-max mx-auto px-margin-desktop">
-          <p className="font-mono-label text-mono-label text-center text-outline uppercase mb-8">Integrated with the Modern Stack</p>
+          <p className="font-mono-label text-mono-label text-center text-outline uppercase mb-8">Works with the tools you already use</p>
           <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-60">
             <span className="font-headline-md text-headline-md font-bold tracking-tight integration-logo cursor-pointer">LinkedIn</span>
             <span className="font-headline-md text-headline-md font-bold tracking-tight integration-logo cursor-pointer">HubSpot</span>
@@ -84,37 +84,37 @@ export default function HomePage() {
       {/* Full Suite Capabilities */}
       <section className="py-stack-lg px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
         <div className="text-center mb-16 max-w-3xl mx-auto">
-          <h2 className="font-display-lg text-display-lg mb-4">Precision Engineering for Modern Sales</h2>
-          <p className="font-body-md text-body-md text-on-surface-variant">Stop guessing where your next deal is coming from. Our engine processes millions of data points to deliver actionable intent signals across four core pillars.</p>
+          <h2 className="font-display-lg text-display-lg mb-4">Everything you need to get found and get customers</h2>
+          <p className="font-body-md text-body-md text-on-surface-variant">Two simple jobs, done for you: get your business discovered online, and connect you with people who are ready to buy.</p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-24">
           <div className="glass-card p-6 rounded-2xl space-y-4 border-l-4 border-l-primary">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-xl">sensors</span>
+              <span className="material-symbols-outlined text-primary text-xl">travel_explore</span>
             </div>
-            <h3 className="font-headline-md text-xl">Lead Intelligence</h3>
-            <p className="text-sm text-on-surface-variant">Aggregates cross-platform activities and social mentions into a high-fidelity feed.</p>
+            <h3 className="font-headline-md text-xl">Get found online</h3>
+            <p className="text-sm text-on-surface-variant">Your business shows up on Google and AI search when buyers look for what you sell.</p>
           </div>
           <div className="glass-card p-6 rounded-2xl space-y-4 border-l-4 border-l-tertiary">
             <div className="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-tertiary text-xl">route</span>
+              <span className="material-symbols-outlined text-tertiary text-xl">groups</span>
             </div>
-            <h3 className="font-headline-md text-xl">Automated Routing</h3>
-            <p className="text-sm text-on-surface-variant">Intelligent lead distribution based on dynamic ICP matching and representative load.</p>
+            <h3 className="font-headline-md text-xl">Find ready buyers</h3>
+            <p className="text-sm text-on-surface-variant">We spot people posting online that they want what you sell — before your competitors do.</p>
           </div>
           <div className="glass-card p-6 rounded-2xl space-y-4 border-l-4 border-l-secondary">
             <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-secondary text-xl">chat</span>
+              <span className="material-symbols-outlined text-secondary text-xl">contact_page</span>
             </div>
-            <h3 className="font-headline-md text-xl">Comm Hub</h3>
-            <p className="text-sm text-on-surface-variant">Unified communication layer for seamless outreach across Email, Slack, and LinkedIn.</p>
+            <h3 className="font-headline-md text-xl">Their contact details</h3>
+            <p className="text-sm text-on-surface-variant">We find each person's email and phone, so you can actually reach them.</p>
           </div>
           <div className="glass-card p-6 rounded-2xl space-y-4 border-l-4 border-l-primary">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-xl">sync_alt</span>
+              <span className="material-symbols-outlined text-primary text-xl">forum</span>
             </div>
-            <h3 className="font-headline-md text-xl">Seamless CRM Sync</h3>
-            <p className="text-sm text-on-surface-variant">Real-time bi-directional synchronization with Salesforce, HubSpot, and MS Dynamics.</p>
+            <h3 className="font-headline-md text-xl">Reach out and win</h3>
+            <p className="text-sm text-on-surface-variant">Message, follow up, and keep track of every deal — all in one simple place.</p>
           </div>
         </div>
 
@@ -123,8 +123,8 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
           <div className="relative z-10 px-8 flex flex-col items-center">
             <div className="text-center mb-12 max-w-2xl">
-              <h2 className="font-display-lg text-3xl md:text-4xl mb-4">Deep Dashboard Intelligence</h2>
-              <p className="text-on-surface-variant">Get the full picture with our high-fidelity iPad interface, designed for deep dives into pipeline health and intent scoring.</p>
+              <h2 className="font-display-lg text-3xl md:text-4xl mb-4">See it all in one simple place</h2>
+              <p className="text-on-surface-variant">One clear view of the new customers coming in and the deals you're working on — nothing complicated.</p>
             </div>
             <div className="glass-card rounded-[2.5rem] p-2 shadow-2xl max-w-4xl w-full">
               <div className="relative">
@@ -153,19 +153,17 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-r from-midnight via-midnight/60 to-transparent" />
             </div>
             <div className="relative z-10 p-stack-lg max-w-2xl">
-              <h2 className="font-display-xl text-display-xl text-white mb-6">Built for the Boardroom.</h2>
+              <h2 className="font-display-xl text-display-xl text-white mb-6">Built for African businesses.</h2>
               <p className="font-body-lg text-body-lg text-white/80 mb-8 leading-relaxed">
-                From seed-stage startups to global enterprises, SYNQ provides the data-rich visibility that executive teams demand to forecast with 99% accuracy.
+                From one-person shops to growing teams, SYNQ helps you spend your time only on people who actually want to buy — no cold calling, no guessing.
               </p>
-              <div className="flex gap-12">
-                <div>
-                  <p className="text-4xl font-bold text-primary">312%</p>
-                  <p className="font-mono-label text-mono-label text-white/60">AVG PIPELINE GROWTH</p>
-                </div>
-                <div>
-                  <p className="text-4xl font-bold text-tertiary">14d</p>
-                  <p className="font-mono-label text-mono-label text-white/60">REDUCED SALES CYCLE</p>
-                </div>
+              <div className="flex flex-wrap gap-4">
+                <span className="inline-flex items-center gap-2 bg-white/10 rounded-full border border-white/20 px-4 py-2 text-mono-label text-white">
+                  <span className="material-symbols-outlined text-[16px] text-tertiary">check_circle</span>No cold calling
+                </span>
+                <span className="inline-flex items-center gap-2 bg-white/10 rounded-full border border-white/20 px-4 py-2 text-mono-label text-white">
+                  <span className="material-symbols-outlined text-[16px] text-tertiary">check_circle</span>Real buyers only
+                </span>
               </div>
             </div>
           </div>
@@ -176,19 +174,19 @@ export default function HomePage() {
       <section className="py-32 relative">
         <div className="absolute inset-0 bg-primary/5 -skew-y-3" />
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop relative z-10 text-center">
-          <h2 className="font-display-lg text-display-lg text-white mb-6">Your next deal is already in your feed.</h2>
+          <h2 className="font-display-lg text-display-lg text-white mb-6">Your next customer is already looking for you.</h2>
           <p className="font-body-lg text-body-lg text-on-surface-variant mb-10 max-w-xl mx-auto">
-            Stop manually searching for signals. Let SYNQ automate the hard work of revenue intelligence.
+            Let SYNQ find them and bring them to you — so you can focus on serving customers, not chasing them.
           </p>
           <div className="flex flex-col md:flex-row justify-center items-center gap-4">
             <Link
               href="/signup"
               className="btn-primary px-12 py-5 rounded-xl text-white font-bold text-xl hover:brightness-110 transition-all flex items-center gap-3"
             >
-              Create workspace
-              <span className="material-symbols-outlined text-2xl">add_circle</span>
+              Start free
+              <span className="material-symbols-outlined text-2xl">arrow_forward</span>
             </Link>
-            <p className="font-mono-label text-mono-label text-outline">No credit card required. Free 14-day trial.</p>
+            <p className="font-mono-label text-mono-label text-outline">No card needed. Free for 14 days.</p>
           </div>
         </div>
       </section>

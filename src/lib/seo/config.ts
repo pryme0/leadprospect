@@ -22,19 +22,18 @@ export const SITE = {
   name: 'SYNQ',
   legalName: 'SYNQ Systems Inc.',
   url: SITE_URL,
-  /** ~55-char default title (root uses a template of `%s | SYNQ`). */
-  defaultTitle: 'SYNQ — Lead Intelligence Platform for Revenue Teams',
-  /** ~155-char honest B2B description (no unverifiable ad-source / stat claims). */
+  /** Plain-language default title (root uses a template of `%s | SYNQ`). */
+  defaultTitle: 'SYNQ — Get Your Business Found Online & Find New Customers',
+  /** ~155-char honest description in everyday words (no jargon, no unverifiable stats). */
   description:
-    'SYNQ unifies cross-channel buying signals, AI intent scoring, deduplication, and automated lead routing into one revenue command center for B2B sales teams.',
+    'SYNQ helps your business get found on Google and AI search, and connects you with people already looking to buy what you sell — so you can reach out and win.',
   twitterHandle: '@synq',
   contactEmail: 'hello@synq.demo',
   locale: 'en_US',
   keywords: [
-    'lead intelligence', 'sales intelligence platform', 'revenue intelligence',
-    'intent-based lead routing', 'AI lead scoring', 'buying signals',
-    'signal-based prospecting', 'lead deduplication', 'lead source attribution',
-    'CRM enrichment', 'B2B lead generation', 'pipeline intelligence', 'SYNQ',
+    'get my business found on Google', 'find customers online', 'how to get more customers',
+    'get found on AI search', 'online business directory Africa', 'find people ready to buy',
+    'get customers for my business', 'grow my business online', 'Nigeria business directory', 'SYNQ',
   ],
 } as const;
 

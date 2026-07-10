@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo/config';
 
 export const metadata: Metadata = pageMetadata({
-  title: 'Create Your Workspace — Start Free',
+  title: 'Create Your Free Account',
   description:
-    'Spin up your SYNQ workspace in minutes. Free 14-day trial with full access to your selected modules — no credit card required.',
+    'Create your free SYNQ account in minutes and start getting found online and finding new customers. No card needed.',
   path: '/signup',
 });
 

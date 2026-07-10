@@ -11,6 +11,7 @@ interface AccessRequest {
   message: string | null;
   status: 'new' | 'contacted' | 'archived';
   created_at: string;
+  referred_by_code?: string | null;
 }
 
 const VIOLET = '#6D5EF9';
@@ -77,6 +78,9 @@ export default function AccessRequestsPage() {
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-white">{r.name}</p>
               {r.phone && <p className="truncate text-[11px] text-white/35">{r.phone}</p>}
+              {r.referred_by_code && (
+                <p className="truncate text-[11px]" style={{ color: '#6D5EF9' }}>ref: <span className="font-mono">{r.referred_by_code}</span></p>
+              )}
             </div>
             <a href={`mailto:${r.email}`} className="truncate text-[13px] text-white/70 hover:text-white">{r.email}</a>
             <span className="truncate text-[13px] text-white/60">{r.company ?? '—'}</span>

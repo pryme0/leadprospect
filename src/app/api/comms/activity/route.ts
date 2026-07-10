@@ -11,10 +11,11 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
     const db = getDb();
-    return NextResponse.json({
-      activity: listRecentActivity(db, user.org, 10),
-      chart: commsActivitySeries(db, user.org),
-    });
+    const [activity, chart] = await Promise.all([
+      listRecentActivity(db, user.org, 10),
+      commsActivitySeries(db, user.org),
+    ]);
+    return NextResponse.json({ activity, chart });
   } catch (err) {
     console.error('[GET /api/comms/activity]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

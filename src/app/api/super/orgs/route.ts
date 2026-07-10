@@ -7,6 +7,8 @@ import { setUserSubscription } from '@/lib/subscription/server-store';
 import { enforceOrgAccess } from '@/lib/crawler/enforce';
 import { recordTransaction } from '@/lib/billing/transactions';
 import { PLAN_TIERS, type PlanTier } from '@/lib/subscription/tiers';
+import { resolveReferrerByCode, setReferredBy, awardReferralPoints } from '@/lib/referrals/store';
+import { POINTS_PER_REFERRAL } from '@/lib/referrals/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +38,7 @@ export async function POST(req: Request) {
     ownerName?: string; ownerEmail?: string; password?: string;
     companyName?: string; website?: string;
     grant?: { tier?: string; days?: number };
+    referredByCode?: string;
   } = {};
   try { body = await req.json(); } catch { /* no body */ }
 
@@ -52,6 +55,21 @@ export async function POST(req: Request) {
   try {
     const owner = await createOrgOwner({ name: ownerName, email: ownerEmail, password });
     await upsertOrgProfile(owner.id, { company_name: companyName, website: (body.website ?? '').trim() });
+
+    // Referral credit: if this org signed up under a referral code, attribute it
+    // and award the referrer. Never blocks org creation, and never self-refers.
+    const refCode = (body.referredByCode ?? '').trim();
+    if (refCode) {
+      try {
+        const referrerOrgId = await resolveReferrerByCode(refCode);
+        if (referrerOrgId && referrerOrgId !== owner.id) {
+          await setReferredBy(owner.id, referrerOrgId);
+          await awardReferralPoints(referrerOrgId, owner.id, POINTS_PER_REFERRAL, `Referred ${companyName || ownerEmail}`);
+        }
+      } catch (err) {
+        console.error('[POST /api/super/orgs] referral credit failed', err);
+      }
+    }
 
     // Optional initial grant.
     const tier = body.grant?.tier;

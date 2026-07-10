@@ -60,11 +60,11 @@ export default function IntegrationsPage() {
       <section className="max-w-container-max mx-auto px-margin-desktop text-center mb-stack-lg relative">
         <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-container rounded-full border border-glass-stroke mb-6">
           <span className="w-2 h-2 rounded-full bg-tertiary"></span>
-          <span className="font-mono-label text-mono-label text-tertiary uppercase">32+ Native Connections</span>
+          <span className="font-mono-label text-mono-label text-tertiary uppercase">Connects with 30+ everyday tools</span>
         </div>
-        <h1 className="font-display-xl text-display-xl mb-6 tracking-tight">Sync your entire stack with <span className="text-primary">one click.</span></h1>
+        <h1 className="font-display-xl text-display-xl mb-6 tracking-tight">Connect the tools you <span className="text-primary">already use</span></h1>
         <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto mb-stack-md">
-          SYNQ aggregates data from your favorite tools into a unified technical command center. Real-time observability across every layer of your business.
+          Link your accounts once, and SYNQ works quietly in the background — no technical setup needed.
         </p>
         {/* Search Bar */}
         <div className="max-w-xl mx-auto relative group">
@@ -74,7 +74,7 @@ export default function IntegrationsPage() {
             <input
               className="bg-transparent border-none text-on-surface w-full focus:ring-0 font-body-md placeholder:text-outline-variant"
               id="integrationSearch"
-              placeholder="Search 30+ integrations..."
+              placeholder="Search tools…"
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -127,7 +127,7 @@ export default function IntegrationsPage() {
 
       {/* Featured Spotlight (Bento Layout) */}
       <section className="max-w-container-max mx-auto px-margin-desktop mt-stack-lg">
-        <h2 className="font-headline-md text-headline-md mb-8">Power Integrations</h2>
+        <h2 className="font-headline-md text-headline-md mb-8">Popular connections</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
           {/* Large Bento Item */}
           <div className="md:col-span-2 glass-card rounded-xl p-8 relative overflow-hidden flex flex-col justify-between h-[400px]">
@@ -136,25 +136,25 @@ export default function IntegrationsPage() {
                 <div className="w-12 h-12 rounded-lg bg-[#00A1E0] flex items-center justify-center">
                   <span className="material-symbols-outlined text-white text-3xl">cloud</span>
                 </div>
-                <h3 className="font-headline-md text-headline-md">Salesforce Deep-Sync</h3>
+                <h3 className="font-headline-md text-headline-md">Salesforce</h3>
               </div>
               <p className="text-on-surface-variant max-w-md font-body-md">
-                Bidirectional real-time object mapping. Automated data cleansing and historical backfills up to 5 years.
+                Keeps your customer list up to date automatically, so you never enter the same contact twice.
               </p>
             </div>
             <div className="mt-auto z-10">
               <ul className="flex flex-wrap gap-x-6 gap-y-2 mb-6">
                 <li className="flex items-center gap-2 text-tertiary font-mono-label uppercase">
                   <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                  Low Latency
+                  Automatic
                 </li>
                 <li className="flex items-center gap-2 text-tertiary font-mono-label uppercase">
                   <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                  OAuth 2.0
+                  Secure
                 </li>
               </ul>
               <Link href="/signup" className="text-primary font-bold flex items-center gap-2 hover:gap-3 transition-all w-fit">
-                Configure Setup <span className="material-symbols-outlined">arrow_forward</span>
+                Connect <span className="material-symbols-outlined">arrow_forward</span>
               </Link>
             </div>
             <div className="absolute bottom-[-10%] right-[-5%] w-2/3 h-2/3 opacity-40"></div>
@@ -164,14 +164,14 @@ export default function IntegrationsPage() {
           <div className="glass-card rounded-xl p-8 flex flex-col justify-between border-secondary/20">
             <div>
               <span className="material-symbols-outlined text-secondary text-4xl mb-4">terminal</span>
-              <h3 className="font-headline-md text-headline-md mb-2">Webhooks</h3>
-              <p className="text-on-surface-variant font-body-md">Connect any proprietary tool using our robust JSON-based webhook architecture.</p>
+              <h3 className="font-headline-md text-headline-md mb-2">Custom connections</h3>
+              <p className="text-on-surface-variant font-body-md">Link your own tools if you need something special.</p>
             </div>
             <Link
               href="/signup"
               className="mt-6 border border-glass-stroke rounded-lg py-2 text-on-surface hover:bg-surface-container transition-colors text-center"
             >
-              Read Docs
+              Connect
             </Link>
           </div>
 
@@ -180,13 +180,13 @@ export default function IntegrationsPage() {
             <div>
               <span className="material-symbols-outlined text-tertiary text-4xl mb-4">bolt</span>
               <h3 className="font-headline-md text-headline-md mb-2">Zapier</h3>
-              <p className="text-on-surface-variant font-body-md">Bridge SYNQ with over 5,000+ apps through our premium Zapier connector.</p>
+              <p className="text-on-surface-variant font-body-md">Connect thousands of other apps through Zapier.</p>
             </div>
             <Link
               href="/signup"
               className="mt-6 border border-glass-stroke rounded-lg py-2 text-on-surface hover:bg-surface-container transition-colors text-center"
             >
-              Connect Zap
+              Connect
             </Link>
           </div>
         </div>

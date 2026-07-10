@@ -633,8 +633,8 @@ export default function CommHubPage() {
     fetch('/api/comms/activity', { cache: 'no-store', headers: authHeaders() })
       .then((r) => r.json())
       .then((data: { activity?: ActivityEvent[]; chart?: ActivityDay[] }) => {
-        if (data.activity) setActivityFeed(data.activity);
-        if (data.chart) setActivitySeries(data.chart);
+        if (Array.isArray(data.activity)) setActivityFeed(data.activity);
+        if (Array.isArray(data.chart)) setActivitySeries(data.chart);
       })
       .catch(() => {});
   }, []);

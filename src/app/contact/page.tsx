@@ -18,7 +18,7 @@ const CHANNELS = [
     color: 'text-tertiary',
     ring: 'bg-tertiary/10',
     title: 'Support',
-    body: 'Already using SYNQ? Get help with your workspace or integrations.',
+    body: 'Already using SYNQ? Get help with your account or connected tools.',
     email: 'support@synq.demo',
     meta: 'Mon–Fri, 9am–6pm',
   },
@@ -106,10 +106,10 @@ export default function ContactPage() {
           <span className="font-mono-label text-mono-label uppercase text-on-surface-variant">Get in touch</span>
         </div>
         <h1 className="font-display-xl text-display-lg-mobile md:text-display-xl text-white mb-6">
-          Let&apos;s put your signals <span className="text-primary">to work.</span>
+          Let&apos;s help you get <span className="text-primary">more customers.</span>
         </h1>
         <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
-          Whether you want a demo, have a pricing question, or need a hand with your workspace — we&apos;re here. Every
+          Whether you want a demo, have a pricing question, or need a hand with your account — we&apos;re here. Every
           message reaches a real person on our team.
         </p>
       </section>
@@ -219,7 +219,7 @@ export default function ContactPage() {
                       value={form.message}
                       onChange={set('message')}
                       rows={4}
-                      placeholder="Tell us a bit about your team and what you're trying to solve…"
+                      placeholder="Tell us a bit about your business and how we can help…"
                       aria-invalid={!!errors.message}
                       aria-describedby={errors.message ? 'message-error' : undefined}
                       className="input-recessed w-full rounded-xl px-4 py-3 text-on-surface placeholder:text-outline resize-y"

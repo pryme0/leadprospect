@@ -18,6 +18,8 @@ export interface AccessRequest {
   message: string | null;
   status: AccessRequestStatus;
   created_at: string;
+  /** Referral code this person signed up under (referral attribution), if any. */
+  referred_by_code: string | null;
 }
 
 let ready: Promise<void> | null = null;
@@ -34,7 +36,7 @@ async function ensureReady(): Promise<void> {
   return ready;
 }
 
-export async function createAccessRequest(input: { name: string; email: string; company?: string; phone?: string; message?: string }): Promise<AccessRequest> {
+export async function createAccessRequest(input: { name: string; email: string; company?: string; phone?: string; message?: string; referredByCode?: string }): Promise<AccessRequest> {
   await ensureReady();
   const row: AccessRequest = {
     id: `req_${randomBytes(8).toString('hex')}`,
@@ -45,11 +47,12 @@ export async function createAccessRequest(input: { name: string; email: string; 
     message: input.message?.trim() || null,
     status: 'new',
     created_at: new Date().toISOString(),
+    referred_by_code: input.referredByCode?.trim() || null,
   };
   await appPool().query(
-    `INSERT INTO access_requests (id, name, email, company, phone, message, status, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,'new',$7)`,
-    [row.id, row.name, row.email, row.company, row.phone, row.message, row.created_at],
+    `INSERT INTO access_requests (id, name, email, company, phone, message, status, created_at, referred_by_code)
+     VALUES ($1,$2,$3,$4,$5,$6,'new',$7,$8)`,
+    [row.id, row.name, row.email, row.company, row.phone, row.message, row.created_at, row.referred_by_code],
   );
   return row;
 }

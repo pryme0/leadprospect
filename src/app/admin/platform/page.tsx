@@ -104,7 +104,7 @@ function GrantModal({ org, onClose, onDone }: { org: OrgRow; onClose: () => void
 
 /* ── Create-organization modal ────────────────────────────────────────────── */
 function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [f, setF] = useState({ ownerName: '', ownerEmail: '', password: '', companyName: '', website: '', tier: 'pro' as Tier, days: '' });
+  const [f, setF] = useState({ ownerName: '', ownerEmail: '', password: '', companyName: '', website: '', tier: 'pro' as Tier, days: '', referredByCode: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
@@ -119,6 +119,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
           ownerName: f.ownerName, ownerEmail: f.ownerEmail, password: f.password,
           companyName: f.companyName, website: f.website,
           grant: { tier: f.tier, days: Number.isFinite(d) && d > 0 ? d : undefined },
+          referredByCode: f.referredByCode.trim() || undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -159,6 +160,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
                 <input className={inp} style={inpStyle} placeholder="Company name" value={f.companyName} onChange={(e) => setF({ ...f, companyName: e.target.value })} />
                 <input className={inp} style={inpStyle} placeholder="Website (optional)" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} />
               </div>
+              <input className={inp} style={inpStyle} placeholder="Referred by code (optional)" value={f.referredByCode} onChange={(e) => setF({ ...f, referredByCode: e.target.value })} />
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div>
                   <label className="mb-1.5 block text-[11px] font-medium text-white/45">Initial plan</label>

@@ -5,6 +5,7 @@ import { getUserFromRequest } from '@/lib/auth/session';
 import { resolveUserSbu } from '@/lib/crawler/user-sbu';
 import { getUserTier } from '@/lib/subscription/server-store';
 import { TIER_LIMITS } from '@/lib/subscription/tiers';
+import { getActiveBonusLeadsPerDay } from '@/lib/referrals/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,8 +57,10 @@ export async function GET(req: Request) {
       const tier = await getUserTier(user.org) ?? 'basic';
       const cap = TIER_LIMITS[tier].maxHighIntentLeadsPerDay;
       if (cap !== null) {
+        // Referral rewards top up the daily cap while a redeemed bonus is active.
+        const bonus = await getActiveBonusLeadsPerDay(user.org);
         since = new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString();
-        dailyCapLimit = Math.min(limit, cap);
+        dailyCapLimit = Math.min(limit, cap + bonus);
       }
     }
 

@@ -11,26 +11,26 @@ export default function FeaturesPage() {
           <div className="w-full lg:w-1/2">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-container rounded-full border border-glass-stroke mb-6">
               <span className="w-2 h-2 rounded-full bg-tertiary"></span>
-              <span className="font-mono-label text-mono-label text-tertiary uppercase">Advanced Capabilities</span>
+              <span className="font-mono-label text-mono-label text-tertiary uppercase">How it works</span>
             </div>
             <h1 className="font-display-xl text-display-lg-mobile md:text-display-xl text-on-background mb-6">
-              Revenue intelligence <span className="text-primary">redefined.</span>
+              How SYNQ gets you <span className="text-primary">customers.</span>
             </h1>
             <p className="font-body-lg text-body-lg text-on-surface-variant mb-8 max-w-xl">
-              Deep lead intelligence, unified communications, and enterprise-grade routing. One platform to sync your entire revenue operations.
+              Three simple steps: get found online, find people ready to buy, then reach out and win the sale. SYNQ does the hard part for you.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link
                 href="/signup"
                 className="bg-primary-container text-on-primary-container px-8 py-4 rounded-xl font-body-md font-bold hover:brightness-110 active:scale-95 transition-all glow-primary"
               >
-                Explore Features
+                Start free
               </Link>
               <Link
-                href="/signup"
+                href="/pricing"
                 className="glass-card text-on-background px-8 py-4 rounded-xl font-body-md font-bold hover:bg-surface-variant transition-all"
               >
-                View Documentation
+                See plans
               </Link>
             </div>
           </div>
@@ -58,26 +58,26 @@ export default function FeaturesPage() {
             <div className="flex flex-col h-full">
               <div className="mb-8">
                 <span className="material-symbols-outlined text-secondary text-4xl mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>analytics</span>
-                <h2 className="font-headline-md text-headline-md mb-2">Lead Intelligence</h2>
-                <p className="text-on-surface-variant max-w-md">Capture real-time signals across all channels. Our AI deciphers dark social, web intent, and product usage to build a 360° view of every prospect.</p>
+                <h2 className="font-headline-md text-headline-md mb-2">Get found & spot buyers</h2>
+                <p className="text-on-surface-variant max-w-md">SYNQ helps your business show up online, and watches public posts to find people who are asking for exactly what you sell.</p>
               </div>
               <div className="mt-auto space-y-4">
                 <div className="flex items-center gap-4 p-4 bg-surface-dim rounded-xl border border-glass-stroke">
                   <div className="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-secondary">flash_on</span>
+                    <span className="material-symbols-outlined text-secondary">travel_explore</span>
                   </div>
                   <div>
-                    <div className="font-mono-data text-mono-data text-secondary">SIGNAL CAPTURE</div>
-                    <div className="text-on-surface">Real-time intent tracking across 50+ sources</div>
+                    <div className="font-mono-data text-mono-data text-secondary">GET FOUND</div>
+                    <div className="text-on-surface">Show up on Google and AI search when buyers look</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 p-4 bg-surface-dim rounded-xl border border-glass-stroke">
                   <div className="w-10 h-10 rounded-lg bg-tertiary/20 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-tertiary">psychology</span>
+                    <span className="material-symbols-outlined text-tertiary">groups</span>
                   </div>
                   <div>
-                    <div className="font-mono-data text-mono-data text-tertiary">AI INTENT SCORING</div>
-                    <div className="text-on-surface">Proprietary ML models predict conversion probability</div>
+                    <div className="font-mono-data text-mono-data text-tertiary">READY BUYERS</div>
+                    <div className="text-on-surface">Find people already asking to buy what you sell</div>
                   </div>
                 </div>
               </div>
@@ -89,8 +89,8 @@ export default function FeaturesPage() {
             <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mb-6 glow-primary">
               <span className="material-symbols-outlined text-primary text-5xl">sync</span>
             </div>
-            <h3 className="font-headline-md text-headline-md mb-3">Seamless CRM Sync</h3>
-            <p className="text-on-surface-variant mb-6">Bi-directional integration with Salesforce, HubSpot, and Pipedrive. Never manually enter a lead again.</p>
+            <h3 className="font-headline-md text-headline-md mb-3">Works with your tools</h3>
+            <p className="text-on-surface-variant mb-6">SYNQ connects to the customer list and tools you already use, so nothing has to be typed in twice.</p>
             <div className="flex gap-4 opacity-60">
               <span className="material-symbols-outlined text-3xl">cloud_sync</span>
               <span className="material-symbols-outlined text-3xl">hub</span>
@@ -102,16 +102,16 @@ export default function FeaturesPage() {
           <div className="md:col-span-5 glass-card p-8 rounded-2xl overflow-hidden relative min-h-[400px]">
             <div className="relative z-10">
               <span className="material-symbols-outlined text-tertiary text-4xl mb-4">route</span>
-              <h2 className="font-headline-md text-headline-md mb-2">Automated Routing</h2>
-              <p className="text-on-surface-variant">Intelligent lead distribution based on territory, expertise, or round-robin logic. Zero latency from lead to rep.</p>
+              <h2 className="font-headline-md text-headline-md mb-2">Send the right customer to the right person</h2>
+              <p className="text-on-surface-variant">If you have a team, SYNQ passes each new customer to the right person automatically — so nobody is missed.</p>
               <div className="mt-8 space-y-3">
                 <div className="flex justify-between items-center bg-deep-obsidian p-3 rounded-lg border border-glass-stroke">
-                  <span className="font-mono-data text-on-surface">High-Value Enterprise</span>
-                  <span className="px-2 py-0.5 bg-tertiary/20 text-tertiary text-xs rounded">Top Priority</span>
+                  <span className="font-mono-data text-on-surface">New customer</span>
+                  <span className="px-2 py-0.5 bg-tertiary/20 text-tertiary text-xs rounded">Sales team</span>
                 </div>
                 <div className="flex justify-between items-center bg-deep-obsidian p-3 rounded-lg border border-glass-stroke">
-                  <span className="font-mono-data text-on-surface">Technical Inquiry</span>
-                  <span className="px-2 py-0.5 bg-secondary/20 text-secondary text-xs rounded">Expert Team</span>
+                  <span className="font-mono-data text-on-surface">Repeat buyer</span>
+                  <span className="px-2 py-0.5 bg-secondary/20 text-secondary text-xs rounded">Account manager</span>
                 </div>
               </div>
             </div>
@@ -124,20 +124,20 @@ export default function FeaturesPage() {
           <div className="md:col-span-7 glass-card p-8 rounded-2xl flex flex-col md:flex-row gap-8">
             <div className="w-full md:w-1/2">
               <span className="material-symbols-outlined text-primary text-4xl mb-4">hub</span>
-              <h2 className="font-headline-md text-headline-md mb-2">Comm Hub</h2>
-              <p className="text-on-surface-variant mb-6">Unify email, LinkedIn, and Slack outreach in a single dashboard. Maintain conversation continuity regardless of the medium.</p>
+              <h2 className="font-headline-md text-headline-md mb-2">All your messages in one place</h2>
+              <p className="text-on-surface-variant mb-6">Email, WhatsApp, and social messages all land in one inbox, so you never lose track of a conversation.</p>
               <ul className="space-y-4">
                 <li className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
-                  <span className="text-on-surface">Unified inbox for all channels</span>
+                  <span className="text-on-surface">One inbox for every channel</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
-                  <span className="text-on-surface">Shared team transparent access</span>
+                  <span className="text-on-surface">Your whole team can see and help</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
-                  <span className="text-on-surface">AI-suggested response templates</span>
+                  <span className="text-on-surface">Suggested replies to save you time</span>
                 </li>
               </ul>
             </div>
@@ -146,7 +146,7 @@ export default function FeaturesPage() {
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-surface-variant"></div>
                   <div className="flex-1 bg-surface-container p-3 rounded-tr-xl rounded-b-xl text-sm">
-                    Saw your latest tweet on AI ops. Would love to sync!
+                    Hi! I saw you're looking for a new home — can you help?
                   </div>
                 </div>
                 <div className="flex items-start gap-3 flex-row-reverse">
@@ -165,22 +165,22 @@ export default function FeaturesPage() {
       <section className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-stack-lg">
         <div className="glass-card rounded-[2rem] p-12 text-center relative overflow-hidden">
           <div className="relative z-10">
-            <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg mb-6">See the engine in action</h2>
+            <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg mb-6">See how SYNQ works for a business like yours</h2>
             <p className="text-on-surface-variant text-body-lg max-w-2xl mx-auto mb-10">
-              Join over 500+ high-growth teams using SYNQ to power their revenue engine. Get a personalized walkthrough of our automation stack.
+              Start free today, or take a quick look at our plans. Getting set up takes just a few minutes.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/signup"
                 className="bg-secondary-container text-on-secondary-container px-10 py-5 rounded-2xl font-body-md font-bold hover:brightness-110 active:scale-95 transition-all glow-cyan text-deep-obsidian"
               >
-                Book a Demo
+                Start free
               </Link>
               <Link
                 href="/pricing"
                 className="bg-surface-bright text-on-surface px-10 py-5 rounded-2xl font-body-md font-bold hover:bg-surface-variant transition-all border border-glass-stroke"
               >
-                Explore Pricing
+                See plans
               </Link>
             </div>
           </div>

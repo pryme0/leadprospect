@@ -1,4 +1,6 @@
 import { appPool, ensureAppSchema } from '@/lib/app-pg';
+import { mapToCategory, deriveLocation } from '@/lib/hub/taxonomy';
+import { slugify, uniqueSlug } from '@/lib/hub/slug';
 
 /**
  * Server-side company/org profile, keyed to the logged-in user. Stored in the
@@ -29,6 +31,13 @@ export interface OrgProfileRecord extends OrgProfile {
   exclude_terms: string[];
   mentions_analyzed_at: string | null;
   updated_at: string;
+  /** SYNQ Hub (public directory) fields. */
+  hub_slug: string | null;
+  hub_listed: boolean;
+  hub_premium: boolean;
+  hub_category: string | null;
+  hub_location: string | null;
+  hub_verified_at: string | null;
 }
 
 /** Shape produced by the website analyzer and stored on the profile. */
@@ -81,6 +90,12 @@ interface Row {
   exclude_terms: string | null;
   mentions_analyzed_at: string | null;
   updated_at: string;
+  hub_slug: string | null;
+  hub_listed: boolean | null;
+  hub_premium: boolean | null;
+  hub_category: string | null;
+  hub_location: string | null;
+  hub_verified_at: string | null;
 }
 
 function parseArray(raw: string | null): string[] {
@@ -113,6 +128,12 @@ function rowToRecord(row: Row): OrgProfileRecord {
     exclude_terms: parseArray(row.exclude_terms),
     mentions_analyzed_at: row.mentions_analyzed_at,
     updated_at: row.updated_at,
+    hub_slug: row.hub_slug,
+    hub_listed: row.hub_listed ?? false,
+    hub_premium: row.hub_premium ?? false,
+    hub_category: row.hub_category,
+    hub_location: row.hub_location,
+    hub_verified_at: row.hub_verified_at,
   };
 }
 
@@ -129,11 +150,21 @@ export async function upsertOrgProfile(userId: string, data: Partial<OrgProfile>
   const merged: OrgProfile = { ...EMPTY, ...(existing ?? {}), ...data };
   const now = new Date().toISOString();
 
+  // Normalize the free-text industry/services into Hub facets so the public
+  // directory queries by column instead of scanning text at request time.
+  const hubCategory = mapToCategory({
+    industry: merged.industry, services: merged.services,
+    summary: existing?.analysis?.summary ?? null, keywords: existing?.analysis?.keywords ?? null,
+  });
+  const hubLocation = deriveLocation({
+    text: `${merged.about} ${merged.services} ${merged.industry}`, website: merged.website,
+  });
+
   await appPool().query(
     `INSERT INTO org_profiles (
        user_id, company_name, website, contact_email, timezone, logo_url,
-       industry, about, services, expectations, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       industry, about, services, expectations, hub_category, hub_location, updated_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      ON CONFLICT (user_id) DO UPDATE SET
        company_name  = excluded.company_name,
        website       = excluded.website,
@@ -144,12 +175,48 @@ export async function upsertOrgProfile(userId: string, data: Partial<OrgProfile>
        about         = excluded.about,
        services      = excluded.services,
        expectations  = excluded.expectations,
+       hub_category  = excluded.hub_category,
+       hub_location  = excluded.hub_location,
        updated_at    = excluded.updated_at`,
     [userId, merged.company_name, merged.website, merged.contact_email, merged.timezone, merged.logo_url,
-     merged.industry, merged.about, merged.services, merged.expectations, now],
+     merged.industry, merged.about, merged.services, merged.expectations, hubCategory, hubLocation, now],
   );
 
   return (await getOrgProfile(userId))!;
+}
+
+/**
+ * Ensure a business has a frozen Hub slug (generated once from its name) and,
+ * optionally, flip it to publicly listed. Used by the claim flow. Returns the
+ * resolved slug. Safe to call repeatedly — the slug is only ever set once.
+ */
+export async function ensureHubListing(userId: string, opts: { list?: boolean } = {}): Promise<string> {
+  await ensureAppSchema();
+  const existing = await getOrgProfile(userId);
+  if (!existing) await upsertOrgProfile(userId, {});
+  const profile = (await getOrgProfile(userId))!;
+
+  let slug = profile.hub_slug;
+  if (!slug) {
+    const base = slugify(profile.company_name || `business-${userId.slice(-6)}`);
+    slug = await uniqueSlug(base, async (candidate) => {
+      const { rows } = await appPool().query(
+        'SELECT 1 FROM org_profiles WHERE hub_slug = $1 AND user_id <> $2 LIMIT 1',
+        [candidate, userId],
+      );
+      return rows.length > 0;
+    });
+  }
+  const now = new Date().toISOString();
+  await appPool().query(
+    `UPDATE org_profiles
+       SET hub_slug = $1,
+           hub_listed = CASE WHEN $2::boolean THEN true ELSE hub_listed END,
+           updated_at = $3
+     WHERE user_id = $4`,
+    [slug, opts.list === true, now, userId],
+  );
+  return slug;
 }
 
 /** Store brand-monitoring terms (from analyzeBrand or manual settings edit). */

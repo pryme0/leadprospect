@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function SignupPage() {
@@ -8,6 +8,17 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refCode, setRefCode] = useState<string | null>(null);
+
+  // Capture a referral code from ?ref= (or a previously-stored one) so a referred
+  // signup can be attributed when the super admin later creates the org.
+  useEffect(() => {
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get('ref');
+      const code = (fromUrl || localStorage.getItem('synq_ref') || '').trim();
+      if (code) { setRefCode(code); localStorage.setItem('synq_ref', code); }
+    } catch { /* ignore */ }
+  }, []);
 
   const update = (key: keyof typeof form, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -24,6 +35,7 @@ export default function SignupPage() {
           email: form.email,
           company: form.organization,
           message: form.role ? `Role: ${form.role}` : undefined,
+          ref: refCode || undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -53,7 +65,7 @@ export default function SignupPage() {
                 <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
                 <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
                 <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-                <span className="ml-3 font-mono-label text-mono-label uppercase tracking-wider text-outline">Lead Intelligence Suite</span>
+                <span className="ml-3 font-mono-label text-mono-label uppercase tracking-wider text-outline">Your SYNQ account</span>
                 <span className="ml-auto flex items-center gap-1.5 rounded-full bg-tertiary/10 px-2 py-0.5">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-tertiary" />
                   <span className="font-mono-label text-[10px] uppercase text-tertiary">Live</span>
@@ -64,9 +76,9 @@ export default function SignupPage() {
                 {/* KPI tiles */}
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { k: 'Active Leads', v: '1,245', c: 'text-white' },
-                    { k: 'High Intent',  v: '85%',   c: 'text-tertiary' },
-                    { k: 'Routed',       v: '312',   c: 'text-secondary' },
+                    { k: 'New customers', v: '1,245', c: 'text-white' },
+                    { k: 'Ready to buy', v: '85%',   c: 'text-tertiary' },
+                    { k: 'Sent to you',  v: '312',   c: 'text-secondary' },
                   ].map((t) => (
                     <div key={t.k} className="rounded-lg border border-glass-stroke bg-white/[0.02] p-3">
                       <p className="font-mono-label text-[10px] uppercase text-outline">{t.k}</p>
@@ -78,7 +90,7 @@ export default function SignupPage() {
                 {/* faux bar chart */}
                 <div className="rounded-lg border border-glass-stroke bg-white/[0.02] p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="font-mono-label text-[10px] uppercase text-outline">Revenue Analytics</p>
+                    <p className="font-mono-label text-[10px] uppercase text-outline">Your results</p>
                     <p className="font-mono-label text-[10px] text-tertiary">▲ 24%</p>
                   </div>
                   <div className="flex h-24 items-end gap-1.5">
@@ -98,9 +110,9 @@ export default function SignupPage() {
                 {/* lead rows */}
                 <div className="space-y-2">
                   {[
-                    { n: 'Global Dynamics', s: 92, c: '#00e299' },
-                    { n: 'Quantum Tech',    s: 87, c: '#1fd8ff' },
-                    { n: 'Nexus Systems',   s: 74, c: '#6d5ef9' },
+                    { n: 'Riverside Bakery',  s: 92, c: '#00e299' },
+                    { n: 'Green Leaf Salon',  s: 87, c: '#1fd8ff' },
+                    { n: 'City Auto Repair',  s: 74, c: '#6d5ef9' },
                   ].map((l) => (
                     <div key={l.n} className="flex items-center gap-3 rounded-lg border border-glass-stroke bg-white/[0.02] px-3 py-2">
                       <div className="flex h-7 w-7 items-center justify-center rounded-full font-mono-label text-[10px] font-bold text-white" style={{ background: l.c + '33', color: l.c }}>
@@ -121,10 +133,10 @@ export default function SignupPage() {
           <div className="glass-card absolute -bottom-8 -right-4 max-w-[240px] animate-bounce rounded-xl p-stack-md" style={{ animationDuration: '3s' }}>
             <div className="mb-2 flex items-center gap-stack-xs">
               <span className="material-symbols-outlined text-tertiary" style={{ fontVariationSettings: "'FILL' 1" }}>insights</span>
-              <span className="font-mono-label text-mono-label uppercase tracking-wider text-tertiary">Live Signal Processing</span>
+              <span className="font-mono-label text-mono-label uppercase tracking-wider text-tertiary">New customers this month</span>
             </div>
-            <h3 className="mb-1 font-display-lg text-display-lg text-white">8,400+</h3>
-            <p className="font-body-md text-body-md text-on-surface-variant">Intent signals captured this month across your enterprise accounts.</p>
+            <h3 className="mb-1 font-display-lg text-display-lg text-white">More every week</h3>
+            <p className="font-body-md text-body-md text-on-surface-variant">People ready to buy, found for your business this month.</p>
           </div>
 
           {/* Floating badge */}
@@ -132,7 +144,7 @@ export default function SignupPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-container">
               <span className="material-symbols-outlined text-sm text-white">bolt</span>
             </div>
-            <span className="font-mono-label text-mono-label font-bold text-on-surface">ACCELERATED REVENUE ENGINE</span>
+            <span className="font-mono-label text-mono-label font-bold text-on-surface">Find customers faster</span>
           </div>
         </div>
       </section>
@@ -148,11 +160,11 @@ export default function SignupPage() {
         <div className="flex flex-1 items-center justify-center px-margin-mobile py-10 md:px-stack-lg lg:px-[120px]">
         <div className="w-full max-w-[420px]">
           <header className="mb-stack-md">
-            <h2 className="mb-stack-xs font-display-lg text-display-lg text-white">{submitted ? 'Request received' : 'Request access'}</h2>
+            <h2 className="mb-stack-xs font-display-lg text-display-lg text-white">{submitted ? 'Request received' : 'Create your free account'}</h2>
             <p className="font-body-lg text-body-lg text-on-surface-variant">
               {submitted
                 ? 'Thanks — we’ve got your details.'
-                : 'Tell us about your team and a SYNQ representative will get you set up on the platform.'}
+                : 'Tell us about your business and we’ll get you set up.'}
             </p>
           </header>
 
@@ -161,9 +173,9 @@ export default function SignupPage() {
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-container/20">
                 <span className="material-symbols-outlined text-3xl text-tertiary" style={{ fontVariationSettings: "'FILL' 1" }}>mark_email_read</span>
               </div>
-              <h3 className="mb-2 font-display-lg text-xl text-white">A representative will reach out within 24 hours</h3>
+              <h3 className="mb-2 font-display-lg text-xl text-white">We’ll reach out within 24 hours</h3>
               <p className="font-body-md text-body-md text-on-surface-variant">
-                We’ll contact you at <span className="text-white">{form.email || 'your email'}</span> to onboard you onto SYNQ and get your workspace live. Please keep an eye on your inbox.
+                We’ll email <span className="text-white">{form.email || 'your email'}</span> to help you set up your account. Keep an eye on your inbox.
               </p>
               <Link href="/" className="mt-6 inline-flex items-center gap-2 rounded-lg border border-glass-stroke px-5 py-2.5 font-body-md text-on-surface transition-all hover:bg-white/5">
                 Back to home
@@ -173,10 +185,10 @@ export default function SignupPage() {
             <>
               {/* Access-request form */}
               <form className="space-y-stack-md" onSubmit={handleSubmit}>
-                <StitchField label="Organization" placeholder="Acme Growth Co." value={form.organization} onChange={(v) => update('organization', v)} />
+                <StitchField label="Business name" placeholder="Your business name" value={form.organization} onChange={(v) => update('organization', v)} />
                 <StitchField label="Full name" placeholder="Alex Morgan" value={form.name} onChange={(v) => update('name', v)} />
                 <StitchField label="Business Email" placeholder="name@company.com" type="email" value={form.email} onChange={(v) => update('email', v)} />
-                <StitchField label="Role" placeholder="Growth Lead, Head of Sales…" value={form.role} onChange={(v) => update('role', v)} />
+                <StitchField label="Your role" placeholder="e.g. Owner, Manager" value={form.role} onChange={(v) => update('role', v)} />
 
                 {error && <p className="font-body-md text-body-md text-red-400">{error}</p>}
 
@@ -188,14 +200,14 @@ export default function SignupPage() {
                   {loading ? (
                     <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />Submitting request…</>
                   ) : (
-                    <>Request access<span className="material-symbols-outlined">arrow_forward</span></>
+                    <>Create your free account<span className="material-symbols-outlined">arrow_forward</span></>
                   )}
                 </button>
               </form>
 
               <footer className="mt-stack-lg text-center">
                 <p className="font-body-md text-body-md text-on-surface-variant">
-                  Already have a workspace? <Link href="/admin/login" className="font-semibold text-primary hover:underline">Log In</Link>
+                  Already have an account? <Link href="/admin/login" className="font-semibold text-primary hover:underline">Log in</Link>
                 </p>
               </footer>
             </>

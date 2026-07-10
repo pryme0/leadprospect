@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { SITE } from '@/lib/seo/config';
 
-export const alt = 'SYNQ — Lead Intelligence Platform for Revenue Teams';
+export const alt = 'SYNQ — Get your business found online and find new customers';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -43,10 +43,10 @@ export default function OpengraphImage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div style={{ color: '#ffffff', fontSize: 68, fontWeight: 800, lineHeight: 1.05, letterSpacing: -2, maxWidth: 960 }}>
-            Lead Intelligence for Modern Revenue Teams
+            Get found online. Get more customers.
           </div>
           <div style={{ color: '#9fb0d6', fontSize: 30, fontWeight: 400, lineHeight: 1.35, maxWidth: 900 }}>
-            Cross-channel buying signals, AI intent scoring, and automated lead routing — in one command center.
+            SYNQ helps your business get discovered and connects you with people ready to buy.
           </div>
         </div>
 

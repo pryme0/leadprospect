@@ -6,10 +6,10 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/access-requests — PUBLIC. Someone requesting access via /signup.
  * Stores the request for the super admin to review; no account is created.
- * Body: { name, email, company?, phone?, message? }
+ * Body: { name, email, company?, phone?, message?, ref? }
  */
 export async function POST(req: NextRequest) {
-  let body: { name?: string; email?: string; company?: string; phone?: string; message?: string } = {};
+  let body: { name?: string; email?: string; company?: string; phone?: string; message?: string; ref?: string } = {};
   try { body = await req.json(); } catch { /* no body */ }
 
   const name = (body.name ?? '').trim();
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return NextResponse.json({ message: 'Enter a valid email address.' }, { status: 400 });
 
   try {
-    const request = await createAccessRequest({ name, email, company: body.company, phone: body.phone, message: body.message });
+    const request = await createAccessRequest({ name, email, company: body.company, phone: body.phone, message: body.message, referredByCode: body.ref });
     return NextResponse.json({ ok: true, id: request.id });
   } catch (err) {
     console.error('[POST /api/access-requests]', err);

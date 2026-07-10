@@ -4,21 +4,22 @@ import { pageMetadata } from '@/lib/seo/config';
 import { faqSchema } from '@/lib/seo/schema';
 
 export const metadata: Metadata = pageMetadata({
-  title: 'Pricing — Basic, Pro & Max Plans',
+  title: 'Simple Pricing — Basic, Pro & Max',
   description:
-    'Simple, transparent tiers for lead intelligence and social inbox management: Basic, Pro, and Max. Pick the plan that matches your team\'s scale — no hidden fees.',
+    'Simple plans that grow with your business. Pick one, cancel anytime, no hidden fees.',
   path: '/pricing',
-  keywords: ['sales intelligence pricing', 'lead intelligence pricing', 'B2B SaaS pricing tiers'],
+  keywords: ['pricing', 'plans', 'get found online', 'find new customers'],
 });
 
-// Mirrors the real Basic/Pro/Max tiers in src/lib/subscription/tiers.ts and the
-// visible pricing cards in this page (required: schema must match on-page content).
+// Mirrors the plain-language FAQ shown on the pricing page (see FAQS in
+// ./page.tsx). Google requires the schema to match the on-page text, so keep
+// these answers word-for-word identical to what's rendered.
 const FAQ = [
-  { q: 'Can I switch plans after signing up?', a: 'Yes — switch between Basic, Pro, and Max at any time from your subscription settings. Switching charges the new plan\'s full price immediately; there\'s no proration.' },
-  { q: 'What happens to my leads and mentions if I downgrade?', a: 'Nothing is ever deleted. Downgrading just lowers your daily allowance going forward — anything already generated stays in your account and reappears in full the moment you upgrade again.' },
-  { q: 'What counts toward the daily lead and mention limits?', a: 'Basic includes 10 HIGH-intent leads and 10 brand mentions per day. Pro raises that to 20 leads and 200 mentions per day. Max delivers 30–40 HIGH-intent leads per day with unlimited brand mentions.' },
-  { q: 'Is there a minimum commitment?', a: 'Monthly plans have no minimum commitment — cancel anytime. Annual plans are paid upfront at a 20% discount and are non-refundable after 30 days.' },
-  { q: 'How many team members can use one account?', a: 'Basic includes 1 seat, Pro includes 5 seats, and Max includes unlimited team seats.' },
+  { q: 'Can I switch plans after I sign up?', a: 'Yes. You can switch between Basic, Pro, and Max anytime in your settings. When you switch, you pay the new price straight away.' },
+  { q: 'What happens to my customers and business mentions if I move to a smaller plan?', a: 'Nothing is ever deleted. A smaller plan just lowers how many you get each day from then on. Everything you already have stays in your account, and it all comes back when you upgrade again.' },
+  { q: 'How many customers and mentions do I get each day?', a: 'Basic gives you 10 people ready to buy and 10 business mentions a day. Pro gives you 20 people a day and 200 business mentions. Max gives you 30 to 40 people ready to buy a day, plus every mention of your business.' },
+  { q: 'Do I have to sign up for a long time?', a: 'No. Monthly plans can be cancelled anytime. If you pay for a year up front, you save 20%. Yearly plans can be refunded within the first 30 days.' },
+  { q: 'How many team members can use one account?', a: 'Basic is for 1 team member, Pro is for 5, and Max has no limit.' },
 ];
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {

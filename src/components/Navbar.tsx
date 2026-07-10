@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
 const NAV_LINKS = [
+  { label: 'Hub',          href: '/hub'          },
   { label: 'Features',     href: '/features'     },
   { label: 'Integrations', href: '/integrations' },
   { label: 'Pricing',      href: '/pricing'      },
@@ -69,7 +70,7 @@ export default function Navbar() {
             href={authed ? '/admin' : '/signup'}
             className="rounded-lg bg-primary-container px-6 py-2.5 font-body-md font-bold text-on-primary-container transition-all hover:brightness-110 active:scale-95"
           >
-            {authed ? 'Go to workspace' : 'Create workspace'}
+            {authed ? 'Open my account' : 'Start free'}
           </Link>
         </div>
 
@@ -106,7 +107,7 @@ export default function Navbar() {
                 href={authed ? '/admin' : '/signup'}
                 className="rounded-lg bg-primary-container px-6 py-3 text-center font-body-md font-bold text-on-primary-container"
               >
-                {authed ? 'Go to workspace' : 'Create workspace'}
+                {authed ? 'Open my account' : 'Start free'}
               </Link>
             </div>
           </div>

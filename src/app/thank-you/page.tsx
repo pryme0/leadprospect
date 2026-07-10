@@ -5,34 +5,34 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 const TOOL_LABELS: Record<string, string> = {
-  'audience-fit': 'Audience Fit Report',
-  'lead-score': 'Lead Score',
-  enrichment: 'Lead Enrichment',
-  routing: 'Routing Preview',
+  'audience-fit': 'Your free report',
+  'lead-score': 'Your free report',
+  enrichment: 'Your free report',
+  routing: 'Your free report',
 };
 
 const NEXT_STEPS = [
   {
     step: '1',
-    title: 'Review the report',
-    body: 'Your lead intelligence snapshot has been sent to your inbox with the source, score, and routing notes.',
+    title: 'Check your report',
+    body: 'We’ve sent a simple summary of the customers we found for you to your inbox.',
   },
   {
     step: '2',
-    title: 'Connect your sources',
-    body: 'Bring in Google, Meta, TikTok, Instagram, website forms, CRM lists, and CSV imports from one workspace.',
+    title: 'Connect your accounts',
+    body: 'Link your Google, TikTok, Instagram, website and more — all in one place.',
   },
   {
     step: '3',
-    title: 'Route the best accounts',
-    body: 'Send qualified prospects to sales, nurture, or agency client workspaces with suppression rules already applied.',
+    title: 'Start reaching out',
+    body: 'Message the best customers and keep track of every conversation.',
   },
 ];
 
 function ThankYouContent() {
   const params = useSearchParams();
   const tool = params.get('tool') || '';
-  const toolLabel = TOOL_LABELS[tool] || 'Lead Intelligence Report';
+  const toolLabel = TOOL_LABELS[tool] || 'Your free report';
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-16">
@@ -45,13 +45,13 @@ function ThankYouContent() {
           Request received
         </p>
         <h1 className="mb-4 text-3xl font-bold tracking-tight text-white md:text-5xl">
-          Your SYNQ workspace is ready.
+          Your SYNQ account is ready.
         </h1>
         <p className="mx-auto mb-2 max-w-2xl text-lg text-brand-muted">
           Your <span className="font-semibold text-[#00CEC8]">{toolLabel}</span> has been unlocked.
         </p>
         <p className="mx-auto mb-10 max-w-xl text-brand-muted">
-          A product specialist will follow up with the fastest route to connect your channels and start scoring business leads.
+          Someone from our team will follow up to help you connect your accounts and start finding customers.
         </p>
 
         <div className="mb-10 grid gap-4 text-left md:grid-cols-3">
@@ -68,7 +68,7 @@ function ThankYouContent() {
 
         <div className="flex flex-col justify-center gap-4 sm:flex-row">
           <Link href="/admin" className="btn-primary">
-            Open Demo Workspace
+            Open my account
           </Link>
           <Link href="/" className="btn-secondary">
             Back to SYNQ
@@ -76,7 +76,7 @@ function ThankYouContent() {
         </div>
 
         <p className="mt-10 text-sm text-brand-muted">
-          Built for teams that need clean lead source attribution, enrichment, scoring, and routing in one place.
+          Everything you need to find customers and reach out — in one simple place.
         </p>
       </div>
     </div>

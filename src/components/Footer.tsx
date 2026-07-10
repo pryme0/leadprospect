@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 const PRODUCT = [
+  { label: 'Hub',          href: '/hub'          },
   { label: 'Features',     href: '/features'     },
   { label: 'Integrations', href: '/integrations' },
   { label: 'Pricing',      href: '/pricing'      },
@@ -14,9 +15,9 @@ const COMPANY = [
 ];
 
 const SUPPORT = [
-  { label: 'Documentation', href: '/' },
-  { label: 'Security',      href: '/' },
-  { label: 'Status',        href: '/' },
+  { label: 'Help centre', href: '/' },
+  { label: 'Security',    href: '/' },
+  { label: 'Status',      href: '/' },
 ];
 
 const LEGAL = [
@@ -35,7 +36,7 @@ export default function Footer() {
             SYNQ
           </Link>
           <p className="max-w-xs font-body-md text-body-md text-on-surface-variant">
-            The technical command center for high-performance revenue operations. Precision at scale.
+            Helping businesses get found online and win more customers. Simple, honest, built for Africa.
           </p>
         </div>
 

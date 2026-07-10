@@ -2,11 +2,11 @@ import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo/config';
 
 export const metadata: Metadata = pageMetadata({
-  title: 'Features — Signal Capture, Intent Scoring & Lead Routing',
+  title: 'How SYNQ Works — Get Found & Get Customers',
   description:
-    "Capture real-time buying signals, score intent with AI, dedupe and attribute every lead, and auto-route to the right rep. See how SYNQ's revenue engine works.",
+    'See how SYNQ helps your business get found online and connects you with people ready to buy — in three simple steps.',
   path: '/features',
-  keywords: ['signal capture', 'AI intent scoring', 'lead deduplication', 'lead source attribution', 'automated lead routing'],
+  keywords: ['get found online', 'get more customers', 'find new customers', 'grow your business', 'reach ready buyers'],
 });
 
 export default function FeaturesLayout({ children }: { children: React.ReactNode }) {

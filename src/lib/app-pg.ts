@@ -82,6 +82,8 @@ export function ensureAppSchema(): Promise<void> {
         created_at TEXT NOT NULL
       );
     `);
+    // Referral attribution: the code (if any) the referred org signed up under.
+    await p.query(`ALTER TABLE access_requests ADD COLUMN IF NOT EXISTS referred_by_code TEXT`);
     // Small key/value used by org-linkage (persistent guard).
     await p.query(`CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT)`);
     await p.query(`
@@ -106,6 +108,18 @@ export function ensureAppSchema(): Promise<void> {
         updated_at           TEXT NOT NULL DEFAULT ''
       );
     `);
+    // SYNQ Hub — public directory listing columns. A business appears in the
+    // public /hub only after it opts in (hub_listed=true) and gets a frozen,
+    // SEO-friendly slug. hub_category/hub_location are normalized at profile-save
+    // time so directory pages query by column instead of scanning free text.
+    await p.query(`ALTER TABLE org_profiles ADD COLUMN IF NOT EXISTS hub_slug        TEXT`);
+    await p.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_org_profiles_hub_slug ON org_profiles(hub_slug) WHERE hub_slug IS NOT NULL`);
+    await p.query(`ALTER TABLE org_profiles ADD COLUMN IF NOT EXISTS hub_listed      BOOLEAN NOT NULL DEFAULT false`);
+    await p.query(`ALTER TABLE org_profiles ADD COLUMN IF NOT EXISTS hub_premium     BOOLEAN NOT NULL DEFAULT false`);
+    await p.query(`ALTER TABLE org_profiles ADD COLUMN IF NOT EXISTS hub_category    TEXT`);
+    await p.query(`ALTER TABLE org_profiles ADD COLUMN IF NOT EXISTS hub_location    TEXT`);
+    await p.query(`ALTER TABLE org_profiles ADD COLUMN IF NOT EXISTS hub_verified_at TEXT`);
+    await p.query(`CREATE INDEX IF NOT EXISTS ix_org_profiles_hub_listed ON org_profiles(hub_listed) WHERE hub_listed = true`);
     await p.query(`
       CREATE TABLE IF NOT EXISTS subscriptions (
         user_id      TEXT PRIMARY KEY,
@@ -149,6 +163,40 @@ export function ensureAppSchema(): Promise<void> {
     // Idempotent payment capture: a reference can only be recorded once.
     await p.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_reference ON transactions(reference) WHERE reference IS NOT NULL`);
     await p.query(`CREATE INDEX IF NOT EXISTS ix_transactions_created ON transactions(created_at DESC)`);
+
+    // ── Referral system ──────────────────────────────────────────────────────
+    // Per-org referral state: a shareable code, points earned/held, who referred
+    // this org, and the currently-active bonus to the daily HIGH-intent lead cap
+    // (bonus_leads_until NULL/past = inactive). org_id = the owner user's id.
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS referrals (
+        org_id              TEXT PRIMARY KEY,
+        referral_code       TEXT,
+        referred_by_org_id  TEXT,
+        points_balance      INTEGER NOT NULL DEFAULT 0,
+        points_earned_total INTEGER NOT NULL DEFAULT 0,
+        bonus_leads_per_day INTEGER NOT NULL DEFAULT 0,
+        bonus_leads_until   TEXT,
+        created_at          TEXT NOT NULL,
+        updated_at          TEXT NOT NULL
+      );
+    `);
+    await p.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_referrals_code ON referrals(lower(referral_code)) WHERE referral_code IS NOT NULL`);
+    // Append-only ledger of every points earn/redeem. The partial unique index
+    // makes awarding idempotent: a given referred org credits its referrer once.
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS referral_events (
+        id              TEXT PRIMARY KEY,
+        org_id          TEXT NOT NULL,
+        type            TEXT NOT NULL,          -- 'earn' | 'redeem'
+        points          INTEGER NOT NULL,
+        referred_org_id TEXT,                   -- set on 'earn'
+        note            TEXT,
+        created_at      TEXT NOT NULL
+      );
+    `);
+    await p.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_referral_earn_once ON referral_events(org_id, referred_org_id) WHERE type = 'earn' AND referred_org_id IS NOT NULL`);
+    await p.query(`CREATE INDEX IF NOT EXISTS ix_referral_events_org ON referral_events(org_id, created_at DESC)`);
   })().catch((err) => {
     schemaReady = null; // allow retry on next call if the first attempt failed
     throw err;

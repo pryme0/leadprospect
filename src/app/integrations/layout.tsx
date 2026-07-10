@@ -2,11 +2,11 @@ import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo/config';
 
 export const metadata: Metadata = pageMetadata({
-  title: 'Integrations — Salesforce, HubSpot, Slack, LinkedIn & 30+',
+  title: 'Connect the Tools You Already Use',
   description:
-    'Connect SYNQ to your CRM and outreach stack with real-time, bi-directional sync across Salesforce, HubSpot, MS Dynamics, Slack, LinkedIn, and 30+ tools.',
+    'Link SYNQ to the everyday tools you already use — your customer list, email, messaging and more. Simple to set up, no technical skills needed.',
   path: '/integrations',
-  keywords: ['Salesforce integration', 'HubSpot integration', 'CRM sync', 'LinkedIn integration', 'Slack integration'],
+  keywords: ['connect your tools', 'customer list', 'email', 'messaging apps', 'easy setup'],
 });
 
 export default function IntegrationsLayout({ children }: { children: React.ReactNode }) {

@@ -46,6 +46,7 @@ export const FREE_ROUTES = [
   '/admin/users',
   '/admin/settings',
   '/admin/subscription',
+  '/admin/referrals',
 ];
 
 export function routeRequiresModule(href: string): ModuleId | null {
