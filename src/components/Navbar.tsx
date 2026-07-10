@@ -34,11 +34,10 @@ export default function Navbar() {
 
         {/* Left: wordmark + links */}
         <div className="flex items-center gap-10">
-          <Link
-            href="/"
-            className="font-headline-md text-headline-md font-bold tracking-tighter text-primary"
-          >
-            SYNQ
+          <Link href="/" className="flex items-center gap-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/synq-logo.png" alt="SYNQ" className="h-9 w-8 object-cover object-left" />
+            <span className="font-headline-md text-headline-md font-bold tracking-tighter text-on-surface">SYNQ</span>
           </Link>
 
           <div className="hidden items-center gap-8 lg:flex">

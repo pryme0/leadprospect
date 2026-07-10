@@ -79,7 +79,7 @@ export default function AboutPage() {
             <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse" />
             <span className="font-mono-label text-mono-label uppercase text-on-surface-variant">Our Mission</span>
           </div>
-          <h1 className="font-display-xl text-display-lg-mobile md:text-display-xl text-white mb-6">
+          <h1 className="font-display-xl text-display-lg-mobile md:text-display-xl text-on-surface mb-6">
             We help African businesses <span className="text-primary">get found and get customers.</span>
           </h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant mb-8">
@@ -96,7 +96,7 @@ export default function AboutPage() {
             </Link>
             <Link
               href="/contact"
-              className="glass-card px-8 py-4 rounded-xl text-white font-bold text-lg border border-glass-stroke hover:bg-white/10 transition-all"
+              className="px-8 py-4 rounded-xl text-on-surface font-bold text-lg border border-outline-variant bg-white hover:bg-surface-container transition-all"
             >
               Talk to us
             </Link>
@@ -120,7 +120,7 @@ export default function AboutPage() {
       <section className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-stack-lg">
         <div className="grid lg:grid-cols-2 gap-stack-lg items-center">
           <div>
-            <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-white mb-6">Why we started SYNQ</h2>
+            <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface mb-6">Why we started SYNQ</h2>
             <div className="space-y-5 font-body-md text-body-md text-on-surface-variant">
               <p>
                 We watched good businesses struggle to grow. Not because their product was bad, but because the people
@@ -154,7 +154,7 @@ export default function AboutPage() {
       {/* Values */}
       <section className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-stack-lg">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-white mb-4">What we believe</h2>
+          <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface mb-4">What we believe</h2>
           <p className="font-body-md text-body-md text-on-surface-variant">
             Four simple ideas guide everything we build, so SYNQ stays easy to use and works for your business.
           </p>
@@ -165,7 +165,7 @@ export default function AboutPage() {
               <div className={`w-12 h-12 rounded-xl ${v.ring} flex items-center justify-center`}>
                 <span className={`material-symbols-outlined ${v.color} text-2xl`}>{v.icon}</span>
               </div>
-              <h3 className="font-headline-md text-xl text-white">{v.title}</h3>
+              <h3 className="font-headline-md text-xl text-on-surface">{v.title}</h3>
               <p className="text-sm text-on-surface-variant leading-relaxed">{v.body}</p>
             </div>
           ))}
@@ -177,7 +177,7 @@ export default function AboutPage() {
         <div className="glass-card rounded-[2rem] p-8 md:p-14 relative overflow-hidden">
           <div className="mesh-gradient-overlay absolute inset-0 pointer-events-none" />
           <div className="relative z-10">
-            <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-white mb-3">
+            <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface mb-3">
               How SYNQ helps you
             </h2>
             <p className="font-body-md text-body-md text-on-surface-variant max-w-2xl mb-12">
@@ -187,7 +187,7 @@ export default function AboutPage() {
               {PRINCIPLES.map((p) => (
                 <div key={p.step}>
                   <p className="font-mono-data text-mono-data text-primary mb-3">{p.step}</p>
-                  <h3 className="font-headline-md text-headline-md text-white mb-2">{p.title}</h3>
+                  <h3 className="font-headline-md text-headline-md text-on-surface mb-2">{p.title}</h3>
                   <p className="text-sm text-on-surface-variant leading-relaxed">{p.body}</p>
                 </div>
               ))}
@@ -199,7 +199,7 @@ export default function AboutPage() {
       {/* CTA */}
       <section className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-stack-lg">
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-white mb-6">
+          <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface mb-6">
             Ready to get found and get customers?
           </h2>
           <p className="font-body-lg text-body-lg text-on-surface-variant mb-10">

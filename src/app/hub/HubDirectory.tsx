@@ -62,7 +62,7 @@ export default function HubDirectory({ listings }: { listings: DirectoryItem[] }
       <div className="flex flex-wrap justify-center gap-2 mb-12">
         <button
           onClick={() => setActiveCategory('all')}
-          className={`px-4 py-2 rounded-full text-mono-label border transition-colors ${activeCategory === 'all' ? 'bg-primary-container text-on-surface border-primary' : 'bg-surface-container text-on-surface-variant border-glass-stroke hover:text-primary'}`}
+          className={`px-4 py-2 rounded-full text-mono-label border transition-colors ${activeCategory === 'all' ? 'bg-primary-container text-on-primary-container border-primary' : 'bg-surface-container text-on-surface-variant border-glass-stroke hover:text-primary'}`}
         >
           All ({listings.length})
         </button>
@@ -70,7 +70,7 @@ export default function HubDirectory({ listings }: { listings: DirectoryItem[] }
           <button
             key={c.slug}
             onClick={() => setActiveCategory(c.slug)}
-            className={`px-4 py-2 rounded-full text-mono-label border transition-colors ${activeCategory === c.slug ? 'bg-primary-container text-on-surface border-primary' : 'bg-surface-container text-on-surface-variant border-glass-stroke hover:text-primary'}`}
+            className={`px-4 py-2 rounded-full text-mono-label border transition-colors ${activeCategory === c.slug ? 'bg-primary-container text-on-primary-container border-primary' : 'bg-surface-container text-on-surface-variant border-glass-stroke hover:text-primary'}`}
           >
             {c.label} ({c.count})
           </button>

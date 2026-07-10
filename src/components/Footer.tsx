@@ -32,8 +32,10 @@ export default function Footer() {
 
         {/* Brand */}
         <div className="col-span-2 lg:col-span-1">
-          <Link href="/" className="mb-4 block font-display-lg text-display-lg font-bold text-primary">
-            SYNQ
+          <Link href="/" className="mb-4 flex items-center gap-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/synq-logo.png" alt="SYNQ" className="h-9 w-8 object-cover object-left" />
+            <span className="font-display-lg text-display-lg font-bold text-on-surface">SYNQ</span>
           </Link>
           <p className="max-w-xs font-body-md text-body-md text-on-surface-variant">
             Helping businesses get found online and win more customers. Simple, honest, built for Africa.

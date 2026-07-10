@@ -44,7 +44,7 @@ function ThankYouContent() {
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-sky-600">
           Request received
         </p>
-        <h1 className="mb-4 text-3xl font-bold tracking-tight text-white md:text-5xl">
+        <h1 className="mb-4 text-3xl font-bold tracking-tight text-[#0a1128] md:text-5xl">
           Your SYNQ account is ready.
         </h1>
         <p className="mx-auto mb-2 max-w-2xl text-lg text-brand-muted">
@@ -60,7 +60,7 @@ function ThankYouContent() {
               <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-[#00CEC8]/20 text-sm font-bold text-[#00CEC8]">
                 {item.step}
               </div>
-              <h3 className="mb-1 font-semibold text-white">{item.title}</h3>
+              <h3 className="mb-1 font-semibold text-[#0a1128]">{item.title}</h3>
               <p className="text-sm text-brand-muted">{item.body}</p>
             </div>
           ))}

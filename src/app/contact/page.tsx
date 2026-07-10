@@ -105,7 +105,7 @@ export default function ContactPage() {
           <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse" />
           <span className="font-mono-label text-mono-label uppercase text-on-surface-variant">Get in touch</span>
         </div>
-        <h1 className="font-display-xl text-display-lg-mobile md:text-display-xl text-white mb-6">
+        <h1 className="font-display-xl text-display-lg-mobile md:text-display-xl text-on-surface mb-6">
           Let&apos;s help you get <span className="text-primary">more customers.</span>
         </h1>
         <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
@@ -124,7 +124,7 @@ export default function ContactPage() {
                 <div className={`w-11 h-11 rounded-xl ${c.ring} flex items-center justify-center mb-4`}>
                   <span className={`material-symbols-outlined ${c.color} text-2xl`}>{c.icon}</span>
                 </div>
-                <h2 className="font-headline-md text-xl text-white mb-1">{c.title}</h2>
+                <h2 className="font-headline-md text-xl text-on-surface mb-1">{c.title}</h2>
                 <p className="text-sm text-on-surface-variant mb-4 leading-relaxed">{c.body}</p>
                 <a href={`mailto:${c.email}`} className="text-primary font-body-md font-bold hover:underline break-all">
                   {c.email}
@@ -142,21 +142,21 @@ export default function ContactPage() {
                   <div className="w-16 h-16 rounded-full bg-tertiary/15 flex items-center justify-center mb-6 glow-mint">
                     <span className="material-symbols-outlined text-tertiary text-4xl">mark_email_read</span>
                   </div>
-                  <h2 className="font-display-lg text-2xl text-white mb-3">Message sent</h2>
+                  <h2 className="font-display-lg text-2xl text-on-surface mb-3">Message sent</h2>
                   <p className="text-on-surface-variant max-w-sm mb-8">
                     Thanks, {form.name.split(' ')[0] || 'there'} — we&apos;ve got it. Someone from our team will reply to{' '}
                     <span className="text-on-surface">{form.email}</span> within one business day.
                   </p>
                   <Link
                     href="/"
-                    className="glass-card px-6 py-3 rounded-xl text-white font-bold border border-glass-stroke hover:bg-white/10 transition-all"
+                    className="px-6 py-3 rounded-xl text-on-surface font-bold border border-outline-variant bg-white hover:bg-surface-container transition-all"
                   >
                     Back to home
                   </Link>
                 </div>
               ) : (
                 <form onSubmit={onSubmit} noValidate className="space-y-6">
-                  <h2 className="font-display-lg text-2xl text-white mb-2">Send us a message</h2>
+                  <h2 className="font-display-lg text-2xl text-on-surface mb-2">Send us a message</h2>
 
                   <div className="grid sm:grid-cols-2 gap-5">
                     <Field
@@ -203,7 +203,7 @@ export default function ContactPage() {
                       className="input-recessed w-full rounded-xl px-4 py-3 text-on-surface appearance-none cursor-pointer"
                     >
                       {REASONS.map((r) => (
-                        <option key={r} value={r} className="bg-deep-obsidian text-on-surface">
+                        <option key={r} value={r} className="bg-white text-on-surface">
                           {r}
                         </option>
                       ))}

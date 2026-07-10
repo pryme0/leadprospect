@@ -69,7 +69,7 @@ export default function IntegrationsPage() {
         {/* Search Bar */}
         <div className="max-w-xl mx-auto relative group">
           <div className="absolute inset-0 bg-primary-container blur-2xl opacity-10 group-focus-within:opacity-20 transition-opacity"></div>
-          <div className="relative flex items-center bg-deep-obsidian border border-glass-stroke rounded-xl px-4 py-4 focus-within:border-primary transition-all">
+          <div className="relative flex items-center bg-surface-container border border-glass-stroke rounded-xl px-4 py-4 focus-within:border-primary transition-all">
             <span className="material-symbols-outlined text-outline mr-3">search</span>
             <input
               className="bg-transparent border-none text-on-surface w-full focus:ring-0 font-body-md placeholder:text-outline-variant"

@@ -171,7 +171,7 @@ export default function PricingPage() {
             <tr>
               <td className="py-6 font-semibold">Email tools</td>
               <td className="py-6">
-                <span className="material-symbols-outlined text-surface-variant">close</span>
+                <span className="material-symbols-outlined text-outline">close</span>
               </td>
               <td className="py-6">
                 <span className="material-symbols-outlined text-primary">check_circle</span>
@@ -183,7 +183,7 @@ export default function PricingPage() {
             <tr>
               <td className="py-6 font-semibold">Connects to your tools</td>
               <td className="py-6">
-                <span className="material-symbols-outlined text-surface-variant">close</span>
+                <span className="material-symbols-outlined text-outline">close</span>
               </td>
               <td className="py-6">
                 <span className="material-symbols-outlined text-primary">check_circle</span>
@@ -195,10 +195,10 @@ export default function PricingPage() {
             <tr>
               <td className="py-6 font-semibold">Team tools</td>
               <td className="py-6">
-                <span className="material-symbols-outlined text-surface-variant">close</span>
+                <span className="material-symbols-outlined text-outline">close</span>
               </td>
               <td className="py-6">
-                <span className="material-symbols-outlined text-surface-variant">close</span>
+                <span className="material-symbols-outlined text-outline">close</span>
               </td>
               <td className="py-6">
                 <span className="material-symbols-outlined text-primary">check_circle</span>

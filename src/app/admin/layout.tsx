@@ -203,17 +203,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [accessExpired,     setAccessExpired]     = useState(false);
   const [newRequestCount,   setNewRequestCount]   = useState(0);
   const [unseenTxnCount,    setUnseenTxnCount]    = useState(0);
-  const [themeMode,         setThemeMode]         = useState<'dark' | 'light'>('light');
+  const [themeMode,         setThemeMode]         = useState<'dark' | 'light'>('dark');
   const [signoutConfirm,    setSignoutConfirm]    = useState(false);
   const [idleWarning,       setIdleWarning]       = useState(false);
   const [idleCountdown,     setIdleCountdown]     = useState(Math.round(IDLE_WARNING_MS / 1000));
   const idleWarningRef = useRef(false);
   useEffect(() => { idleWarningRef.current = idleWarning; }, [idleWarning]);
 
-  /* Load saved theme — light is the default, dark is opt-in and persisted */
+  /* Load saved theme — dark is the default (polished workspace), light is opt-in
+     and persisted via the header toggle. */
   useEffect(() => {
     const saved = localStorage.getItem('synq_theme') as 'dark' | 'light' | null;
-    if (saved === 'dark') setThemeMode('dark');
+    if (saved === 'light') setThemeMode('light');
     if (localStorage.getItem('synq_sidebar_collapsed') === 'true') setCollapsed(true);
   }, []);
 

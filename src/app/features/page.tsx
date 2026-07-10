@@ -105,11 +105,11 @@ export default function FeaturesPage() {
               <h2 className="font-headline-md text-headline-md mb-2">Send the right customer to the right person</h2>
               <p className="text-on-surface-variant">If you have a team, SYNQ passes each new customer to the right person automatically — so nobody is missed.</p>
               <div className="mt-8 space-y-3">
-                <div className="flex justify-between items-center bg-deep-obsidian p-3 rounded-lg border border-glass-stroke">
+                <div className="flex justify-between items-center bg-surface-container p-3 rounded-lg border border-glass-stroke">
                   <span className="font-mono-data text-on-surface">New customer</span>
                   <span className="px-2 py-0.5 bg-tertiary/20 text-tertiary text-xs rounded">Sales team</span>
                 </div>
-                <div className="flex justify-between items-center bg-deep-obsidian p-3 rounded-lg border border-glass-stroke">
+                <div className="flex justify-between items-center bg-surface-container p-3 rounded-lg border border-glass-stroke">
                   <span className="font-mono-data text-on-surface">Repeat buyer</span>
                   <span className="px-2 py-0.5 bg-secondary/20 text-secondary text-xs rounded">Account manager</span>
                 </div>
@@ -141,7 +141,7 @@ export default function FeaturesPage() {
                 </li>
               </ul>
             </div>
-            <div className="w-full md:w-1/2 bg-deep-obsidian rounded-xl p-4 border border-glass-stroke self-center">
+            <div className="w-full md:w-1/2 bg-surface-dim rounded-xl p-4 border border-glass-stroke self-center">
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-surface-variant"></div>
