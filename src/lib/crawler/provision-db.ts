@@ -32,6 +32,26 @@ export interface PlatformKeywords {
   instagram?: string[];
 }
 
+/**
+ * Push a per-org geo restriction (ISO country codes) into the shared SBU's
+ * metadata — independent of keyword provisioning, so changing the Settings
+ * geo-fencing field doesn't require re-running website analysis. Merges into
+ * existing metadata (never clobbers keywords/analysis fields). Safe to call
+ * before the SBU has ever been provisioned (creates the row, inactive keywords
+ * mean it just won't be crawled yet).
+ */
+export async function updateSbuGeoInDb(sbuId: string, name: string, countries: string[]): Promise<boolean> {
+  const pool = getSignalsPool();
+  if (!pool) return false;
+  const metadata = JSON.stringify({ geo_countries: countries });
+  await pool.query(
+    `INSERT INTO sbus (id, name, active, metadata) VALUES ($1, $2, true, $3::jsonb)
+     ON CONFLICT (id) DO UPDATE SET metadata = sbus.metadata || excluded.metadata, updated_at = now()`,
+    [sbuId, name || sbuId, metadata],
+  );
+  return true;
+}
+
 export async function provisionSbuInDb(
   sbuId: string,
   name: string,
@@ -70,9 +90,13 @@ export async function provisionSbuInDb(
 
   const client = await pool.connect();
   try {
+    // Merge (not replace) metadata on conflict — sbus.metadata also carries
+    // fields this call doesn't know about (e.g. escalation_boost, geo_countries
+    // set from Settings), which a wholesale overwrite would silently wipe.
     await client.query(
       `INSERT INTO sbus (id, name, active, metadata) VALUES ($1, $2, true, $3::jsonb)
-       ON CONFLICT (id) DO UPDATE SET name = excluded.name, active = true, metadata = excluded.metadata, updated_at = now()`,
+       ON CONFLICT (id) DO UPDATE SET name = excluded.name, active = true,
+         metadata = sbus.metadata || excluded.metadata, updated_at = now()`,
       [sbuId, name || sbuId, metadata],
     );
 

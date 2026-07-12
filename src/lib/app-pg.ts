@@ -120,6 +120,11 @@ export function ensureAppSchema(): Promise<void> {
     await p.query(`ALTER TABLE org_profiles ADD COLUMN IF NOT EXISTS hub_location    TEXT`);
     await p.query(`ALTER TABLE org_profiles ADD COLUMN IF NOT EXISTS hub_verified_at TEXT`);
     await p.query(`CREATE INDEX IF NOT EXISTS ix_org_profiles_hub_listed ON org_profiles(hub_listed) WHERE hub_listed = true`);
+    // Per-org lead geo-fencing: JSON array of ISO 3166-1 alpha-2 country codes
+    // (e.g. ["NG"]) the crawler should restrict LinkedIn search to. NULL/empty =
+    // worldwide (unchanged default). Mirrored into the crawler's shared
+    // sbus.metadata.geo_countries — see src/lib/crawler/provision-db.ts.
+    await p.query(`ALTER TABLE org_profiles ADD COLUMN IF NOT EXISTS geo_countries TEXT`);
     await p.query(`
       CREATE TABLE IF NOT EXISTS subscriptions (
         user_id      TEXT PRIMARY KEY,

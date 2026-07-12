@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { adminApi } from '@/lib/api';
 import { INTEGRATIONS } from '@/lib/integrations';
 import { getSubscription } from '@/lib/subscription-store';
+import { GEO_COUNTRIES } from '@/lib/geo/countries';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ interface OrgProfile {
   about: string;
   services: string;
   expectations: string;
+  geo_countries: string[];
 }
 
 interface AdminProfile {
@@ -277,6 +279,7 @@ export default function SettingsPage() {
     about: '',
     services: '',
     expectations: '',
+    geo_countries: [],
   });
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgSaved, setOrgSaved] = useState(false);
@@ -872,6 +875,37 @@ export default function SettingsPage() {
                 placeholder="e.g. Prioritise high-intent enterprise accounts, keep first response under 2 minutes, and route demo requests straight to senior AEs."
                 rows={3}
               />
+            </Field>
+            <Field label="Lead sourcing region" hint="Restrict where SYNQ searches for leads. Leave empty to search worldwide.">
+              <div className="flex flex-wrap gap-2">
+                {GEO_COUNTRIES.map((c) => {
+                  const active = org.geo_countries.includes(c.code);
+                  return (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => setOrg({
+                        ...org,
+                        geo_countries: active
+                          ? org.geo_countries.filter((code) => code !== c.code)
+                          : [...org.geo_countries, c.code],
+                      })}
+                      className={`rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors ${active ? 'text-white' : 'text-white/50 hover:text-white/80'}`}
+                      style={{
+                        background: active ? '#00CEC81a' : 'var(--a-input-bg)',
+                        borderColor: active ? '#00CEC84d' : 'var(--a-border2)',
+                      }}
+                    >
+                      {c.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-white/30">
+                {org.geo_countries.length === 0
+                  ? 'No restriction — leads are sourced worldwide.'
+                  : `Only sourcing leads located in: ${org.geo_countries.map((code) => GEO_COUNTRIES.find((c) => c.code === code)?.name ?? code).join(', ')}.`}
+              </p>
             </Field>
           </Section>
 

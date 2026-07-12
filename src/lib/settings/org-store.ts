@@ -30,6 +30,8 @@ export interface OrgProfileRecord extends OrgProfile {
   brand_handles: string[];
   exclude_terms: string[];
   mentions_analyzed_at: string | null;
+  /** ISO country codes the crawler restricts LinkedIn lead search to. Empty = worldwide. */
+  geo_countries: string[];
   updated_at: string;
   /** SYNQ Hub (public directory) fields. */
   hub_slug: string | null;
@@ -89,6 +91,7 @@ interface Row {
   brand_handles: string | null;
   exclude_terms: string | null;
   mentions_analyzed_at: string | null;
+  geo_countries: string | null;
   updated_at: string;
   hub_slug: string | null;
   hub_listed: boolean | null;
@@ -127,6 +130,7 @@ function rowToRecord(row: Row): OrgProfileRecord {
     brand_handles: parseArray(row.brand_handles),
     exclude_terms: parseArray(row.exclude_terms),
     mentions_analyzed_at: row.mentions_analyzed_at,
+    geo_countries: parseArray(row.geo_countries),
     updated_at: row.updated_at,
     hub_slug: row.hub_slug,
     hub_listed: row.hub_listed ?? false,
@@ -255,6 +259,23 @@ export async function setBrandTerms(userId: string, terms: Partial<BrandTerms>, 
       now,
       userId,
     ],
+  );
+  return (await getOrgProfile(userId))!;
+}
+
+/**
+ * Store the org's lead geo-fencing restriction (ISO country codes; empty =
+ * worldwide, the default). `countries` should already be sanitized by the
+ * caller (see src/lib/geo/countries.ts sanitizeCountryCodes) — this function
+ * just persists whatever it's given.
+ */
+export async function setGeoCountries(userId: string, countries: string[]): Promise<OrgProfileRecord> {
+  await ensureAppSchema();
+  if (!(await getOrgProfile(userId))) await upsertOrgProfile(userId, {});
+  const now = new Date().toISOString();
+  await appPool().query(
+    'UPDATE org_profiles SET geo_countries = $1, updated_at = $2 WHERE user_id = $3',
+    [JSON.stringify(countries), now, userId],
   );
   return (await getOrgProfile(userId))!;
 }
