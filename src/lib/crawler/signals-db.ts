@@ -85,6 +85,7 @@ export interface SignalRow {
   email: string | null;
   phone: string | null;
   location: string | null;
+  country_code: string | null;
   content: string;
   url: string | null;
   post_url: string | null;
@@ -119,6 +120,10 @@ export interface SignalQuery {
   sbu?: string;
   /** Multi-SBU scoping (e.g. super-admin cross-org view over all org SBUs). */
   sbus?: string[];
+  /** Org-level lead geo-fencing: only rows whose parsed country_code matches.
+   *  A signal with no detected country is EXCLUDED when this is set — the org
+   *  asked to see leads only from these countries, not "these + unknown". */
+  countryCodes?: string[];
   minScore?: number;
   maxScore?: number;
   hasEmail?: boolean;
@@ -135,7 +140,7 @@ export interface SignalQuery {
 const ORDER_BY_WHITELIST = new Set(['urgency_score', 'classified_at', 'created_at']);
 
 const SELECT_COLUMNS = `
-  id, source, sbu_id, kind, username, name, email, phone, location,
+  id, source, sbu_id, kind, username, name, email, phone, location, country_code,
   content, url, post_url, profile_url,
   timestamp, content_hash, ingestion_category, processed,
   intent_level, intent_category, urgency_score, pain_points, summary, classified_at,
@@ -156,6 +161,7 @@ function buildWhere(q: SignalQuery): { sql: string; params: unknown[] } {
   if (q.sbu) push('sbu_id = ?', q.sbu);
   // Multi-SBU scoping (super-admin cross-org view = only the platform's orgs).
   if (q.sbus && q.sbus.length) push('sbu_id = ANY(?)', q.sbus);
+  if (q.countryCodes && q.countryCodes.length) push('country_code = ANY(?)', q.countryCodes);
   if (q.intentLevel) push('intent_level = ?', q.intentLevel);
   if (q.intentCategory) push('intent_category = ?', q.intentCategory);
   if (q.ingestionCategory) push('ingestion_category = ?', q.ingestionCategory);

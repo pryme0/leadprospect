@@ -6,6 +6,7 @@ import { resolveUserSbu } from '@/lib/crawler/user-sbu';
 import { getUserTier } from '@/lib/subscription/server-store';
 import { TIER_LIMITS } from '@/lib/subscription/tiers';
 import { getActiveBonusLeadsPerDay } from '@/lib/referrals/store';
+import { getOrgProfile } from '@/lib/settings/org-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,11 +65,19 @@ export async function GET(req: Request) {
       }
     }
 
+    // Lead geo-fencing (Settings → Lead sourcing region): only surface leads
+    // whose parsed location matches one of the org's chosen countries. Applies
+    // across every platform (LinkedIn/TikTok/Instagram) — it filters on the
+    // signal's already-resolved country_code, not a platform-specific search
+    // param, so it works even for platforms with no native location search.
+    const geoCountries = user ? (await getOrgProfile(user.org))?.geo_countries : undefined;
+
     const { signals, total } = await listSignals({
       sbu,
       intentLevel: intent === 'HIGH_INTENT' || intent === 'MEDIUM_INTENT' || intent === 'LOW_INTENT' ? intent : undefined,
       hasEmail: withEmail ? true : undefined,
       since,
+      countryCodes: geoCountries && geoCountries.length > 0 ? geoCountries : undefined,
       orderBy: 'urgency_score',
       excludeNonProspects: true,
       deduplicateByPerson: true,

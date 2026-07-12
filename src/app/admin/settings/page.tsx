@@ -876,7 +876,7 @@ export default function SettingsPage() {
                 rows={3}
               />
             </Field>
-            <Field label="Lead sourcing region" hint="Restrict where SYNQ searches for leads. Leave empty to search worldwide.">
+            <Field label="Lead sourcing region" hint="Restrict which leads SYNQ shows you, across every connected platform. Leave empty to see leads worldwide.">
               <div className="flex flex-wrap gap-2">
                 {GEO_COUNTRIES.map((c) => {
                   const active = org.geo_countries.includes(c.code);
@@ -904,7 +904,7 @@ export default function SettingsPage() {
               <p className="mt-2 text-[11px] text-white/30">
                 {org.geo_countries.length === 0
                   ? 'No restriction — leads are sourced worldwide.'
-                  : `Only sourcing leads located in: ${org.geo_countries.map((code) => GEO_COUNTRIES.find((c) => c.code === code)?.name ?? code).join(', ')}.`}
+                  : `Only showing leads located in: ${org.geo_countries.map((code) => GEO_COUNTRIES.find((c) => c.code === code)?.name ?? code).join(', ')}. Coverage is strongest for LinkedIn today — TikTok/Instagram location detection is more limited.`}
               </p>
             </Field>
           </Section>
