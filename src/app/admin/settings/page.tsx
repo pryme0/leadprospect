@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { adminApi } from '@/lib/api';
 import { INTEGRATIONS } from '@/lib/integrations';
@@ -157,6 +158,113 @@ function StatusDot({ ok }: { ok: boolean }) {
       <span className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-emerald-400' : 'bg-red-400'}`} />
       {ok ? 'Connected' : 'Not configured'}
     </span>
+  );
+}
+
+/** Multi-select country dropdown — trigger shows the current selection, opens
+ *  a checkbox panel on click. Closes on outside click / Escape. */
+function CountryDropdown({ options, value, onChange }: {
+  options: { code: string; name: string }[]; value: string[]; onChange: (codes: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const openPanel = () => {
+    const r = triggerRef.current?.getBoundingClientRect();
+    if (r) setRect({ top: r.bottom + 6, left: r.left, width: r.width });
+    setOpen((o) => !o);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    // Close on outside click (checking BOTH the trigger wrapper and the portalled
+    // panel, since the panel renders outside wrapRef in the DOM tree), Escape, or
+    // scroll/resize (simplest correct behavior — avoids tracking reflow while open).
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (wrapRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onReflow = () => setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onReflow, true);
+    window.addEventListener('resize', onReflow);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onReflow, true);
+      window.removeEventListener('resize', onReflow);
+    };
+  }, [open]);
+
+  const toggle = (code: string) => onChange(value.includes(code) ? value.filter((c) => c !== code) : [...value, code]);
+  const nameOf = (code: string) => options.find((o) => o.code === code)?.name ?? code;
+  const label = value.length === 0
+    ? 'Worldwide — no restriction'
+    : value.length <= 2
+      ? value.map(nameOf).join(', ')
+      : `${value.length} countries selected`;
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={openPanel}
+        className="flex w-full items-center justify-between gap-2 rounded-xl border px-4 py-2.5 text-left text-sm transition-colors"
+        style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: value.length ? 'var(--a-text)' : 'var(--a-text-40)' }}
+      >
+        <span className="truncate">{label}</span>
+        <svg className={`h-4 w-4 shrink-0 text-white/40 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+        </svg>
+      </button>
+
+      {/* Portalled OUT of the Section card (whose overflow:hidden would clip an
+       *  absolutely-positioned panel) but INTO the [data-workspace] shell, not
+       *  document.body — the dark theme's CSS vars (--a-card, --a-text, …) are
+       *  scoped via [data-theme="dark"] on that shell, not on <html>/<body>, so
+       *  a plain document.body portal silently falls back to the light-theme
+       *  defaults on :root (invisible white-on-white text). Fixed positioning
+       *  means this doesn't reintroduce the clipping problem either way. */}
+      {open && rect && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed z-50 max-h-64 overflow-y-auto rounded-xl shadow-2xl"
+          style={{ top: rect.top, left: rect.left, width: Math.max(rect.width, 220), background: 'var(--a-card)', border: '1px solid var(--a-border)' }}
+        >
+          {options.map((c) => {
+            const active = value.includes(c.code);
+            return (
+              <button
+                key={c.code}
+                type="button"
+                onClick={() => toggle(c.code)}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] transition-colors hover:bg-white/[0.04]"
+              >
+                <span
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                  style={{ background: active ? '#00CEC8' : 'transparent', borderColor: active ? '#00CEC8' : 'var(--a-border2)' }}
+                >
+                  {active && (
+                    <svg className="h-3 w-3 text-[#0F1929]" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.415l-7.25 7.25a1 1 0 01-1.415 0l-3.25-3.25a1 1 0 111.415-1.414l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </span>
+                <span style={{ color: active ? '#fff' : 'var(--a-text)' }}>{c.name}</span>
+              </button>
+            );
+          })}
+        </div>,
+        document.querySelector('[data-workspace]') ?? document.body,
+      )}
+    </div>
   );
 }
 
@@ -877,30 +985,11 @@ export default function SettingsPage() {
               />
             </Field>
             <Field label="Lead sourcing region" hint="Restrict which leads SYNQ shows you, across every connected platform. Leave empty to see leads worldwide.">
-              <div className="flex flex-wrap gap-2">
-                {GEO_COUNTRIES.map((c) => {
-                  const active = org.geo_countries.includes(c.code);
-                  return (
-                    <button
-                      key={c.code}
-                      type="button"
-                      onClick={() => setOrg({
-                        ...org,
-                        geo_countries: active
-                          ? org.geo_countries.filter((code) => code !== c.code)
-                          : [...org.geo_countries, c.code],
-                      })}
-                      className={`rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors ${active ? 'text-white' : 'text-white/50 hover:text-white/80'}`}
-                      style={{
-                        background: active ? '#00CEC81a' : 'var(--a-input-bg)',
-                        borderColor: active ? '#00CEC84d' : 'var(--a-border2)',
-                      }}
-                    >
-                      {c.name}
-                    </button>
-                  );
-                })}
-              </div>
+              <CountryDropdown
+                options={GEO_COUNTRIES}
+                value={org.geo_countries}
+                onChange={(codes) => setOrg({ ...org, geo_countries: codes })}
+              />
               <p className="mt-2 text-[11px] text-white/30">
                 {org.geo_countries.length === 0
                   ? 'No restriction — leads are sourced worldwide.'
