@@ -7,6 +7,7 @@ import { getUserTier } from '@/lib/subscription/server-store';
 import { TIER_LIMITS } from '@/lib/subscription/tiers';
 import { getActiveBonusLeadsPerDay } from '@/lib/referrals/store';
 import { getOrgProfile } from '@/lib/settings/org-store';
+import { syncPipelineForOrg, getPipelineStagesByLeadIds } from '@/lib/pipeline/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,6 +90,19 @@ export async function GET(req: Request) {
     // source_tool filter maps to the mapped ingestion_category/source label.
     const sourceTool = sp.get('source_tool');
     if (sourceTool) data = data.filter((l) => l.source_tool === sourceTool);
+
+    // Merge in the sales-pipeline stage (self-healing: any new HIGH/MEDIUM lead
+    // not yet tracked gets auto-entered as 'new' before we read stages back).
+    if (user) {
+      await syncPipelineForOrg(user.org, sbu).catch(() => {});
+      const stages = await getPipelineStagesByLeadIds(user.org, data.map((l) => l.id))
+        .catch(() => ({} as Awaited<ReturnType<typeof getPipelineStagesByLeadIds>>));
+      data = data.map((l) => ({
+        ...l,
+        pipeline_stage: stages[l.id]?.stage ?? null,
+        pipeline_follow_up_at: stages[l.id]?.follow_up_at ?? null,
+      }));
+    }
 
     const total_pages = Math.max(1, Math.ceil(total / limit));
     return NextResponse.json({

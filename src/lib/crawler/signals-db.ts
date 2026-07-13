@@ -244,6 +244,18 @@ export async function getSignalById(id: string): Promise<SignalRow | null> {
   return (res.rows[0] as SignalRow) ?? null;
 }
 
+/** Batched fetch — for merging signal display data onto a set of pipeline rows. */
+export async function getSignalsByIds(ids: string[]): Promise<SignalRow[]> {
+  if (ids.length === 0) return [];
+  const pool = getSignalsPool();
+  if (!pool) throw new Error('Signals Postgres not configured');
+  // `id` is uuid; the caller passes plain strings (e.g. from lead_pipeline.lead_id,
+  // a TEXT column), so cast the column to text for the array comparison — pg has
+  // no implicit uuid = ANY(text[]) operator once the array param has a concrete type.
+  const res = await pool.query(`SELECT ${SELECT_COLUMNS} FROM signals WHERE id::text = ANY($1)`, [ids]);
+  return res.rows as SignalRow[];
+}
+
 export interface SignalStats {
   total: number;
   processed: number;

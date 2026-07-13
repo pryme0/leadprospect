@@ -638,6 +638,27 @@ export const adminApi = {
   },
 };
 
+// ========== Sales Pipeline APIs ==========
+
+export const pipelineApi = {
+  list: (params: { stage?: string; owner?: string; q?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.stage) qs.set('stage', params.stage);
+    if (params.owner) qs.set('owner', params.owner);
+    if (params.q) qs.set('q', params.q);
+    return apiFetch<any>(`/api/pipeline?${qs.toString()}`);
+  },
+  stats: () => apiFetch<any>('/api/pipeline/stats'),
+  addManual: (leadId: string) =>
+    apiFetch<any>('/api/pipeline', { method: 'POST', body: JSON.stringify({ leadId }) }),
+  update: (leadId: string, input: {
+    stage?: string; value?: number | null; owner_user_id?: string | null;
+    notes?: string | null; lost_reason?: string | null; follow_up_at?: string | null;
+  }) => apiFetch<any>(`/api/pipeline/${encodeURIComponent(leadId)}`, {
+    method: 'PATCH', body: JSON.stringify(input),
+  }),
+};
+
 const api = {
   get: <T>(data: T) => wait(data),
   post: <T>(data: T) => wait(data),

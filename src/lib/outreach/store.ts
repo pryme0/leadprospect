@@ -7,6 +7,7 @@
 import type { Pool } from 'pg';
 import { appPool, ensureAppSchema } from '@/lib/app-pg';
 import { migrateSqliteTable } from '@/lib/pg-migrate';
+import { advancePastNew } from '@/lib/pipeline/store';
 
 export type OutreachStatus = 'not_contacted' | 'sent' | 'replied';
 /** How the message left the platform: a real DM (unipile) or assisted (opened + copied). */
@@ -77,6 +78,12 @@ export async function recordOutreach(
        updated_at = EXCLUDED.updated_at`,
     [userId, input.leadId, input.platform, input.handle ?? null, input.status ?? 'sent', input.message ?? null, input.channel ?? null, now],
   );
+
+  // Auto-advance the pipeline: New → Contacted on the lead's first outreach.
+  // Forward-only (never regresses qualified/won/lost) — see advancePastNew.
+  if ((input.status ?? 'sent') === 'sent') {
+    await advancePastNew(userId, input.leadId).catch(() => { /* best-effort */ });
+  }
 }
 
 /** Status map for a set of lead ids (for rendering the Lead Queue). */

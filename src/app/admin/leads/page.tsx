@@ -41,7 +41,18 @@ interface Lead {
   post_url?: string | null;
   post_content?: string | null;
   summary?: string | null;
+  // Sales-pipeline stage (from lead_pipeline, merged in by /api/crawler/leads).
+  pipeline_stage?: 'new' | 'contacted' | 'qualified' | 'won' | 'lost' | null;
+  pipeline_follow_up_at?: string | null;
 }
+
+const STAGE_TONE: Record<string, { tone: 'accent' | 'green' | 'gold' | 'blue' | 'red'; label: string }> = {
+  new:       { tone: 'accent', label: 'New' },
+  contacted: { tone: 'blue',   label: 'Contacted' },
+  qualified: { tone: 'gold',   label: 'Qualified' },
+  won:       { tone: 'green',  label: 'Won' },
+  lost:      { tone: 'red',    label: 'Lost' },
+};
 
 function sourceLabel(s: string | null | undefined): { label: string; tone: 'gold' | 'blue' | 'green' } {
   switch (s) {
@@ -856,6 +867,13 @@ function LeadRow({
           <IntentPill meta={intentMeta} theme={theme} />
           <ToneBadge tone={originTone} theme={theme}>{originLabel}</ToneBadge>
           <ToneBadge tone="accent" theme={theme}>{toolLabel(lead.source_tool)}</ToneBadge>
+          {lead.pipeline_stage && (
+            <Link href="/admin/pipeline">
+              <ToneBadge tone={STAGE_TONE[lead.pipeline_stage].tone} theme={theme} title="View in Pipeline">
+                {STAGE_TONE[lead.pipeline_stage].label}
+              </ToneBadge>
+            </Link>
+          )}
         </div>
         <div className="flex gap-4">
           <MiniField label="Window" value={lead.timeline_to_start || 'Not set'} theme={theme} />
@@ -888,6 +906,13 @@ function LeadRow({
           <div className="flex flex-wrap gap-1.5">
             <IntentPill meta={intentMeta} theme={theme} />
             <ToneBadge tone={originTone} theme={theme}>{originLabel}</ToneBadge>
+            {lead.pipeline_stage && (
+              <Link href="/admin/pipeline">
+                <ToneBadge tone={STAGE_TONE[lead.pipeline_stage].tone} theme={theme} title="View in Pipeline">
+                  {STAGE_TONE[lead.pipeline_stage].label}
+                </ToneBadge>
+              </Link>
+            )}
           </div>
           <div className="flex flex-wrap gap-1.5">
             <ToneBadge tone="accent" theme={theme}>{toolLabel(lead.source_tool)}</ToneBadge>
