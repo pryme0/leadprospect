@@ -66,11 +66,11 @@ export async function GET(req: Request) {
       }
     }
 
-    // Lead geo-fencing (Settings → Lead sourcing region): only surface leads
-    // whose parsed location matches one of the org's chosen countries. Applies
-    // across every platform (LinkedIn/TikTok/Instagram) — it filters on the
-    // signal's already-resolved country_code, not a platform-specific search
-    // param, so it works even for platforms with no native location search.
+    // Lead geo-fencing (Settings → Lead sourcing region): surface leads located
+    // in the org's chosen countries, PLUS leads whose location is unknown (so
+    // TikTok/Instagram — which expose no location — aren't silently zeroed out).
+    // Only leads explicitly tagged to a different country are dropped. Filters on
+    // the signal's already-resolved country_code, not a platform-specific param.
     const geoCountries = user ? (await getOrgProfile(user.org))?.geo_countries : undefined;
 
     const { signals, total } = await listSignals({

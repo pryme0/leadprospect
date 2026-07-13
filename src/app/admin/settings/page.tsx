@@ -993,7 +993,7 @@ export default function SettingsPage() {
               <p className="mt-2 text-[11px] text-white/30">
                 {org.geo_countries.length === 0
                   ? 'No restriction — leads are sourced worldwide.'
-                  : `Only showing leads located in: ${org.geo_countries.map((code) => GEO_COUNTRIES.find((c) => c.code === code)?.name ?? code).join(', ')}. Coverage is strongest for LinkedIn today — TikTok/Instagram location detection is more limited.`}
+                  : `Showing leads located in: ${org.geo_countries.map((code) => GEO_COUNTRIES.find((c) => c.code === code)?.name ?? code).join(', ')} — plus leads we couldn't locate (e.g. TikTok/Instagram, which don't expose location). Leads clearly located in other countries are hidden.`}
               </p>
             </Field>
           </Section>

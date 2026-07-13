@@ -120,9 +120,13 @@ export interface SignalQuery {
   sbu?: string;
   /** Multi-SBU scoping (e.g. super-admin cross-org view over all org SBUs). */
   sbus?: string[];
-  /** Org-level lead geo-fencing: only rows whose parsed country_code matches.
-   *  A signal with no detected country is EXCLUDED when this is set — the org
-   *  asked to see leads only from these countries, not "these + unknown". */
+  /** Org-level lead geo-fencing: keep rows whose parsed country_code matches one
+   *  of these, OR whose country is UNKNOWN (NULL). Excluding unknown-country
+   *  leads would silently zero out TikTok/Instagram entirely — those platforms
+   *  expose no location, so their leads always have a NULL country_code. So a
+   *  region filter means "these countries, plus anything we couldn't locate",
+   *  and only drops leads explicitly tagged to a DIFFERENT country (mainly
+   *  Apollo-enriched LinkedIn leads). */
   countryCodes?: string[];
   minScore?: number;
   maxScore?: number;
@@ -161,7 +165,7 @@ function buildWhere(q: SignalQuery): { sql: string; params: unknown[] } {
   if (q.sbu) push('sbu_id = ?', q.sbu);
   // Multi-SBU scoping (super-admin cross-org view = only the platform's orgs).
   if (q.sbus && q.sbus.length) push('sbu_id = ANY(?)', q.sbus);
-  if (q.countryCodes && q.countryCodes.length) push('country_code = ANY(?)', q.countryCodes);
+  if (q.countryCodes && q.countryCodes.length) push('(country_code = ANY(?) OR country_code IS NULL)', q.countryCodes);
   if (q.intentLevel) push('intent_level = ?', q.intentLevel);
   if (q.intentCategory) push('intent_category = ?', q.intentCategory);
   if (q.ingestionCategory) push('ingestion_category = ?', q.ingestionCategory);
