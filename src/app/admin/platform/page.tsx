@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { workingDaysRemaining } from '@/lib/subscription/trial';
 
 /* ── Types ────────────────────────────────────────────────────────────────── */
 type Tier = 'basic' | 'pro' | 'max';
@@ -41,7 +42,12 @@ function daysLeft(validUntil: string | null): number | null {
 /* ── Access badge ─────────────────────────────────────────────────────────── */
 function AccessBadge({ o }: { o: OrgRow }) {
   let color = 'var(--t-fg-35)', bg = 'var(--t-fg-04)', label = 'No plan';
-  if (o.active && o.grantKind === 'credit') {
+  if (o.active && o.grantKind === 'trial') {
+    // Free trial — count down in WORKING days (weekends excluded), matching
+    // what the org sees on its own dashboard banner.
+    const w = workingDaysRemaining(o.validUntil);
+    color = AMBER; bg = `${AMBER}14`; label = `Trial · ${w} working day${w === 1 ? '' : 's'} left`;
+  } else if (o.active && o.grantKind === 'credit') {
     const d = daysLeft(o.validUntil);
     color = AMBER; bg = `${AMBER}14`; label = d != null ? `Credit · ${d}d left` : 'Credit';
   } else if (o.active) {

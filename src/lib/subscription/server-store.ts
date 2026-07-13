@@ -1,5 +1,6 @@
 import { appPool, ensureAppSchema } from '@/lib/app-pg';
 import { TIER_MODULES, type ModuleId, type PlanTier } from './tiers';
+import { TRIAL_TIER, TRIAL_WORKING_DAYS, computeTrialValidUntil } from './trial';
 
 export type { ModuleId };
 
@@ -71,6 +72,29 @@ export async function setUserSubscription(
       input.validUntil ?? null, input.grantKind ?? 'subscription', input.grantNote ?? null,
     ],
   );
+}
+
+/**
+ * Give an org its free trial (Basic, TRIAL_WORKING_DAYS working days) if it has
+ * NO subscription row yet. Idempotent and safe to call repeatedly — it never
+ * touches an org that already has any plan/grant (a paid sub, a super-admin
+ * grant, or an already-started/expired trial), so it won't reset or re-grant.
+ *
+ * `startedAt` lets the backfill anchor the window to an existing org's real
+ * creation date; new orgs pass nothing (starts now). Returns true if a trial
+ * was just granted, false if the org already had a subscription.
+ */
+export async function ensureTrialForOrg(orgId: string, startedAt?: Date): Promise<boolean> {
+  const existing = await getUserSubscription(orgId);
+  if (existing) return false; // already has a plan/grant of some kind — leave it
+  const validUntil = computeTrialValidUntil(startedAt);
+  await setUserSubscription(orgId, {
+    planTier: TRIAL_TIER,
+    grantKind: 'trial',
+    validUntil,
+    grantNote: `${TRIAL_WORKING_DAYS}-working-day free trial`,
+  });
+  return true;
 }
 
 export async function getUserSubscription(userId: string): Promise<UserSubscription | null> {

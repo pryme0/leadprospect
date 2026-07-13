@@ -3,7 +3,8 @@ import { requireSuperAdmin } from '@/lib/super/guard';
 import { listOrganizations } from '@/lib/super/orgs';
 import { createOrgOwner } from '@/lib/auth/db';
 import { upsertOrgProfile } from '@/lib/settings/org-store';
-import { setUserSubscription } from '@/lib/subscription/server-store';
+import { setUserSubscription, ensureTrialForOrg } from '@/lib/subscription/server-store';
+import { TRIAL_TIER, TRIAL_WORKING_DAYS } from '@/lib/subscription/trial';
 import { enforceOrgAccess } from '@/lib/crawler/enforce';
 import { recordTransaction } from '@/lib/billing/transactions';
 import { PLAN_TIERS, type PlanTier } from '@/lib/subscription/tiers';
@@ -71,7 +72,8 @@ export async function POST(req: Request) {
       }
     }
 
-    // Optional initial grant.
+    // Initial entitlement. If the super-admin passed an explicit grant, honor it;
+    // otherwise every new org gets the default free trial (Basic, 7 working days).
     const tier = body.grant?.tier;
     if (tier && (PLAN_TIERS as string[]).includes(tier)) {
       const days = body.grant?.days;
@@ -85,6 +87,13 @@ export async function POST(req: Request) {
       });
       await enforceOrgAccess(owner.id);
       await recordTransaction({ orgId: owner.id, type: 'grant', planTier: tier, status: 'granted', note: `New org · ${note}`, actor: auth.user.email, email: owner.email });
+    } else {
+      // Default free trial — idempotent (only grants if no plan exists yet).
+      const granted = await ensureTrialForOrg(owner.id);
+      if (granted) {
+        await enforceOrgAccess(owner.id);
+        await recordTransaction({ orgId: owner.id, type: 'grant', planTier: TRIAL_TIER, status: 'granted', note: `New org · ${TRIAL_WORKING_DAYS}-working-day free trial`, actor: auth.user.email, email: owner.email });
+      }
     }
 
     return NextResponse.json({

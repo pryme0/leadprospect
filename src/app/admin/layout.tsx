@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getWorkspaceConfig } from '@/lib/workspace';
 import { getSubscription, routeRequiresModule, FREE_ROUTES, type ModuleId } from '@/lib/subscription-store';
+import { workingDaysRemaining } from '@/lib/subscription/trial';
 import NotificationBell from '@/components/admin/NotificationBell';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -36,7 +37,7 @@ const navGroups = [
         badge: 'Live',
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.591L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
+            <path d="M3 3.5A1.5 1.5 0 014.5 2h2A1.5 1.5 0 018 3.5v11A1.5 1.5 0 016.5 16h-2A1.5 1.5 0 013 14.5v-11zM9 5.5A1.5 1.5 0 0110.5 4h2A1.5 1.5 0 0114 5.5v9a1.5 1.5 0 01-1.5 1.5h-2A1.5 1.5 0 019 14.5v-9zM15 8a1.5 1.5 0 011.5-1.5h1A1.5 1.5 0 0119 8v6.5A1.5 1.5 0 0117.5 16h-1A1.5 1.5 0 0115 14.5V8z" />
           </svg>
         ),
       },
@@ -47,6 +48,16 @@ const navGroups = [
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
             <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
+        href: '/admin/signal-ops',
+        label: 'Signal Ops',
+        badge: undefined as string | undefined,
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.591L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
           </svg>
         ),
       },
@@ -173,6 +184,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin':             'Dashboard',
   '/admin/pipeline':    'Pipeline',
   '/admin/explore':     'Explorer',
+  '/admin/signal-ops':  'Signal Ops',
   '/admin/signals':     'Signals',
   '/admin/leads':       'Lead Queue',
   '/admin/outreach':    'Routing Desk',
@@ -201,6 +213,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [authUser,          setAuthUser]          = useState<AuthUser | null>(null);
   const [subscribedModules, setSubscribedModules] = useState<Set<ModuleId>>(new Set());
   const [accessExpired,     setAccessExpired]     = useState(false);
+  /** Active free-trial countdown: working days left + whether the plan is a trial. */
+  const [trial,             setTrial]             = useState<{ daysLeft: number } | null>(null);
   const [newRequestCount,   setNewRequestCount]   = useState(0);
   const [unseenTxnCount,    setUnseenTxnCount]    = useState(0);
   const [themeMode,         setThemeMode]         = useState<'dark' | 'light'>('dark');
@@ -272,9 +286,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (!token) return;
       fetch('/api/subscription/sync', { headers: { Authorization: `Bearer ${token}` } })
         .then((r) => (r.ok ? r.json() : null))
-        .then((data: { modules?: ModuleId[]; expired?: boolean } | null) => {
+        .then((data: { modules?: ModuleId[]; expired?: boolean; active?: boolean; grantKind?: string | null; validUntil?: string | null } | null) => {
           if (data?.modules) setSubscribedModules(new Set(data.modules));
           setAccessExpired(!!data?.expired);
+          // Active free trial → show a countdown of working days remaining.
+          if (data?.active && data.grantKind === 'trial') {
+            setTrial({ daysLeft: workingDaysRemaining(data.validUntil ?? null) });
+          } else {
+            setTrial(null);
+          }
         })
         .catch(() => {});
     };
@@ -747,6 +767,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   Subscribe to continue
                 </a>
               </div>
+            )}
+            {/* Free-trial countdown — shown while an active trial is running. Turns
+                amber → red as it winds down so it reads as an escalating nudge.
+                Once the trial expires it becomes the access-expired banner above. */}
+            {!accessExpired && trial && pathname !== '/admin/subscription' && (
+              (() => {
+                const urgent = trial.daysLeft <= 2;
+                const accent = urgent ? '255,122,122' : '255,181,71'; // red vs amber
+                const label = trial.daysLeft <= 0
+                  ? 'Your free trial ends today'
+                  : trial.daysLeft === 1
+                    ? 'Last working day of your free trial'
+                    : `${trial.daysLeft} working days left in your free trial`;
+                return (
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3"
+                       style={{ background: `rgba(${accent},0.09)`, borderColor: `rgba(${accent},0.35)` }}>
+                    <div className="flex items-center gap-2.5">
+                      <span className="material-symbols-outlined text-[20px]" style={{ color: `rgb(${accent})` }}>timer</span>
+                      <p className="text-[13px] text-white/85">
+                        <span className="font-semibold" style={{ color: `rgb(${accent})` }}>{label}.</span>{' '}
+                        Subscribe to keep crawling, lead generation and all features running.
+                      </p>
+                    </div>
+                    <a href="/admin/subscription" className="rounded-lg bg-[#6D5EF9] px-3.5 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-[#5B4FE8]">
+                      Subscribe now
+                    </a>
+                  </div>
+                );
+              })()
             )}
             {children}
           </div>
