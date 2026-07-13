@@ -178,7 +178,7 @@ export async function PATCH(req: NextRequest) {
     if (seen.has(key)) continue;
     seen.add(key);
     keywords.push(k);
-    if (keywords.length >= 40) break;
+    if (keywords.length >= 60) break; // allow the larger generated/edited keyword sets through
   }
 
   if (keywords.length === 0) {

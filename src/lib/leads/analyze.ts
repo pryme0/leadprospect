@@ -16,7 +16,11 @@
 import type { WebsiteAnalysis, BrandTerms } from '@/lib/settings/org-store';
 import { llmJson, llmConfigured } from '@/lib/llm/json';
 
-const MAX_KEYWORDS = 25;
+// Per-platform generation caps. Combined across LinkedIn + TikTok + Instagram
+// (deduped at provisioning), these give an org up to ~50+ total keywords so the
+// crawler has a wider net. Applies to every org — new and re-generated.
+const MAX_KEYWORDS = 35;       // LinkedIn/Discord first-person pain phrases
+const MAX_SOCIAL_TERMS = 30;   // TikTok / Instagram short topical terms (each)
 
 export function analysisConfigured(): boolean {
   return llmConfigured();
@@ -28,9 +32,9 @@ You will be given a company's website text plus operator notes about what they d
 1. summary: 1-2 sentences on what the company actually does.
 2. target_audience: who their ideal customer / prospect is (the person the company wants to reach).
 3. pain_points: the specific problems that audience posts about publicly.
-4. keywords: 15-25 LinkedIn/Discord search phrases (3-8 words) written in the FIRST PERSON, as the prospect themselves would write them in a moment of frustration or need — the exact kind of post the company would want to reply to. These drive a text-search crawler, so they must be things a real person in pain would actually type, not marketing terms.
-5. keywords_tiktok: 12-20 SHORT terms (1-3 words) for TikTok video search — how consumers actually search and tag content on TikTok. Topical, casual, aspirational. e.g. for a travel company: "africa travel", "solo travel tips", "group trip planning", "travel scams", "budget safari". Include a few hashtag candidates (with or without #). NOT full sentences.
-6. keywords_instagram: 12-20 SHORT hashtag-style terms (1-2 words) for Instagram tag search — real tags people use. e.g. "africatravel", "solotravel", "grouptrip", "traveldeals". Single concatenated tags or short 1-2 word phrases. NOT full sentences.
+4. keywords: 25-35 LinkedIn/Discord search phrases (3-8 words) written in the FIRST PERSON, as the prospect themselves would write them in a moment of frustration or need — the exact kind of post the company would want to reply to. These drive a text-search crawler, so they must be things a real person in pain would actually type, not marketing terms. Cover the full range of the audience's distinct situations rather than rephrasing the same one.
+5. keywords_tiktok: 20-30 SHORT terms (1-3 words) for TikTok video search — how consumers actually search and tag content on TikTok. Topical, casual, aspirational. e.g. for a travel company: "africa travel", "solo travel tips", "group trip planning", "travel scams", "budget safari". Include a few hashtag candidates (with or without #). NOT full sentences.
+6. keywords_instagram: 20-30 SHORT hashtag-style terms (1-2 words) for Instagram tag search — real tags people use. e.g. "africatravel", "solotravel", "grouptrip", "traveldeals". Single concatenated tags or short 1-2 word phrases. NOT full sentences.
 
 Rules for keywords (LinkedIn/Discord, field 4):
 - First person, present-tense, emotionally specific. Good: "just got laid off software engineer", "can't find a nursing job". Bad: "cybersecurity training" (a category).
@@ -110,7 +114,7 @@ function sanitizeSocialTerms(raw: unknown): string[] {
     if (cleaned.length < 2 || cleaned.length > 40 || cleaned.split(' ').length > 4 || seen.has(key)) continue;
     seen.add(key);
     out.push(cleaned);
-    if (out.length >= 20) break;
+    if (out.length >= MAX_SOCIAL_TERMS) break;
   }
   return out;
 }
