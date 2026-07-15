@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     userId: user.org,
     companyName: profile.company_name,
     keywords: analysis.keywords,
-    socialKeywords: { tiktok: analysis.keywords_tiktok, instagram: analysis.keywords_instagram },
+    socialKeywords: { tiktok: analysis.keywords_tiktok, instagram: analysis.keywords_instagram, threads: analysis.keywords_threads },
     context: { summary: analysis.summary, target_audience: analysis.target_audience, pain_points: analysis.pain_points },
     startCrawl,
   });
@@ -192,7 +192,7 @@ export async function PATCH(req: NextRequest) {
     userId: user.org,
     companyName: profile.company_name,
     keywords,
-    socialKeywords: { tiktok: updated.keywords_tiktok, instagram: updated.keywords_instagram },
+    socialKeywords: { tiktok: updated.keywords_tiktok, instagram: updated.keywords_instagram, threads: updated.keywords_threads },
     context: { summary: updated.summary, target_audience: updated.target_audience, pain_points: updated.pain_points },
     startCrawl: false,
     deactivateMissing: true,

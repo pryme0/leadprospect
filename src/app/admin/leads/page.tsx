@@ -9,6 +9,7 @@ import { getSubscription } from '@/lib/subscription-store';
 /** Platform accent colors — mirror the Pulse channel colors. */
 const PLATFORM_META: Record<string, { label: string; color: string }> = {
   tiktok:    { label: 'TikTok',    color: '#69C9D0' },
+  threads:   { label: 'Threads',   color: '#8A8A8E' },
   instagram: { label: 'Instagram', color: '#E1306C' },
   linkedin:  { label: 'LinkedIn',  color: '#0A66C2' },
   x:         { label: 'X',         color: '#71767b' },

@@ -22,7 +22,7 @@ interface Signal {
 }
 
 const INTENT_LEVELS = ['', 'HIGH_INTENT', 'MEDIUM_INTENT', 'LOW_INTENT'];
-const SOURCES = ['', 'google', 'linkedin', 'instagram', 'tiktok', 'reddit'];
+const SOURCES = ['', 'google', 'linkedin', 'instagram', 'tiktok', 'threads', 'reddit'];
 const INTENT_CATEGORIES = [
   '', 'Evaluating Vendor', 'High Fit Account', 'Budget Active', 'Needs Outreach',
   'Existing Customer', 'Not a Prospect', '__null__',

@@ -41,11 +41,14 @@ function money(minor: number, currency: string) {
 }
 
 function TypeBadge({ t }: { t: Txn['type'] }) {
-  const map = {
+  const map = ({
     payment: { c: MINT, label: 'Payment' },
     grant: { c: VIOLET, label: 'Grant' },
     suspend: { c: RED, label: 'Suspend' },
-  }[t];
+  } as Record<string, { c: string; label: string }>)[t] ?? {
+    c: AMBER,
+    label: t ? String(t).charAt(0).toUpperCase() + String(t).slice(1) : 'Unknown',
+  };
   return <span className="inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-medium" style={{ background: `${map.c}14`, borderColor: `${map.c}33`, color: map.c }}>{map.label}</span>;
 }
 

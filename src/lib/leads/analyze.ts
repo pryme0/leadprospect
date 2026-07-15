@@ -35,6 +35,7 @@ You will be given a company's website text plus operator notes about what they d
 4. keywords: 25-35 LinkedIn/Discord search phrases (3-8 words) written in the FIRST PERSON, as the prospect themselves would write them in a moment of frustration or need — the exact kind of post the company would want to reply to. These drive a text-search crawler, so they must be things a real person in pain would actually type, not marketing terms. Cover the full range of the audience's distinct situations rather than rephrasing the same one.
 5. keywords_tiktok: 20-30 SHORT terms (1-3 words) for TikTok video search — how consumers actually search and tag content on TikTok. Topical, casual, aspirational. e.g. for a travel company: "africa travel", "solo travel tips", "group trip planning", "travel scams", "budget safari". Include a few hashtag candidates (with or without #). NOT full sentences.
 6. keywords_instagram: 20-30 SHORT hashtag-style terms (1-2 words) for Instagram tag search — real tags people use. e.g. "africatravel", "solotravel", "grouptrip", "traveldeals". Single concatenated tags or short 1-2 word phrases. NOT full sentences.
+7. keywords_threads: 20-30 SHORT conversational keyword phrases (1-4 words) for Threads text search. Threads is a public text-conversation app (like X/Twitter), so full-text search matches the words people use in short posts where they voice a need, frustration, or ask for a recommendation. e.g. for a travel company: "planning africa trip", "safari recommendations", "travel insurance help", "trip got cancelled", "best travel agent". Between TikTok-short tags and LinkedIn-length sentences.
 
 Rules for keywords (LinkedIn/Discord, field 4):
 - First person, present-tense, emotionally specific. Good: "just got laid off software engineer", "can't find a nursing job". Bad: "cybersecurity training" (a category).
@@ -44,7 +45,12 @@ Rules for keywords (LinkedIn/Discord, field 4):
 Rules for keywords_tiktok and keywords_instagram (fields 5-6):
 - SHORT and TOPICAL — these are search-box/hashtag terms, NOT sentences. A long first-person sentence returns creators/how-to content, not prospects, so keep them 1-3 words.
 - Real terms consumers actually type/tag. Tailor to THIS company's audience and topic.
-- Hashtags allowed. No numbering.`;
+- Hashtags allowed. No numbering.
+
+Rules for keywords_threads (field 7):
+- Short keyword phrases (1-4 words) as they'd appear inside a real post — topical and conversational, NOT hashtags and NOT full first-person sentences.
+- Words people actually type when posting a need or asking for help on Threads. Tailor to THIS company's audience and topic.
+- No hashtags, no numbering.`;
 
 const OUTPUT_SCHEMA = {
   type: 'object',
@@ -55,8 +61,9 @@ const OUTPUT_SCHEMA = {
     keywords: { type: 'array', items: { type: 'string' } },
     keywords_tiktok: { type: 'array', items: { type: 'string' } },
     keywords_instagram: { type: 'array', items: { type: 'string' } },
+    keywords_threads: { type: 'array', items: { type: 'string' } },
   },
-  required: ['summary', 'target_audience', 'pain_points', 'keywords', 'keywords_tiktok', 'keywords_instagram'],
+  required: ['summary', 'target_audience', 'pain_points', 'keywords', 'keywords_tiktok', 'keywords_instagram', 'keywords_threads'],
   additionalProperties: false,
 } as const;
 
@@ -142,6 +149,7 @@ export async function analyzeWebsite(input: {
     keywords: sanitizeKeywords(parsed.keywords),
     keywords_tiktok: sanitizeSocialTerms(parsed.keywords_tiktok),
     keywords_instagram: sanitizeSocialTerms(parsed.keywords_instagram),
+    keywords_threads: sanitizeSocialTerms(parsed.keywords_threads),
   };
 }
 

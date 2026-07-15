@@ -52,6 +52,8 @@ export interface WebsiteAnalysis {
   keywords_tiktok?: string[];
   /** Short, topical/hashtag-style terms for Instagram search. */
   keywords_instagram?: string[];
+  /** Short, conversational keyword phrases for Threads text search. */
+  keywords_threads?: string[];
 }
 
 /** Brand-monitoring terms derived from the company profile/website. */

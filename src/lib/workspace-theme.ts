@@ -58,6 +58,7 @@ const DARK: WorkspacePalette = {
     meta:      '#1877F2',
     instagram: '#E1306C',
     tiktok:    '#010101',
+    threads:   '#8A8A8E',
     linkedin:  '#0A66C2',
     twitter:   '#18D8FF',
     reddit:    '#F97316',

@@ -55,8 +55,8 @@ async function main() {
       about: '', services: '', industry: '',
       websiteText,
     });
-    const total = analysis.keywords.length + (analysis.keywords_tiktok?.length ?? 0) + (analysis.keywords_instagram?.length ?? 0);
-    console.log(`  generated: linkedin=${analysis.keywords.length} tiktok=${analysis.keywords_tiktok?.length ?? 0} instagram=${analysis.keywords_instagram?.length ?? 0}  (raw total ${total})`);
+    const total = analysis.keywords.length + (analysis.keywords_tiktok?.length ?? 0) + (analysis.keywords_instagram?.length ?? 0) + (analysis.keywords_threads?.length ?? 0);
+    console.log(`  generated: linkedin=${analysis.keywords.length} tiktok=${analysis.keywords_tiktok?.length ?? 0} instagram=${analysis.keywords_instagram?.length ?? 0} threads=${analysis.keywords_threads?.length ?? 0}  (raw total ${total})`);
 
     if (!APPLY) { console.log('  (dry run — pass --apply to write)'); continue; }
 
@@ -64,7 +64,7 @@ async function main() {
       userId: o.user_id,
       companyName: o.company_name || o.user_id,
       keywords: analysis.keywords,
-      socialKeywords: { tiktok: analysis.keywords_tiktok, instagram: analysis.keywords_instagram },
+      socialKeywords: { tiktok: analysis.keywords_tiktok, instagram: analysis.keywords_instagram, threads: analysis.keywords_threads },
       context: { summary: analysis.summary, target_audience: analysis.target_audience, pain_points: analysis.pain_points },
       deactivateMissing: false, // ADDITIVE — keep existing keywords, add the new ones (maximize coverage, never remove)
     });

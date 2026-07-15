@@ -1,7 +1,7 @@
 import type { HubInsight } from '@/lib/hub/insights';
 
 const PLATFORM_LABELS: Record<string, string> = {
-  tiktok: 'TikTok', linkedin: 'LinkedIn', instagram: 'Instagram', reddit: 'Reddit', twitter: 'X',
+  tiktok: 'TikTok', linkedin: 'LinkedIn', instagram: 'Instagram', threads: 'Threads', reddit: 'Reddit', twitter: 'X',
 };
 function platformLabel(p: string): string {
   return PLATFORM_LABELS[p.toLowerCase()] ?? (p.charAt(0).toUpperCase() + p.slice(1));
