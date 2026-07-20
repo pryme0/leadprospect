@@ -1157,7 +1157,7 @@ export default function CommHubPage() {
                       ) : mentions.length === 0 ? (
                         <>
                           <span className="material-symbols-outlined text-[26px] text-white/20">travel_explore</span>
-                          <p className="text-[12px] font-medium text-white/50">No mentions found yet</p>
+                          <p className="text-[12px] font-medium text-white/50">No Mentions Found Yet</p>
                           <p className="text-[11px] text-white/30">We scan the web every few minutes.</p>
                           <button onClick={() => refreshMentions(true)} disabled={refreshing} className="text-[11px] font-semibold text-[#6D5EF9] hover:underline disabled:opacity-50">{refreshing ? 'Scanning…' : 'Scan now'}</button>
                         </>
