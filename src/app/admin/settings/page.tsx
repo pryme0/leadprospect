@@ -440,10 +440,10 @@ export default function SettingsPage() {
   ];
 
   const CRM_WORKFLOWS = [
-    { label: 'Hot Account Route', key: 'CRM_ROUTE_HIGH_INTENT', color: 'text-red-400' },
-    { label: 'Nurture Route', key: 'CRM_ROUTE_MEDIUM_INTENT', color: 'text-yellow-400' },
-    { label: 'Research Route', key: 'CRM_ROUTE_LOW_INTENT', color: 'text-[#00CEC8]' },
-    { label: 'Default Route', key: 'CRM_ROUTE_DEFAULT', color: 'text-white/50' },
+    { label: 'Where hot leads go', key: 'CRM_ROUTE_HIGH_INTENT', color: 'text-red-400' },
+    { label: 'Where warm leads go', key: 'CRM_ROUTE_MEDIUM_INTENT', color: 'text-yellow-400' },
+    { label: 'Where cool leads go', key: 'CRM_ROUTE_LOW_INTENT', color: 'text-[#00CEC8]' },
+    { label: 'Where everyone else goes', key: 'CRM_ROUTE_DEFAULT', color: 'text-white/50' },
   ];
 
   const TIMEZONES = [
@@ -764,8 +764,8 @@ export default function SettingsPage() {
       const p = data.provisioning || {};
       setGenStatus(
         p.crawler_connected
-          ? `Crawler updated — ${p.keywords_added} keywords, ${p.crawls_started} crawls started. Leads will appear in the Lead Queue as they're found.`
-          : `Analysis saved and ${data.analysis?.keywords?.length ?? 0} keywords staged. Connect the crawler (CRAWLER_API_URL) to start collecting leads.`,
+          ? `All set — we added ${p.keywords_added} search terms and started looking for buyers. New leads will show up under Leads as we find them.`
+          : `Saved — we prepared ${data.analysis?.keywords?.length ?? 0} search terms. Your lead finder isn’t connected yet, so we can’t start looking just yet.`,
       );
     } catch (err) {
       setGenError('Network error — please try again.');
@@ -929,8 +929,8 @@ export default function SettingsPage() {
           </Section>
 
           <Section
-            title="Company Context"
-            subtitle="Tell SYNQ what your business does. This context personalises lead scoring, AI reply drafts, and routing to your goals."
+            title="About your business"
+            subtitle="Tell us what your business does. We use this to find the right buyers, write better replies, and send leads where you want them."
           >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-1 border-b" style={{ borderColor: 'var(--a-border)' }}>
               <p className="text-white/40 text-xs max-w-md">
@@ -1109,7 +1109,7 @@ export default function SettingsPage() {
                 )}
                 {genStatus && (
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-emerald-300 text-xs">
-                    {genStatus} <Link href="/admin/leads" className="underline">Open Lead Queue →</Link>
+                    {genStatus} <Link href="/admin/leads" className="underline">Open Leads →</Link>
                   </div>
                 )}
 
@@ -1125,8 +1125,8 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-white/40 text-[10px] uppercase tracking-[0.18em]">Search signals ({leadAnalysis.keywords.length})</p>
-                        <span className="text-white/20 text-[10px]">Add or remove signals to streamline what the crawler searches for.</span>
+                        <p className="text-white/40 text-[10px] uppercase tracking-[0.18em]">Search terms ({leadAnalysis.keywords.length})</p>
+                        <span className="text-white/20 text-[10px]">Add or remove terms to shape what we look for.</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {leadAnalysis.keywords.map((k) => (
@@ -1165,7 +1165,7 @@ export default function SettingsPage() {
                       <div className="mt-3 flex items-center justify-between gap-2">
                         {signalsError
                           ? <p className="text-[11px] text-red-400">{signalsError}</p>
-                          : <span className="text-[11px] text-white/25">Changes take effect on the crawler after you save.</span>}
+                          : <span className="text-[11px] text-white/25">Your changes take effect after you save.</span>}
                         <button
                           onClick={saveSignals}
                           disabled={signalsSaving}
@@ -1409,7 +1409,7 @@ export default function SettingsPage() {
                 { label: 'Sync timing', value: 'Immediate — within 5 seconds of capture or import' },
                 { label: 'Retry attempts', value: '3 attempts with exponential backoff (2s → 4s → 8s)' },
                 { label: 'Queue', value: 'CRM routing queue with retry and failed-job visibility' },
-                { label: 'Deduplication', value: 'Email, domain, and CRM record checks before creating a new contact' },
+                { label: 'Duplicate check', value: 'We check email, website and your CRM before adding a new contact, so no one is added twice' },
               ].map((item) => (
                 <div key={item.label} className="flex items-start justify-between gap-6 py-3 border-b border-white/5 last:border-0">
                   <p className="text-white/40 text-sm shrink-0">{item.label}</p>

@@ -185,8 +185,8 @@ export default function PipelinePage() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: VIOLET }}>Sales</p>
-          <h1 className="mt-1 text-2xl font-semibold" style={{ color: 'var(--a-text)' }}>Pipeline</h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--a-text-50)' }}>Every lead, tracked from new to closed.</p>
+          <h1 className="mt-1 text-2xl font-semibold" style={{ color: 'var(--a-text)' }}>Your deals</h1>
+          <p className="mt-1 text-sm" style={{ color: 'var(--a-text-50)' }}>Every lead, from first contact to closed sale.</p>
         </div>
         <div className="relative">
           <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px]" style={{ color: 'var(--a-text-40)' }}>search</span>

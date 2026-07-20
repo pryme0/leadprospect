@@ -223,13 +223,13 @@ export default function SignalOpsPage() {
             className="mb-2 text-[9px] font-bold uppercase tracking-[0.3em]"
             style={{ color: theme.accent, fontFamily: theme.fontMono }}
           >
-            05 · Signal pipeline
+            Buyer activity
           </p>
           <h1 className="text-[26px] font-black leading-tight tracking-tight" style={{ color: 'var(--t-fg-95)' }}>
-            Source and scoring pipeline
+            Work queue
           </h1>
           <p className="mt-1.5 max-w-xl text-sm leading-relaxed" style={{ color: 'var(--t-fg-60)' }}>
-            Monitor each lead source, run scoring when needed, and inspect the latest signals before they enter routing.
+            Check where your leads are coming from and review the newest buyer activity as it arrives.
           </p>
         </div>
         <div className="grid grid-cols-3 gap-2">

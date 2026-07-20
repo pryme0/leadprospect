@@ -1500,7 +1500,7 @@ export default function CommHubPage() {
                             <p className="text-[13px] font-semibold text-white capitalize">{accountFilterLabel} has no message inbox</p>
                             <p className="mx-auto mt-1.5 text-[12px] leading-relaxed text-white/45">
                               {accountFilter === 'tiktok' ? 'TikTok' : accountFilterLabel} doesn’t provide a DM API, so conversations can’t sync here.
-                              Your {accountFilter === 'tiktok' ? 'TikTok' : ''} activity lives in Mentions and the Lead Queue instead.
+                              Your {accountFilter === 'tiktok' ? 'TikTok' : ''} activity lives in Mentions and under Leads instead.
                             </p>
                             <div className="mt-3 flex items-center justify-center gap-2">
                               <button

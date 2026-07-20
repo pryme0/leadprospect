@@ -42,8 +42,11 @@ export async function GET(req: Request) {
       processed: sp.get('processed') === 'true' ? true : sp.get('processed') === 'false' ? false : undefined,
       hasEmail: sp.get('has_email') === 'true' ? true : sp.get('has_email') === 'false' ? false : undefined,
       minScore: sp.get('min_urgency') ? Number(sp.get('min_urgency')) : undefined,
+      minHotScore: sp.get('min_hot_score') ? Number(sp.get('min_hot_score')) : undefined,
       search: sp.get('q') || undefined,
-      orderBy: orderByRaw === 'urgency_score' || orderByRaw === 'classified_at' || orderByRaw === 'created_at' ? orderByRaw : undefined,
+      // Default: hottest, most buy-ready leads first (buying-intent score).
+      orderBy: orderByRaw === 'urgency_score' || orderByRaw === 'classified_at' || orderByRaw === 'created_at' || orderByRaw === 'hot_lead_score'
+        ? orderByRaw : 'hot_lead_score',
     });
 
     const data = signals.map(toUiSignal);

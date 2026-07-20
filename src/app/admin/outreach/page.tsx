@@ -210,13 +210,13 @@ export default function OutreachPage() {
               className="mb-2 text-[9px] font-bold uppercase tracking-[0.3em]"
               style={{ color: theme.accent, fontFamily: theme.fontMono }}
             >
-              04 · Routing desk
+              Messages
             </p>
             <h1 className="text-[26px] font-black leading-tight tracking-tight text-white">
-              Outreach Queue
+              Suggested replies
             </h1>
             <p className="mt-1.5 text-sm leading-relaxed text-white/60">
-              Review generated replies, approve routes, handle manual-DM exceptions, and keep failed sends cleared.
+              We draft a reply for each lead. Read it, tweak it if you like, then approve to send.
             </p>
           </div>
 

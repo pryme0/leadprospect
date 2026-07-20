@@ -48,6 +48,22 @@ export function toUiSignal(r: SignalRow) {
     enriched_via: r.enriched_via,
     enriched_at: toIso(r.enriched_at),
     ghl_contact_id: null,
+    ...hotScoreFields(r),
+  };
+}
+
+/** Shared Hot Lead Score fields surfaced to the UI (null on pre-scoring rows). */
+function hotScoreFields(r: SignalRow) {
+  const i = r.intent ?? null;
+  return {
+    hot_lead_score: r.hot_lead_score ?? i?.hot_lead_score ?? null,
+    lead_tier: i?.lead_tier ?? null,
+    detected_intent: i?.detected_intent ?? null,
+    score_reason: i?.reason ?? null,
+    recommended_response_time: i?.recommended_response_time ?? null,
+    recommended_outreach: i?.recommended_outreach ?? null,
+    score_breakdown: i?.score_breakdown ?? null,
+    score_confidence: i?.confidence ?? null,
   };
 }
 
@@ -79,8 +95,12 @@ export function toUiLead(r: SignalRow) {
     username: r.username ?? null,
     profile_url: r.profile_url ?? r.enriched_linkedin_url ?? null,
     post_url: r.post_url ?? r.url ?? null,
+    // Direct link to the exact signal — the comment permalink for comment leads,
+    // the post permalink for post leads (used as the outreach "reference" link).
+    url: r.url ?? r.post_url ?? r.profile_url ?? null,
     post_content: r.content ?? null,
     summary: r.summary ?? null,
+    ...hotScoreFields(r),
   };
 }
 
