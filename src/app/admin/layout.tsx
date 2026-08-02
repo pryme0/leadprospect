@@ -10,6 +10,13 @@ import { workingDaysRemaining } from '@/lib/subscription/trial';
 import NotificationBell from '@/components/admin/NotificationBell';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import CommandPalette from '@/components/admin/CommandPalette';
+import {
+  Home, Radar, UserPlus, TrendingUp, MessagesSquare,
+  Users, Blocks, CreditCard, Gift, Settings as SettingsIcon,
+  Building2, UsersRound, Receipt, Inbox,
+} from 'lucide-react';
+
+const ICON = { size: 17, strokeWidth: 2 } as const;
 
 /* Inactivity auto-logout: sign the user out after this much idle time, showing a
    countdown warning modal for the final WARNING window so they can stay. */
@@ -18,207 +25,79 @@ const IDLE_WARNING_MS = 30 * 1000;     // warn (with countdown) for the last 30s
 
 /* ── Nav config ─────────────────────────────────────────────────────────────── */
 
-const navGroups = [
+type NavItem = {
+  href: string;
+  label: string;
+  badge?: string;
+  /** Extra routes that should keep this item highlighted (consolidated hubs). */
+  match?: string[];
+  icon: React.ReactNode;
+};
+
+const navGroups: { title: string; items: NavItem[] }[] = [
   {
-    title: 'Funnel',
+    title: 'Workspace',
     items: [
-      {
-        href: '/admin',
-        label: 'Dashboard',
-        badge: undefined as string | undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M4.5 3A1.5 1.5 0 003 4.5v3A1.5 1.5 0 004.5 9h3A1.5 1.5 0 009 7.5v-3A1.5 1.5 0 007.5 3h-3zm0 8A1.5 1.5 0 003 12.5v3A1.5 1.5 0 004.5 17h3A1.5 1.5 0 009 15.5v-3A1.5 1.5 0 007.5 11h-3zm8-8A1.5 1.5 0 0011 4.5v3A1.5 1.5 0 0012.5 9h3A1.5 1.5 0 0017 7.5v-3A1.5 1.5 0 0015.5 3h-3zm0 8a1.5 1.5 0 00-1.5 1.5v3a1.5 1.5 0 001.5 1.5h3a1.5 1.5 0 001.5-1.5v-3a1.5 1.5 0 00-1.5-1.5h-3z" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/signals',
-        label: 'Signals',
-        badge: undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M10 8.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" />
-            <path fillRule="evenodd" d="M6.343 4.929a.75.75 0 010 1.06 5.5 5.5 0 000 7.779.75.75 0 11-1.06 1.06 7 7 0 010-9.899.75.75 0 011.06 0zm7.314 0a.75.75 0 011.06 0 7 7 0 010 9.9.75.75 0 11-1.06-1.061 5.5 5.5 0 000-7.778.75.75 0 010-1.06zM4.222 2.808a.75.75 0 010 1.06 8.5 8.5 0 000 12.021.75.75 0 01-1.06 1.061c-3.905-3.905-3.905-10.237 0-14.142a.75.75 0 011.06 0zm11.556 0a.75.75 0 011.06 0c3.905 3.905 3.905 10.237 0 14.142a.75.75 0 11-1.06-1.06 8.5 8.5 0 000-12.022.75.75 0 010-1.06z" clipRule="evenodd" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/leads',
-        label: 'Leads',
-        badge: undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M10 5a3 3 0 11-6 0 3 3 0 016 0zM1.615 16.428a1.224 1.224 0 01-.569-1.175 6.002 6.002 0 0111.908 0c.058.467-.172.92-.57 1.174A9.953 9.953 0 017 18a9.953 9.953 0 01-5.385-1.572zM16.25 5.75a.75.75 0 00-1.5 0v2h-2a.75.75 0 000 1.5h2v2a.75.75 0 001.5 0v-2h2a.75.75 0 000-1.5h-2v-2z" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/pipeline',
-        label: 'Pipeline',
-        badge: 'Live',
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M3 3.5A1.5 1.5 0 014.5 2h2A1.5 1.5 0 018 3.5v11A1.5 1.5 0 016.5 16h-2A1.5 1.5 0 013 14.5v-11zM9 5.5A1.5 1.5 0 0110.5 4h2A1.5 1.5 0 0114 5.5v9a1.5 1.5 0 01-1.5 1.5h-2A1.5 1.5 0 019 14.5v-9zM15 8a1.5 1.5 0 011.5-1.5h1A1.5 1.5 0 0119 8v6.5A1.5 1.5 0 0117.5 16h-1A1.5 1.5 0 0115 14.5V8z" />
-          </svg>
-        ),
-      },
+      { href: '/admin',          label: 'Home',           icon: <Home {...ICON} /> },
+      // Buyer Activity absorbs the old Signals / Explorer / Signal Ops pages.
+      { href: '/admin/signals',  label: 'Buyer activity', icon: <Radar {...ICON} />,
+        match: ['/admin/signals', '/admin/explore', '/admin/signal-ops'] },
+      { href: '/admin/leads',    label: 'Leads',          icon: <UserPlus {...ICON} /> },
+      { href: '/admin/pipeline', label: 'Deals',          icon: <TrendingUp {...ICON} /> },
+      // Messages absorbs the old Pulse / Routing Desk / Email Desk pages.
+      { href: '/admin/comms',    label: 'Messages',       icon: <MessagesSquare {...ICON} />,
+        match: ['/admin/comms', '/admin/outreach', '/admin/email'] },
     ],
   },
   {
-    title: 'Engage',
+    title: 'Your account',
     items: [
-      {
-        href: '/admin/comms',
-        label: 'Conversations',
-        badge: undefined as string | undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M3.505 2.365A41.369 41.369 0 019 2c1.863 0 3.697.124 5.495.365 1.247.167 2.18 1.108 2.435 2.268a4.45 4.45 0 00-.577-.069 43.141 43.141 0 00-4.706 0C9.229 4.696 7.5 6.727 7.5 9.052V10.5c0 .848.223 1.664.626 2.372A41.369 41.369 0 019 13a41.369 41.369 0 01-5.495-.365c-1.247-.167-2.18-1.108-2.435-2.268A4.45 4.45 0 001.647 11H1.5A1.5 1.5 0 010 9.5V8.5A1.5 1.5 0 011.5 7h.147c.255-1.16 1.188-2.1 2.435-2.268A41.553 41.553 0 019 4.5c1.863 0 3.697.124 5.495.365" />
-            <path d="M7.5 9.052c0-2.006 1.608-3.657 3.684-3.79A43.141 43.141 0 0115.5 5c.223 0 .445.005.666.015C18.006 5.157 19.5 6.927 19.5 9.052V10.5A1.5 1.5 0 0118 12h-.147c-.268 1.16-1.2 2.1-2.435 2.268A41.369 41.369 0 0111 14.5c-1.863 0-3.697-.124-5.495-.365A43.14 43.14 0 015.5 14H5a.5.5 0 00-.354.146l-1.5 1.5A.5.5 0 012.5 16v-1.667c-.82-.186-1.5-.852-1.5-1.833V11a1.5 1.5 0 011.5-1.5h.147" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/outreach',
-        label: 'Outreach',
-        badge: undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M13 4.5a2.5 2.5 0 11.702 1.737L6.97 9.604a2.518 2.518 0 010 .792l6.733 3.367a2.5 2.5 0 11-.671 1.341l-6.733-3.367a2.5 2.5 0 110-3.475l6.733-3.366A2.52 2.52 0 0113 4.5z" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/email',
-        label: 'Email',
-        badge: undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
-            <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
-          </svg>
-        ),
-      },
-    ],
-  },
-  {
-    title: 'Operations',
-    items: [
-      {
-        href: '/admin/signal-ops',
-        label: 'Signal Sources',
-        badge: undefined as string | undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.591L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/explore',
-        label: 'Signal Explorer',
-        badge: undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
-          </svg>
-        ),
-      },
-    ],
-  },
-  {
-    title: 'Organization',
-    items: [
-      {
-        href: '/admin/users',
-        label: 'Team',
-        badge: undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zM6 8a2 2 0 11-4 0 2 2 0 014 0zM1.49 15.326a.78.78 0 01-.358-.442 3 3 0 014.308-3.516 6.484 6.484 0 00-1.905 3.959c-.023.222-.014.442.025.654a4.97 4.97 0 01-2.07-.655zM16.44 15.98a4.97 4.97 0 002.07-.654.78.78 0 00.357-.442 3 3 0 00-4.308-3.517 6.484 6.484 0 011.907 3.96 2.32 2.32 0 01-.026.654zM18 8a2 2 0 11-4 0 2 2 0 014 0zM5.304 16.19a.844.844 0 01-.277-.71 5 5 0 019.947 0 .843.843 0 01-.277.71A6.975 6.975 0 0110 18a6.974 6.974 0 01-4.696-1.81z" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/integrations',
-        label: 'Integrations',
-        badge: undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M12.232 4.232a2.5 2.5 0 013.536 3.536l-1.225 1.224a.75.75 0 001.061 1.06l1.224-1.224a4 4 0 00-5.656-5.656l-3 3a4 4 0 00.225 5.865.75.75 0 00.977-1.138 2.5 2.5 0 01-.142-3.667l3-3z" />
-            <path d="M11.603 7.963a.75.75 0 00-.977 1.138 2.5 2.5 0 01.142 3.667l-3 3a2.5 2.5 0 01-3.536-3.536l1.225-1.224a.75.75 0 00-1.061-1.06l-1.224 1.224a4 4 0 105.656 5.656l3-3a4 4 0 00-.225-5.865z" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/settings',
-        label: 'Settings',
-        badge: undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path fillRule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.295 1.473c.497.144.971.342 1.416.587l1.25-.834a1 1 0 011.262.125l1.67 1.67a1 1 0 01.124 1.262l-.833 1.25c.245.445.443.919.587 1.416l1.473.294a1 1 0 01.804.98v2.361a1 1 0 01-.804.98l-1.473.295a6.95 6.95 0 01-.587 1.416l.833 1.25a1 1 0 01-.124 1.262l-1.67 1.67a1 1 0 01-1.262.124l-1.25-.833a6.953 6.953 0 01-1.416.587l-.294 1.473a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.295-1.473a6.957 6.957 0 01-1.416-.587l-1.25.833a1 1 0 01-1.262-.124l-1.67-1.67a1 1 0 01-.124-1.262l.833-1.25a6.957 6.957 0 01-.587-1.416l-1.473-.294A1 1 0 011 11.18V8.82a1 1 0 01.804-.98l1.473-.295c.144-.497.342-.971.587-1.416l-.833-1.25a1 1 0 01.124-1.262l1.67-1.67a1 1 0 011.262-.124l1.25.833a6.957 6.957 0 011.416-.587l.294-1.473zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/subscription',
-        label: 'Subscription',
-        badge: undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M2.5 4A1.5 1.5 0 001 5.5V6h18v-.5A1.5 1.5 0 0017.5 4h-15z" />
-            <path fillRule="evenodd" d="M19 8.5H1v6A1.5 1.5 0 002.5 16h15a1.5 1.5 0 001.5-1.5v-6zM3 13.25a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75zm4.75-.75a.75.75 0 000 1.5h3.5a.75.75 0 000-1.5h-3.5z" clipRule="evenodd" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/referrals',
-        label: 'Referrals',
-        badge: 'New',
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M13 4.5a2.5 2.5 0 11.702 1.737L6.97 9.604a2.518 2.518 0 010 .792l6.733 3.367a2.5 2.5 0 11-.671 1.341l-6.733-3.367a2.5 2.5 0 110-3.475l6.733-3.366A2.52 2.52 0 0113 4.5z" />
-          </svg>
-        ),
-      },
+      { href: '/admin/users',        label: 'Team',           icon: <Users {...ICON} /> },
+      { href: '/admin/integrations', label: 'Connected apps', icon: <Blocks {...ICON} /> },
+      { href: '/admin/subscription', label: 'Plan & billing', icon: <CreditCard {...ICON} /> },
+      { href: '/admin/referrals',    label: 'Refer & earn',   icon: <Gift {...ICON} /> },
+      { href: '/admin/settings',     label: 'Settings',       icon: <SettingsIcon {...ICON} /> },
     ],
   },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
-  '/admin':             'Dashboard',
-  '/admin/signals':     'Signals',
+  '/admin':             'Home',
+  '/admin/pipeline':    'Deals',
+  '/admin/explore':     'Buyer activity',
+  '/admin/signal-ops':  'Buyer activity',
+  '/admin/signals':     'Buyer activity',
   '/admin/leads':       'Leads',
-  '/admin/pipeline':    'Pipeline',
-  '/admin/comms':       'Conversations',
-  '/admin/outreach':    'Outreach',
-  '/admin/email':       'Email',
-  '/admin/signal-ops':  'Signal Sources',
-  '/admin/explore':     'Signal Explorer',
+  '/admin/outreach':    'Messages',
+  '/admin/email':       'Messages',
+  '/admin/comms':       'Messages',
   '/admin/users':       'Team',
-  '/admin/integrations':'Integrations',
+  '/admin/integrations':'Connected apps',
   '/admin/settings':    'Settings',
-  '/admin/subscription':'Subscription',
-  '/admin/referrals':   'Referrals',
+  '/admin/subscription':'Plan & billing',
+  '/admin/referrals':   'Refer & earn',
 };
 
-const PAGE_GROUPS: Record<string, string> = {
-  '/admin':             'Funnel',
-  '/admin/signals':     'Funnel',
-  '/admin/leads':       'Funnel',
-  '/admin/pipeline':    'Funnel',
-  '/admin/comms':       'Engage',
-  '/admin/outreach':    'Engage',
-  '/admin/email':       'Engage',
-  '/admin/signal-ops':  'Operations',
-  '/admin/explore':     'Operations',
-  '/admin/users':       'Organization',
-  '/admin/integrations':'Organization',
-  '/admin/settings':    'Organization',
-  '/admin/subscription':'Organization',
-  '/admin/referrals':   'Organization',
-};
+/* Consolidated hubs: the sub-pages we folded off the sidebar stay reachable via
+   a plain sub-tab strip rendered once (in the layout) above the page content. */
+const HUB_TABS: { match: string[]; tabs: { href: string; label: string }[] }[] = [
+  {
+    match: ['/admin/signals', '/admin/explore', '/admin/signal-ops'],
+    tabs: [
+      { href: '/admin/signals',    label: 'Recent' },
+      { href: '/admin/explore',    label: 'Browse by type' },
+      { href: '/admin/signal-ops', label: 'Work queue' },
+    ],
+  },
+  {
+    match: ['/admin/comms', '/admin/outreach', '/admin/email'],
+    tabs: [
+      { href: '/admin/comms',    label: 'Inbox' },
+      { href: '/admin/outreach', label: 'Suggested replies' },
+      { href: '/admin/email',    label: 'Emails' },
+    ],
+  },
+];
 
 interface AuthUser {
   id: string;
@@ -240,18 +119,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [trial,             setTrial]             = useState<{ daysLeft: number } | null>(null);
   const [newRequestCount,   setNewRequestCount]   = useState(0);
   const [unseenTxnCount,    setUnseenTxnCount]    = useState(0);
-  const [themeMode,         setThemeMode]         = useState<'dark' | 'light'>('dark');
+  const [themeMode,         setThemeMode]         = useState<'dark' | 'light'>('light');
   const [signoutConfirm,    setSignoutConfirm]    = useState(false);
   const [idleWarning,       setIdleWarning]       = useState(false);
   const [idleCountdown,     setIdleCountdown]     = useState(Math.round(IDLE_WARNING_MS / 1000));
   const idleWarningRef = useRef(false);
   useEffect(() => { idleWarningRef.current = idleWarning; }, [idleWarning]);
 
-  /* Load saved theme — dark is the default (polished workspace), light is opt-in
-     and persisted via the header toggle. */
+  /* Load saved theme — light is the default (calm, readable workspace for
+     non-technical users); dark is opt-in and persisted via the header toggle. */
   useEffect(() => {
     const saved = localStorage.getItem('synq_theme') as 'dark' | 'light' | null;
-    if (saved === 'light') setThemeMode('light');
+    if (saved === 'dark') setThemeMode('dark');
     if (localStorage.getItem('synq_sidebar_collapsed') === 'true') setCollapsed(true);
   }, []);
 
@@ -481,34 +360,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
      which for them only bounced back to the console. The Access Requests badge is
      the live new-request count — the super-admin "new request" notification. */
   const isSuper = authUser?.role === 'superadmin';
-  const navToRender = isSuper
+  const navToRender: { title: string; items: NavItem[] }[] = isSuper
     ? [{
         title: 'Platform',
         items: [
-          {
-            href: '/admin/platform',
-            label: 'Organizations',
-            badge: undefined as string | undefined,
-            icon: (<svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><path fillRule="evenodd" d="M4 2a1 1 0 00-1 1v14a1 1 0 001 1h5v-3a1 1 0 112 0v3h5a1 1 0 001-1V3a1 1 0 00-1-1H4zm2 3h2v2H6V5zm0 4h2v2H6V9zm6-4h2v2h-2V5zm0 4h2v2h-2V9z" clipRule="evenodd" /></svg>),
-          },
-          {
-            href: '/admin/platform/leads',
-            label: 'Leads',
-            badge: undefined as string | undefined,
-            icon: (<svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 8a7 7 0 1114 0H3z" /></svg>),
-          },
-          {
-            href: '/admin/platform/transactions',
-            label: 'Transactions',
-            badge: unseenTxnCount > 0 ? String(unseenTxnCount) : undefined,
-            icon: (<svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h2a1 1 0 110 2H5a1 1 0 01-1-1z" clipRule="evenodd" /></svg>),
-          },
-          {
-            href: '/admin/platform/requests',
-            label: 'Access Requests',
-            badge: newRequestCount > 0 ? String(newRequestCount) : undefined,
-            icon: (<svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><path d="M1 11.27V15a2 2 0 002 2h14a2 2 0 002-2v-3.73A2 2 0 0018.5 10l-1.9-5.32A2 2 0 0014.72 3H5.28a2 2 0 00-1.88 1.68L1.5 10A2 2 0 001 11.27zM6 12a2 2 0 014 0h6v3H3v-3h3z" /></svg>),
-          },
+          { href: '/admin/platform',              label: 'Businesses',       icon: <Building2 {...ICON} /> },
+          { href: '/admin/platform/leads',        label: 'All leads',        icon: <UsersRound {...ICON} /> },
+          { href: '/admin/platform/transactions', label: 'Payments',         icon: <Receipt {...ICON} />,
+            badge: unseenTxnCount > 0 ? String(unseenTxnCount) : undefined },
+          { href: '/admin/platform/requests',     label: 'Sign-up requests', icon: <Inbox {...ICON} />,
+            badge: newRequestCount > 0 ? String(newRequestCount) : undefined },
         ],
       }]
     : navGroups;
@@ -521,7 +382,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     : workspace.initials;
 
   const pageTitle = pathname.startsWith('/admin/integrations/')
-    ? 'Integration Detail'
+    ? 'Connected apps'
     : PAGE_TITLES[pathname] ?? 'Admin';
 
   return (
@@ -581,7 +442,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {collapsed && <div className="mx-2 mb-1.5 hidden lg:block border-t border-white/[0.06]" />}
               <div className="space-y-0.5">
                 {group.items.map((item) => {
-                  const active     = pathname === item.href;
+                  // Home matches exactly; hubs highlight for any of their routes;
+                  // everything else highlights on itself + nested detail pages.
+                  const matchList = item.match ?? [item.href];
+                  const active = item.href === '/admin'
+                    ? pathname === '/admin'
+                    : matchList.some((m) => pathname === m || pathname.startsWith(m + '/'));
                   const reqModule  = routeRequiresModule(item.href);
                   const isFree     = FREE_ROUTES.includes(item.href);
                   const isLocked   = !isFree && reqModule !== null && !subscribedModules.has(reqModule);
@@ -721,14 +587,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </svg>
           </button>
 
-          {/* Page title with breadcrumb */}
-          <div className="min-w-0 flex items-center gap-2">
-            {PAGE_GROUPS[pathname] && pathname !== '/admin' && (
-              <>
-                <span className="text-[12px] text-white/30">{PAGE_GROUPS[pathname]}</span>
-                <span className="text-white/20">/</span>
-              </>
-            )}
+          {/* Page title */}
+          <div className="min-w-0">
             <h1 className="truncate text-[14px] font-semibold text-white">{pageTitle}</h1>
           </div>
 
@@ -755,15 +615,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               )}
             </button>
 
-            {/* Live indicator */}
-            <div className="hidden items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/[0.07] px-2.5 py-1 sm:flex">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400">Synced</span>
-            </div>
-
             {/* Workspace badge */}
             <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 sm:px-3">
               {orgLogo ? (
@@ -789,7 +640,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div className="flex items-center gap-2.5">
                   <span className="material-symbols-outlined text-[20px] text-[#ff7a7a]">lock_clock</span>
                   <p className="text-[13px] text-white/85">
-                    Your access has expired — crawling and lead generation are paused. Existing data is read-only. Subscribe to resume.
+                    Your plan has ended — finding new customers is paused. Your existing data is still here to view. Renew to start again.
                   </p>
                 </div>
                 <a href="/admin/subscription" className="rounded-lg bg-[#6D5EF9] px-3.5 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-[#5B4FE8]">
@@ -807,8 +658,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 const label = trial.daysLeft <= 0
                   ? 'Your free trial ends today'
                   : trial.daysLeft === 1
-                    ? 'Last working day of your free trial'
-                    : `${trial.daysLeft} working days left in your free trial`;
+                    ? 'Last day of your free trial'
+                    : `${trial.daysLeft} days left in your free trial`;
                 return (
                   <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3"
                        style={{ background: `rgba(${accent},0.09)`, borderColor: `rgba(${accent},0.35)` }}>
@@ -816,7 +667,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       <span className="material-symbols-outlined text-[20px]" style={{ color: `rgb(${accent})` }}>timer</span>
                       <p className="text-[13px] text-white/85">
                         <span className="font-semibold" style={{ color: `rgb(${accent})` }}>{label}.</span>{' '}
-                        Subscribe to keep crawling, lead generation and all features running.
+                        Subscribe to keep finding new customers and using every feature.
                       </p>
                     </div>
                     <a href="/admin/subscription" className="rounded-lg bg-[#6D5EF9] px-3.5 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-[#5B4FE8]">
@@ -826,6 +677,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 );
               })()
             )}
+
+            {/* Hub sub-tabs (Buyer activity / Messages) — keeps the folded-in
+                pages reachable with one obvious place to switch views. */}
+            {(() => {
+              const hub = HUB_TABS.find((h) => h.match.some((m) => pathname === m || pathname.startsWith(m + '/')));
+              if (!hub) return null;
+              return (
+                <div className="mb-5 flex flex-wrap gap-1.5 border-b pb-px" style={{ borderColor: 'var(--a-border)' }}>
+                  {hub.tabs.map((t) => {
+                    const on = pathname === t.href || pathname.startsWith(t.href + '/');
+                    return (
+                      <Link
+                        key={t.href}
+                        href={t.href}
+                        className="relative rounded-t-lg px-3.5 py-2 text-[13.5px] font-semibold transition-colors"
+                        style={on
+                          ? { color: 'var(--t-accent, #6D5EF9)' }
+                          : { color: 'var(--a-text-50)' }}
+                      >
+                        {t.label}
+                        {on && <span className="absolute inset-x-2 -bottom-px h-[2px] rounded-full" style={{ background: 'var(--t-accent, #6D5EF9)' }} />}
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            })()}
             {children}
           </div>
         </main>
@@ -858,8 +736,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onConfirm={() => idleCtl.current.stay()}
         onCancel={() => idleCtl.current.logoutNow()}
       />
-
-      {/* Command palette (⌘K) */}
       <CommandPalette />
     </div>
   );

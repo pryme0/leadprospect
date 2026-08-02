@@ -66,7 +66,7 @@ export default function ReferralsPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) { setError(body?.message || 'Redemption failed.'); return; }
-      setNotice('Reward applied — your extra leads are live. It may take a moment to reflect in the Lead Queue.');
+      setNotice('Reward applied — your extra leads are live. It may take a moment to show up under Leads.');
       window.dispatchEvent(new Event('synq:subscription-changed'));
       load();
     } catch {

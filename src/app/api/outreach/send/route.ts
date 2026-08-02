@@ -6,6 +6,7 @@ import { toUiLead } from '@/lib/crawler/map';
 import { recordOutreach } from '@/lib/outreach/store';
 import { sendOutbound, isUnipileMessagable, unipileConfigured } from '@/lib/outreach/unipile';
 import { mirrorOutreachToPulse } from '@/lib/outreach/pulse-bridge';
+import { dmDeepLink, isTrueDmLink } from '@/lib/outreach/dm-links';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,10 @@ export async function POST(req: NextRequest) {
   const lead = toUiLead(row);
   const platform = (lead.source || 'linkedin').toLowerCase();
   const handle = lead.username ?? null;
-  const url = lead.post_url || lead.profile_url || null;
+  // Reference = the exact comment/post that triggered this lead (deep link).
+  const referenceUrl = lead.url || lead.post_url || lead.profile_url || null;
+  // dmUrl = where to open a direct message with this person on their platform.
+  const dmUrl = dmDeepLink({ platform, username: handle, profileUrl: lead.profile_url });
 
   // Try a real DM for Unipile-messagable platforms with a resolvable handle.
   let assisted = true;
@@ -55,14 +59,17 @@ export async function POST(req: NextRequest) {
   // Record status + mirror into Pulse (both real and assisted sends).
   await recordOutreach(user.org, { leadId, platform, handle, status: 'sent', message: text, channel });
   mirrorOutreachToPulse(user.org, {
-    leadId, platform, handle, name: lead.first_name || null, url, text, postContent: lead.post_content,
+    leadId, platform, handle, name: lead.first_name || null, url: referenceUrl, text, postContent: lead.post_content,
   });
 
   return NextResponse.json({
     ok: true,
-    assisted,          // true → UI opens `url` + copies `text`
+    assisted,          // true → UI opens `dmUrl` + copies `text`
     channel,           // 'unipile' (real DM) | 'assisted'
-    url,
+    dmUrl,             // deep link to open the DM with this lead
+    isTrueDm: isTrueDmLink(platform), // dmUrl opens a message thread (vs a profile)
+    referenceUrl,      // the exact comment/post that triggered the lead
+    url: referenceUrl, // back-compat alias
     text,
     platform,
     detail,            // human-readable note on why assisted (if so)

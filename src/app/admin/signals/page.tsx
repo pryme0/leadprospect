@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { adminApi } from '@/lib/api';
 import { useWorkspaceTheme } from '@/lib/workspace-theme';
+import { MessageSquare } from 'lucide-react';
+import { ReplyDrawer, type ReplyLead } from '@/components/admin/ReplyDrawer';
 
 interface Signal {
   id: string;
@@ -19,6 +21,8 @@ interface Signal {
   summary: string;
   processed: boolean;
   created_at: string;
+  /** Direct link to the exact comment/post (reference for a reply). */
+  url?: string | null;
 }
 
 const INTENT_LEVELS = ['', 'HIGH_INTENT', 'MEDIUM_INTENT', 'LOW_INTENT'];
@@ -64,6 +68,7 @@ export default function SignalsPage() {
   };
 
   const [signals, setSignals] = useState<Signal[]>([]);
+  const [replyLead, setReplyLead] = useState<ReplyLead | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -198,11 +203,11 @@ export default function SignalsPage() {
                 className="inline-block h-1.5 w-1.5 rounded-full"
                 style={{ background: theme.accent }}
               />
-              04 · Signal intelligence
+              Buyer activity
             </p>
-            <h1 className="text-[26px] font-black leading-none tracking-tight text-white">Signal Feed</h1>
+            <h1 className="text-[26px] font-black leading-none tracking-tight text-white">Recent buyer activity</h1>
             <p className="mt-1.5 text-sm text-white/50">
-              Demand events ranked by intent, urgency, and contactability.
+              People showing interest in what you do — sorted so the most ready-to-buy show first.
             </p>
             <button
               onClick={handleExport}
@@ -421,6 +426,14 @@ export default function SignalsPage() {
                 theme={theme}
                 isLast={i === signals.length - 1}
                 onOpen={() => router.push(`/admin/signals/${signal.id}`)}
+                onReply={() => setReplyLead({
+                  id: signal.id,
+                  platform: signal.source,
+                  username: signal.username,
+                  name: signal.name,
+                  postContent: signal.content || signal.summary,
+                  referenceUrl: signal.url ?? null,
+                })}
               />
             ))
           )}
@@ -530,17 +543,19 @@ export default function SignalsPage() {
             }}
           >
             <p className="mb-3 text-[9px] font-bold uppercase tracking-[0.28em]" style={{ color: theme.accent, fontFamily: theme.fontMono }}>
-              Routing rule
+              A quick tip
             </p>
             <p className="text-[15px] font-black leading-snug tracking-tight text-white">
-              Urgency + contactability decides the route.
+              Reach out to your hottest leads first.
             </p>
             <p className="mt-2.5 text-[13px] leading-[1.65] text-white/55">
-              High intent without contact data → enrich first. Medium intent with pain points → nurture or outbound review.
+              Click Message on any lead to open a direct message with them — we’ll write the opener for you.
             </p>
           </section>
         </aside>
       </div>
+
+      {replyLead && <ReplyDrawer lead={replyLead} onClose={() => setReplyLead(null)} />}
     </div>
   );
 }
@@ -548,22 +563,27 @@ export default function SignalsPage() {
 // ── SignalRow ──────────────────────────────────────────────────────────────────
 
 function SignalRow({
-  signal, theme, isLast, onOpen,
+  signal, theme, isLast, onOpen, onReply,
 }: {
   signal: Signal;
   theme: ReturnType<typeof useWorkspaceTheme>;
   isLast: boolean;
   onOpen: () => void;
+  onReply: () => void;
 }) {
   const intent = getIntent(signal.intent_level);
   const score  = signal.urgency_score ?? null;
   const platformColor = theme.platform[signal.source] || theme.chart[3];
   const painPoints = (signal.pain_points || []).slice(0, 2);
+  const reply = (e: React.MouseEvent) => { e.stopPropagation(); onReply(); };
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onOpen}
-      className="group w-full text-left transition-colors hover:bg-white/[0.025]"
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+      className="group w-full cursor-pointer text-left transition-colors hover:bg-white/[0.025]"
       style={{
         borderBottom: isLast ? 'none' : '1px solid var(--a-border)',
         // Colored left stripe keyed to intent level
@@ -574,7 +594,14 @@ function SignalRow({
       <div className="flex flex-col gap-2 p-4 lg:hidden">
         <div className="flex items-center justify-between">
           <IntentPill intent={intent} theme={theme} />
-          <ScoreRing score={score} />
+          <div className="flex items-center gap-2">
+            <ScoreRing score={score} />
+            <button onClick={reply} title="Message this lead"
+              className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-white"
+              style={{ background: 'var(--t-accent, #6D5EF9)' }}>
+              <MessageSquare size={13} /> Message
+            </button>
+          </div>
         </div>
         <div>
           <div className="flex items-center gap-1.5">
@@ -640,12 +667,19 @@ function SignalRow({
           )}
         </div>
 
-        {/* Date */}
-        <p className="text-right text-[11px] tabular-nums text-white/30 transition-colors group-hover:text-white/50" style={{ fontFamily: theme.fontMono }}>
-          {new Date(signal.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-        </p>
+        {/* Date, with a Reply action revealed on hover */}
+        <div className="flex justify-end">
+          <p className="text-[11px] tabular-nums text-white/30 group-hover:hidden" style={{ fontFamily: theme.fontMono }}>
+            {new Date(signal.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </p>
+          <button onClick={reply} title="Message this lead"
+            className="hidden items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-white group-hover:inline-flex"
+            style={{ background: 'var(--t-accent, #6D5EF9)' }}>
+            <MessageSquare size={12} /> Reply
+          </button>
+        </div>
       </div>
-    </button>
+    </div>
   );
 }
 

@@ -109,6 +109,20 @@ export interface SignalRow {
   enriched_via: string | null;
   enriched_at: string | null;
   created_at: string;
+  // Hot Lead Score (buying-intent). Read from the durable enriched_raw.intent
+  // jsonb the crawler writes, so it doesn't depend on the new top-level column
+  // existing yet. Null for signals classified before the scoring engine shipped.
+  hot_lead_score: number | null;
+  intent: {
+    hot_lead_score?: number;
+    lead_tier?: string;
+    score_breakdown?: Record<string, number>;
+    detected_intent?: string;
+    reason?: string;
+    recommended_response_time?: string;
+    recommended_outreach?: string;
+    confidence?: number;
+  } | null;
 }
 
 export interface SignalQuery {
@@ -130,26 +144,50 @@ export interface SignalQuery {
   countryCodes?: string[];
   minScore?: number;
   maxScore?: number;
+  /** Filter by composite Hot Lead Score (buying-intent), read from enriched_raw.intent. */
+  minHotScore?: number;
   hasEmail?: boolean;
   processed?: boolean;
   since?: string;
   search?: string;
-  orderBy?: 'urgency_score' | 'classified_at' | 'created_at';
+  orderBy?: 'urgency_score' | 'classified_at' | 'created_at' | 'hot_lead_score';
   excludeNonProspects?: boolean;
   deduplicateByPerson?: boolean;
   limit?: number;
   offset?: number;
 }
 
-const ORDER_BY_WHITELIST = new Set(['urgency_score', 'classified_at', 'created_at']);
+// The Hot Lead Score is read from the durable enriched_raw.intent jsonb (not the
+// new top-level column) so reads never depend on the crawler's schema timing.
+const HOT_SCORE_EXPR = `(enriched_raw->'intent'->>'hot_lead_score')::int`;
+// hot_lead_score is a SELECT alias below, so ORDER BY can reference it by name in
+// both the direct and the deduped-subquery paths.
+const ORDER_BY_WHITELIST = new Set(['urgency_score', 'classified_at', 'created_at', 'hot_lead_score']);
 
+// Selected against the `signals` base table (enriched_raw available) — used for
+// direct reads and the INNER query of the dedupe path.
 const SELECT_COLUMNS = `
   id, source, sbu_id, kind, username, name, email, phone, location, country_code,
   content, url, post_url, profile_url,
   timestamp, content_hash, ingestion_category, processed,
   intent_level, intent_category, urgency_score, pain_points, summary, classified_at,
   enriched_name, enriched_email, enriched_phone, enriched_company,
-  enriched_title, enriched_linkedin_url, enriched_via, enriched_at, created_at
+  enriched_title, enriched_linkedin_url, enriched_via, enriched_at, created_at,
+  ${HOT_SCORE_EXPR} AS hot_lead_score,
+  enriched_raw->'intent' AS intent
+`;
+
+// Plain output-column names — used when selecting FROM the `deduped` subquery,
+// which exposes the aliases above (hot_lead_score, intent), NOT the base
+// enriched_raw column. Re-evaluating the jsonb expression here would fail.
+const OUTER_COLUMNS = `
+  id, source, sbu_id, kind, username, name, email, phone, location, country_code,
+  content, url, post_url, profile_url,
+  timestamp, content_hash, ingestion_category, processed,
+  intent_level, intent_category, urgency_score, pain_points, summary, classified_at,
+  enriched_name, enriched_email, enriched_phone, enriched_company,
+  enriched_title, enriched_linkedin_url, enriched_via, enriched_at, created_at,
+  hot_lead_score, intent
 `;
 
 function buildWhere(q: SignalQuery): { sql: string; params: unknown[] } {
@@ -171,6 +209,7 @@ function buildWhere(q: SignalQuery): { sql: string; params: unknown[] } {
   if (q.ingestionCategory) push('ingestion_category = ?', q.ingestionCategory);
   if (typeof q.minScore === 'number') push('urgency_score >= ?', q.minScore);
   if (typeof q.maxScore === 'number') push('urgency_score <= ?', q.maxScore);
+  if (typeof q.minHotScore === 'number') push(`${HOT_SCORE_EXPR} >= ?`, q.minHotScore);
   if (q.hasEmail === true) {
     clauses.push("(enriched_email IS NOT NULL AND enriched_email != '' AND enriched_email NOT LIKE '%@null%')");
   } else if (q.hasEmail === false) {
@@ -215,7 +254,7 @@ export async function listSignals(q: SignalQuery = {}): Promise<{ signals: Signa
     total = countRes.rows[0]?.n ?? 0;
 
     const dataRes = await pool.query(
-      `SELECT ${SELECT_COLUMNS} FROM (
+      `SELECT ${OUTER_COLUMNS} FROM (
          SELECT DISTINCT ON (username) ${SELECT_COLUMNS}
          FROM signals ${dedupeWhere}
          ORDER BY username, urgency_score DESC NULLS LAST, classified_at DESC NULLS LAST

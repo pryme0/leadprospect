@@ -73,13 +73,20 @@ export async function GET(req: Request) {
     // the signal's already-resolved country_code, not a platform-specific param.
     const geoCountries = user ? (await getOrgProfile(user.org))?.geo_countries : undefined;
 
+    // Precision filter (Settings → "ready to buy only" toggle): only surface
+    // leads at/above a composite Hot Lead Score. Falls back gracefully for
+    // pre-scoring rows (null score is simply excluded when a threshold is set).
+    const minHot = sp.get('min_hot_score');
+
     const { signals, total } = await listSignals({
       sbu,
       intentLevel: intent === 'HIGH_INTENT' || intent === 'MEDIUM_INTENT' || intent === 'LOW_INTENT' ? intent : undefined,
       hasEmail: withEmail ? true : undefined,
       since,
       countryCodes: geoCountries && geoCountries.length > 0 ? geoCountries : undefined,
-      orderBy: 'urgency_score',
+      minHotScore: minHot ? Number(minHot) : undefined,
+      // Hottest, most buy-ready leads first (falls back to null-last for old rows).
+      orderBy: 'hot_lead_score',
       excludeNonProspects: true,
       deduplicateByPerson: true,
       limit: dailyCapLimit,

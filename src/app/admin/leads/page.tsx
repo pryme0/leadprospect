@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { adminApi } from '@/lib/api';
 import { useWorkspaceTheme } from '@/lib/workspace-theme';
 import { getSubscription } from '@/lib/subscription-store';
+import { tierInfo, leadTier } from '@/lib/labels';
 import LeadDrawer from '@/components/admin/LeadDrawer';
 
 /** Platform accent colors — mirror the Pulse channel colors. */
@@ -41,11 +42,19 @@ interface Lead {
   username?: string | null;
   profile_url?: string | null;
   post_url?: string | null;
+  /** Direct link to the exact comment/post that triggered this lead. */
+  url?: string | null;
   post_content?: string | null;
   summary?: string | null;
   // Sales-pipeline stage (from lead_pipeline, merged in by /api/crawler/leads).
   pipeline_stage?: 'new' | 'contacted' | 'qualified' | 'won' | 'lost' | null;
   pipeline_follow_up_at?: string | null;
+  // Hot Lead Score (buying-intent) — from the scoring engine; null on older rows.
+  hot_lead_score?: number | null;
+  lead_tier?: string | null;
+  detected_intent?: string | null;
+  score_reason?: string | null;
+  recommended_response_time?: string | null;
 }
 
 const STAGE_TONE: Record<string, { tone: 'accent' | 'green' | 'gold' | 'blue' | 'red'; label: string }> = {
@@ -59,10 +68,10 @@ const STAGE_TONE: Record<string, { tone: 'accent' | 'green' | 'gold' | 'blue' | 
 function sourceLabel(s: string | null | undefined): { label: string; tone: 'gold' | 'blue' | 'green' } {
   switch (s) {
     case 'cr':
-    case 'crawler':  return { label: 'Agent Crawler', tone: 'gold' };
+    case 'crawler':  return { label: 'Found by SYNQ', tone: 'gold' };
     case 'so':
-    case 'social':   return { label: 'Social Media',  tone: 'blue' };
-    default:         return { label: 'Website',       tone: 'green' };
+    case 'social':   return { label: 'Social media',  tone: 'blue' };
+    default:         return { label: 'Your website',  tone: 'green' };
   }
 }
 
@@ -70,16 +79,16 @@ const LEAD_SOURCES   = ['google-ads', 'meta-ads', 'instagram-ads', 'linkedin-ads
 const INTENT_LEVELS  = ['', 'HIGH_INTENT', 'MEDIUM_INTENT', 'LOW_INTENT'];
 
 const INTENT_META: Record<string, { label: string; color: string; dimBg: string }> = {
-  HIGH_INTENT:   { label: 'High',   color: '#EB4203', dimBg: 'rgba(235,66,3,0.10)'   },
-  MEDIUM_INTENT: { label: 'Medium', color: '#FF9C5F', dimBg: 'rgba(255,156,95,0.10)' },
-  LOW_INTENT:    { label: 'Low',    color: '#00CEC8', dimBg: 'rgba(0,206,200,0.10)'  },
+  HIGH_INTENT:   { label: 'Hot',  color: '#EB4203', dimBg: 'rgba(235,66,3,0.10)'   },
+  MEDIUM_INTENT: { label: 'Warm', color: '#FF9C5F', dimBg: 'rgba(255,156,95,0.10)' },
+  LOW_INTENT:    { label: 'Cool', color: '#00CEC8', dimBg: 'rgba(0,206,200,0.10)'  },
 };
 
 const ACTION_META: Record<string, { label: string; color: string; bg: string }> = {
-  'Route now':       { label: 'Route now',       color: '#EB4203', bg: 'rgba(235,66,3,0.12)'    },
-  'Consent needed':  { label: 'Consent needed',  color: '#f87171', bg: 'rgba(239,68,68,0.12)'   },
-  'Sync pending':    { label: 'Sync pending',    color: '#FF9C5F', bg: 'rgba(255,156,95,0.12)'  },
-  'In workflow':     { label: 'In workflow',     color: '#34d399', bg: 'rgba(16,185,129,0.12)'  },
+  'Route now':       { label: 'Send to CRM',      color: '#EB4203', bg: 'rgba(235,66,3,0.12)'    },
+  'Consent needed':  { label: 'Needs permission', color: '#f87171', bg: 'rgba(239,68,68,0.12)'   },
+  'Sync pending':    { label: 'Not sent yet',     color: '#FF9C5F', bg: 'rgba(255,156,95,0.12)'  },
+  'In workflow':     { label: 'Sent to CRM',      color: '#34d399', bg: 'rgba(16,185,129,0.12)'  },
 };
 
 function getAction(lead: Lead): keyof typeof ACTION_META {
@@ -93,6 +102,25 @@ function toolLabel(tool: string) {
   return tool.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+/** Buying-intent badge: tier label + Hot Lead Score, from the scoring engine.
+ *  Falls back to the coarse intent level for leads classified before scoring. */
+function HotScoreBadge({ lead }: { lead: Lead }) {
+  const tier = leadTier({ tier: lead.lead_tier, hotScore: lead.hot_lead_score, intentLevel: lead.intent_level });
+  const { label, tone } = tierInfo(tier);
+  const color = tone === 'hot' ? '#EB4203' : tone === 'warm' ? '#FF9C5F' : tone === 'cool' ? '#00CEC8' : 'var(--t-fg-40)';
+  const score = typeof lead.hot_lead_score === 'number' ? lead.hot_lead_score : null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold"
+      style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }}
+      title={lead.score_reason || undefined}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
+      {label}{score !== null ? ` · ${score}` : ''}
+    </span>
+  );
+}
+
 export default function LeadsPage() {
   const theme = useWorkspaceTheme();
   const [leads,       setLeads]       = useState<Lead[]>([]);
@@ -103,26 +131,11 @@ export default function LeadsPage() {
   const [syncState,   setSyncState]   = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
   const [syncResult,  setSyncResult]  = useState<{ queued: number } | null>(null);
 
-  // Bulk selection state.
-  const [selected,    setSelected]    = useState<Set<string>>(new Set());
-  const [bulkAction,  setBulkAction]  = useState<'idle' | 'working'>('idle');
-
-  // Duplicate detection.
-  const [dupeCount,   setDupeCount]   = useState(0);
-
   // Outreach / Pulse state.
   const [hasPulse,    setHasPulse]    = useState(false);
   const [connected,   setConnected]   = useState<Set<string>>(new Set());
   const [outreach,    setOutreach]    = useState<Record<string, OutreachRec>>({});
   const [replyLead,   setReplyLead]   = useState<Lead | null>(null);
-
-  // Lead detail drawer.
-  const [drawerLead,  setDrawerLead]  = useState<Lead | null>(null);
-
-  // Tags state.
-  const [allTags,     setAllTags]     = useState<{ id: string; name: string; color: string }[]>([]);
-  const [leadTags,    setLeadTags]    = useState<Record<string, { id: string; name: string; color: string }[]>>({});
-  const [tagFilter,   setTagFilter]   = useState<string>('');
 
   // Pulse subscription (client) + connected social channels.
   useEffect(() => {
@@ -177,38 +190,6 @@ export default function LeadsPage() {
   }, [leads]);
   useEffect(() => { loadOutreach(); }, [loadOutreach]);
 
-  // Check for duplicates on mount.
-  useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
-    if (!token) return;
-    fetch('/api/leads/duplicates', { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((d) => setDupeCount(d.total ?? 0))
-      .catch(() => {});
-  }, []);
-
-  // Load tags.
-  const loadTags = useCallback(async () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
-    if (!token) return;
-    try {
-      const r = await fetch('/api/leads/tags', { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) setAllTags((await r.json()).tags ?? []);
-    } catch { /* ignore */ }
-  }, []);
-  useEffect(() => { loadTags(); }, [loadTags]);
-
-  // Load tags for current leads.
-  useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
-    if (!token || leads.length === 0) return;
-    const leadIds = leads.map((l) => l.id);
-    fetch(`/api/leads/tags/batch?leadIds=${encodeURIComponent(leadIds.join(','))}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((d) => setLeadTags(d.tags ?? {}))
-      .catch(() => {});
-  }, [leads]);
-
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
@@ -243,121 +224,11 @@ export default function LeadsPage() {
   const hasActiveFilters = !!(filters.source_tool || filters.intent_level);
 
   const stats = [
-    { label: 'Total leads',   value: leads.length,   color: theme.accent  },
-    { label: 'High intent',   value: highIntentCount, color: '#EB4203'    },
-    { label: 'CRM synced',    value: syncedCount,     color: '#10b981'    },
-    { label: 'Consent rate',  value: `${consentPct}%`, color: '#FF9C5F'  },
+    { label: 'All leads',       value: leads.length,     color: theme.accent  },
+    { label: 'Hot leads',       value: highIntentCount,  color: '#EB4203'    },
+    { label: 'Sent to CRM',     value: syncedCount,      color: '#10b981'    },
+    { label: 'Gave permission', value: `${consentPct}%`, color: '#FF9C5F'  },
   ];
-
-  // Clear selection when page or filters change.
-  useEffect(() => { setSelected(new Set()); }, [page, filters]);
-
-  // Visible leads (after client-side outreach + tag filter).
-  const visibleLeads = leads.filter((l) => {
-    if (filters.outreach && (outreach[l.id]?.status ?? 'not_contacted') !== filters.outreach) return false;
-    if (tagFilter && !(leadTags[l.id] ?? []).some((t) => t.id === tagFilter)) return false;
-    return true;
-  });
-
-  const allSelected = visibleLeads.length > 0 && visibleLeads.every((l) => selected.has(l.id));
-  const someSelected = selected.size > 0;
-
-  const toggleSelectAll = () => {
-    if (allSelected) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(visibleLeads.map((l) => l.id)));
-    }
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const bulkMoveToPipeline = async (stage: 'new' | 'contacted' | 'qualified') => {
-    const token = localStorage.getItem('synq_admin_token');
-    if (!token || selected.size === 0) return;
-    setBulkAction('working');
-    try {
-      const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-      await Promise.all(
-        Array.from(selected).map(async (leadId) => {
-          // First, ensure the lead is in the pipeline (POST adds to 'new')
-          await fetch('/api/pipeline', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ leadId }),
-          });
-          // Then, if target stage is not 'new', update it
-          if (stage !== 'new') {
-            await fetch(`/api/pipeline/${leadId}`, {
-              method: 'PATCH',
-              headers,
-              body: JSON.stringify({ stage }),
-            });
-          }
-        })
-      );
-      setSelected(new Set());
-      fetchLeads();
-    } finally {
-      setBulkAction('idle');
-    }
-  };
-
-  const bulkExport = () => {
-    const selectedLeads = leads.filter((l) => selected.has(l.id));
-    const csv = [
-      ['Name', 'Email', 'Phone', 'Source', 'Intent', 'Pipeline Stage', 'Created'].join(','),
-      ...selectedLeads.map((l) =>
-        [
-          l.first_name || '',
-          l.email || '',
-          l.phone_number || '',
-          l.source_tool || '',
-          l.intent_level || '',
-          l.pipeline_stage || '',
-          l.created_at?.slice(0, 10) || '',
-        ].map((v) => `"${v.replace(/"/g, '""')}"`).join(',')
-      ),
-    ].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `leads-export-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const bulkAssignTag = async (tagId: string) => {
-    const token = localStorage.getItem('synq_admin_token');
-    if (!token || selected.size === 0) return;
-    setBulkAction('working');
-    try {
-      const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-      await Promise.all(
-        Array.from(selected).map((leadId) =>
-          fetch('/api/leads/tags', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ action: 'assign', leadId, tagId }),
-          })
-        )
-      );
-      // Reload tags for leads
-      const leadIds = leads.map((l) => l.id);
-      const r = await fetch(`/api/leads/tags/batch?leadIds=${encodeURIComponent(leadIds.join(','))}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) setLeadTags((await r.json()).tags ?? {});
-    } finally {
-      setBulkAction('idle');
-    }
-  };
 
   // Which social platforms appear among these leads, and are any unconnected?
   const leadPlatforms = Array.from(new Set(leads.map((l) => (l.source || '').toLowerCase()).filter((p) => PLATFORM_META[p])));
@@ -383,10 +254,10 @@ export default function LeadsPage() {
               <span className="material-symbols-outlined">forum</span>
             </span>
             <div>
-              <p className="text-[15px] font-bold text-white">Reach these leads directly — add Pulse</p>
+              <p className="text-[15px] font-bold text-white">Message these leads directly</p>
               <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-white/60">
-                With <span className="font-semibold text-white/85">Pulse</span> you can message every lead here on the
-                platform they came from — Instagram, LinkedIn, X and more — with an AI-drafted opener, right from this page.
+                Add <span className="font-semibold text-white/85">Messages</span> and you can reply to every lead here on the
+                app they came from — Instagram, LinkedIn, X and more — with an AI-written opener, right from this page.
               </p>
             </div>
           </div>
@@ -395,7 +266,7 @@ export default function LeadsPage() {
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(109,94,249,0.4)] transition-all hover:brightness-110"
             style={{ background: 'linear-gradient(135deg, #6D5EF9, #5B4FE8)' }}
           >
-            Subscribe to Pulse
+            Get Messages
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
           </Link>
         </div>
@@ -412,7 +283,7 @@ export default function LeadsPage() {
               <p className="text-[15px] font-bold text-white">Connect your social accounts to reply</p>
               <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-white/60">
                 You have leads on <span className="font-semibold text-white/85">{unconnectedPlatforms.map((p) => PLATFORM_META[p].label).join(', ')}</span>.
-                Connect {unconnectedPlatforms.length > 1 ? 'these accounts' : 'this account'} in Pulse to message them directly.
+                Connect {unconnectedPlatforms.length > 1 ? 'these accounts' : 'this account'} under Messages to reply to them directly.
               </p>
             </div>
           </div>
@@ -443,13 +314,13 @@ export default function LeadsPage() {
               className="mb-2 text-[9px] font-bold uppercase tracking-[0.3em]"
               style={{ color: theme.accent, fontFamily: theme.fontMono }}
             >
-              Leads
+              Your leads
             </p>
             <h1 className="text-[26px] font-black leading-tight tracking-tight text-white">
-              Leads
+              People you can contact
             </h1>
             <p className="mt-1.5 text-sm leading-relaxed text-white/60">
-              Scored, attributed, and consent-checked. Route high-intent unsynced records first.
+              Everyone we’ve found who’s interested in what you do. Start with your hot leads.
             </p>
           </div>
 
@@ -487,9 +358,9 @@ export default function LeadsPage() {
           style={{ borderTop: '1px solid var(--a-border)' }}
         >
           <p className="text-xs text-white/60">
-            CRM status:{' '}
+            {' '}
             <span className="font-semibold text-white">
-              {unsyncedCount ? `${unsyncedCount} records need sync` : 'all visible records synced'}
+              {unsyncedCount ? `${unsyncedCount} leads not sent to your CRM yet` : 'All leads here are sent to your CRM'}
             </span>
           </p>
           <button
@@ -517,18 +388,18 @@ export default function LeadsPage() {
             {syncState === 'syncing' ? (
               <>
                 <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Syncing…
+                Sending…
               </>
             ) : syncState === 'done' ? (
-              <>✓ Queued {syncResult?.queued ?? 0}</>
+              <>✓ Sending {syncResult?.queued ?? 0}</>
             ) : syncState === 'error' ? (
-              <>Failed · retry</>
+              <>Didn’t work · try again</>
             ) : (
               <>
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
                   <path strokeLinecap="round" d="M4 4v5h.582m15.356 2A8 8 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8 8 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                Sync to CRM
+                Send to CRM
                 {unsyncedCount > 0 && (
                   <span
                     className="rounded px-1.5 py-0.5 text-[9px]"
@@ -543,29 +414,6 @@ export default function LeadsPage() {
         </div>
       </header>
 
-      {/* ── Duplicate warning ── */}
-      {dupeCount > 0 && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-xl px-4 py-3"
-          style={{ background: 'rgba(251,146,60,0.08)', border: '1px solid rgba(251,146,60,0.25)' }}
-        >
-          <div className="flex items-center gap-2.5">
-            <svg className="h-4 w-4 text-orange-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" d="M12 9v3m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4.99c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
-            </svg>
-            <span className="text-[13px] text-white/80">
-              <strong className="text-orange-400">{dupeCount} potential duplicates</strong> found — leads with matching emails or usernames across sources.
-            </span>
-          </div>
-          <Link
-            href="/admin/signals?duplicates=1"
-            className="shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-orange-400 transition-colors hover:bg-orange-400/10"
-          >
-            Review →
-          </Link>
-        </div>
-      )}
-
       {/* ── Filter bar ── */}
       <div
         className="flex flex-wrap items-center gap-2"
@@ -576,30 +424,6 @@ export default function LeadsPage() {
           padding: '10px 16px',
         }}
       >
-        {/* Quick filter presets */}
-        <div className="flex items-center gap-1.5 mr-2 pr-3 border-r border-white/10">
-          {[
-            { label: 'High Intent', filter: { source_tool: '', intent_level: 'HIGH_INTENT', outreach: '' } },
-            { label: 'Not Contacted', filter: { source_tool: '', intent_level: '', outreach: 'not_contacted' } },
-            { label: 'Replied', filter: { source_tool: '', intent_level: '', outreach: 'replied' } },
-          ].map(({ label, filter }) => {
-            const isActive = JSON.stringify(filters) === JSON.stringify(filter);
-            return (
-              <button
-                key={label}
-                onClick={() => { setFilters(filter); setPage(1); }}
-                className={`rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${
-                  isActive
-                    ? 'bg-[#6D5EF9] text-white'
-                    : 'bg-white/[0.04] text-white/50 hover:bg-white/[0.08] hover:text-white/70'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
         <span className="mr-1 text-[9px] font-bold uppercase tracking-[0.28em] text-white/30" style={{ fontFamily: theme.fontMono }}>
           Filter
         </span>
@@ -654,38 +478,9 @@ export default function LeadsPage() {
           );
         })}
 
-        {/* Tag filter */}
-        {allTags.length > 0 && (
-          <label
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all"
-            style={{
-              background: tagFilter ? 'var(--t-accent-soft)' : 'var(--t-fg-04)',
-              border: `1px solid ${tagFilter ? theme.accent + '50' : 'var(--a-border)'}`,
-            }}
-          >
-            <span
-              className="text-[9px] font-bold uppercase tracking-[0.28em]"
-              style={{ fontFamily: theme.fontMono, color: tagFilter ? theme.accent : 'var(--t-fg-40)' }}
-            >
-              Tag
-            </span>
-            <span style={{ color: 'var(--t-fg-15)', fontSize: 10, userSelect: 'none' }}>·</span>
-            <select
-              value={tagFilter}
-              onChange={(e) => { setTagFilter(e.target.value); setPage(1); }}
-              className="cursor-pointer bg-transparent text-[12px] font-medium capitalize text-white/80 focus:outline-none"
-            >
-              <option value="" className="bg-[#112126]">All</option>
-              {allTags.map((t) => (
-                <option key={t.id} value={t.id} className="bg-[#112126]">{t.name}</option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        {(hasActiveFilters || filters.outreach || tagFilter) && (
+        {(hasActiveFilters || filters.outreach) && (
           <button
-            onClick={() => { setFilters({ source_tool: '', intent_level: '', outreach: '' }); setTagFilter(''); setPage(1); }}
+            onClick={() => { setFilters({ source_tool: '', intent_level: '', outreach: '' }); setPage(1); }}
             className="ml-auto text-[11px] text-white/30 transition-colors hover:text-white/60"
             style={{ fontFamily: theme.fontMono }}
           >
@@ -693,84 +488,6 @@ export default function LeadsPage() {
           </button>
         )}
       </div>
-
-      {/* ── Bulk action bar ── */}
-      {someSelected && (
-        <div
-          className="flex flex-wrap items-center gap-3"
-          style={{
-            background: 'var(--t-accent-soft)',
-            border: `1px solid ${theme.accent}40`,
-            borderRadius: 'var(--t-radius-lg)',
-            padding: '10px 16px',
-          }}
-        >
-          <span className="text-[12px] font-semibold" style={{ color: theme.accent }}>
-            {selected.size} selected
-          </span>
-          <div className="h-4 w-px bg-white/10" />
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => bulkMoveToPipeline('new')}
-              disabled={bulkAction === 'working'}
-              className="rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-white/10 disabled:opacity-50"
-              style={{ color: theme.accent }}
-            >
-              → Pipeline (New)
-            </button>
-            <button
-              onClick={() => bulkMoveToPipeline('contacted')}
-              disabled={bulkAction === 'working'}
-              className="rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-white/10 disabled:opacity-50"
-              style={{ color: theme.accent }}
-            >
-              → Contacted
-            </button>
-            <button
-              onClick={() => bulkMoveToPipeline('qualified')}
-              disabled={bulkAction === 'working'}
-              className="rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-white/10 disabled:opacity-50"
-              style={{ color: theme.accent }}
-            >
-              → Qualified
-            </button>
-            <button
-              onClick={bulkExport}
-              className="rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-white/10"
-              style={{ color: theme.accent }}
-            >
-              Export Selected
-            </button>
-            <a
-              href="/api/leads/export"
-              className="rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-white/10"
-              style={{ color: theme.accent }}
-            >
-              Export All
-            </a>
-            {allTags.length > 0 && (
-              <select
-                value=""
-                onChange={(e) => { if (e.target.value) bulkAssignTag(e.target.value); }}
-                disabled={bulkAction === 'working'}
-                className="rounded-lg border px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
-                style={{ background: 'transparent', borderColor: theme.accent + '40', color: theme.accent }}
-              >
-                <option value="" className="bg-[#112126]">+ Add tag</option>
-                {allTags.map((t) => (
-                  <option key={t.id} value={t.id} className="bg-[#112126]">{t.name}</option>
-                ))}
-              </select>
-            )}
-          </div>
-          <button
-            onClick={() => setSelected(new Set())}
-            className="ml-auto text-[11px] text-white/40 transition-colors hover:text-white/70"
-          >
-            Clear selection
-          </button>
-        </div>
-      )}
 
       {/* ── Body ── */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr),300px]">
@@ -786,27 +503,19 @@ export default function LeadsPage() {
         >
           {/* Column headers */}
           <div
-            className="hidden lg:grid items-center px-5 py-2.5 text-[9px] font-bold uppercase tracking-[0.26em] text-white/30"
+            className="hidden lg:grid px-5 py-2.5 text-[9px] font-bold uppercase tracking-[0.26em] text-white/30"
             style={{
-              gridTemplateColumns: '32px 140px minmax(0,1fr) 120px 110px 130px',
+              gridTemplateColumns: '140px minmax(0,1fr) 120px 110px 130px',
               borderBottom: '1px solid var(--a-border)',
               background: 'var(--t-fg-03)',
               fontFamily: theme.fontMono,
             }}
           >
-            <label className="flex cursor-pointer items-center justify-center">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={toggleSelectAll}
-                className="h-3.5 w-3.5 cursor-pointer rounded border-white/20 bg-transparent accent-[#6D5EF9]"
-              />
-            </label>
             <span>Contact</span>
-            <span>Source</span>
-            <span>Window</span>
-            <span>Value</span>
-            <span>Action</span>
+            <span>Where from</span>
+            <span>When</span>
+            <span>Their goal</span>
+            <span>What to do</span>
           </div>
 
           {/* Rows */}
@@ -835,23 +544,22 @@ export default function LeadsPage() {
             </div>
           ) : (
             (() => {
-              if (visibleLeads.length === 0) {
+              const visible = filters.outreach
+                ? leads.filter((l) => (outreach[l.id]?.status ?? 'not_contacted') === filters.outreach)
+                : leads;
+              if (visible.length === 0) {
                 return <div className="px-5 py-16 text-center text-sm text-white/30">No leads match these filters</div>;
               }
-              return visibleLeads.map((lead, i) => (
+              return visible.map((lead, i) => (
                 <LeadRow
                   key={lead.id}
                   lead={lead}
                   theme={theme}
-                  isLast={i === visibleLeads.length - 1}
+                  isLast={i === visible.length - 1}
                   hasPulse={hasPulse}
                   connected={connected}
                   outreach={outreach[lead.id]}
                   onReply={openReply}
-                  isSelected={selected.has(lead.id)}
-                  onToggleSelect={() => toggleSelect(lead.id)}
-                  onOpenDrawer={() => setDrawerLead(lead)}
-                  tags={leadTags[lead.id] ?? []}
                 />
               ));
             })()
@@ -887,7 +595,7 @@ export default function LeadsPage() {
             }}
           >
             <p className="mb-4 text-[9px] font-bold uppercase tracking-[0.28em] text-white/30" style={{ fontFamily: theme.fontMono }}>
-              Source quality
+              Where leads come from
             </p>
             <div className="space-y-3.5">
               {(sourceBreakdown.length
@@ -923,7 +631,7 @@ export default function LeadsPage() {
             }}
           >
             <p className="mb-4 text-[9px] font-bold uppercase tracking-[0.28em] text-white/30" style={{ fontFamily: theme.fontMono }}>
-              Queue breakdown
+              What to do next
             </p>
             <div className="space-y-2.5">
               {Object.entries(ACTION_META).map(([key, meta]) => {
@@ -953,13 +661,13 @@ export default function LeadsPage() {
             }}
           >
             <p className="mb-3 text-[9px] font-bold uppercase tracking-[0.28em]" style={{ color: theme.accent, fontFamily: theme.fontMono }}>
-              Triage rule
+              A quick tip
             </p>
             <p className="text-[15px] font-black leading-snug tracking-tight text-white">
-              Work high-intent, consented, unsynced records first.
+              Reach out to your hot leads first.
             </p>
             <p className="mt-2.5 text-[13px] leading-relaxed text-white/60">
-              Low-intent records stay in nurture unless source quality improves.
+              They’re the most ready to buy. Warm and cool leads are worth a gentle follow-up over time.
             </p>
           </section>
         </aside>
@@ -975,13 +683,6 @@ export default function LeadsPage() {
           onSent={(status) => { onSent(replyLead.id, status, (replyLead.source || '').toLowerCase()); }}
         />
       )}
-
-      {/* ── Lead detail drawer ── */}
-      <LeadDrawer
-        lead={drawerLead}
-        onClose={() => setDrawerLead(null)}
-        token={() => localStorage.getItem('synq_admin_token') ?? ''}
-      />
     </div>
   );
 }
@@ -1039,10 +740,16 @@ function ReplyDrawer({
       const d = await r.json();
       if (!r.ok) { setNote(d.message || 'Send failed.'); setSending(false); return; }
       if (d.assisted) {
-        // Copy the draft + open the lead's post/profile so the user sends it there.
+        // Copy the draft, then open a direct message with this lead on their
+        // platform (falls back to their profile where there's no web DM link).
         try { await navigator.clipboard.writeText(text.trim()); } catch { /* ignore */ }
-        if (d.url) window.open(d.url, '_blank', 'noopener');
-        setNote(`Message copied — opened ${pMeta.label}. Paste and send it there.`);
+        const opened = d.dmUrl || d.url;
+        if (opened) window.open(opened, '_blank', 'noopener');
+        setNote(
+          d.isTrueDm
+            ? `Message copied — opened your chat with them on ${pMeta.label}. Just paste and send.`
+            : `Message copied — opened ${pMeta.label}. Tap Message, paste and send.`,
+        );
       } else {
         setNote(`Sent on ${pMeta.label}.`);
       }
@@ -1083,7 +790,16 @@ function ReplyDrawer({
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
           {lead.post_content && (
             <div className="rounded-xl p-3.5 text-[13px] leading-relaxed text-white/70" style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)' }}>
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">Their post</p>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">What they said</p>
+                {(lead.url || lead.post_url) && (
+                  <a href={lead.url || lead.post_url || undefined} target="_blank" rel="noopener noreferrer"
+                     className="inline-flex items-center gap-1 text-[11px] font-semibold hover:underline" style={{ color: pMeta.color }}>
+                    Open original
+                    <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                  </a>
+                )}
+              </div>
               {String(lead.post_content).slice(0, 400)}
             </div>
           )}
@@ -1094,7 +810,7 @@ function ReplyDrawer({
           )}
           {messagable && !isConnected && (
             <div className="rounded-lg px-3 py-2.5 text-[12px] leading-relaxed text-white/60" style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)' }}>
-              Connect your {pMeta.label} account in <Link href="/admin/comms" className="underline" style={{ color: pMeta.color }}>Pulse</Link> to send this as a real DM. Until then it’s an assisted send.
+              Connect your {pMeta.label} account under <Link href="/admin/comms" className="underline" style={{ color: pMeta.color }}>Messages</Link> to send this as a direct message. Until then, we’ll help you send it yourself.
             </div>
           )}
           <div>
@@ -1145,7 +861,7 @@ function ReplyDrawer({
 // ── LeadRow ───────────────────────────────────────────────────────────────────
 
 function LeadRow({
-  lead, theme, isLast, hasPulse, connected, outreach, onReply, isSelected, onToggleSelect, onOpenDrawer, tags,
+  lead, theme, isLast, hasPulse, connected, outreach, onReply,
 }: {
   lead: Lead;
   theme: ReturnType<typeof useWorkspaceTheme>;
@@ -1154,10 +870,6 @@ function LeadRow({
   connected: Set<string>;
   outreach?: OutreachRec;
   onReply: (lead: Lead) => void;
-  isSelected: boolean;
-  onToggleSelect: () => void;
-  onOpenDrawer: () => void;
-  tags: { id: string; name: string; color: string }[];
 }) {
   const intentMeta = INTENT_META[lead.intent_level] ?? { label: 'N/A', color: 'var(--t-fg-30)', dimBg: 'var(--t-fg-05)' };
   const action     = getAction(lead);
@@ -1182,17 +894,9 @@ function LeadRow({
       }}
     >
       {/* Mobile (stacked) */}
-      <div className={`flex flex-col gap-3 p-4 lg:hidden ${isSelected ? 'bg-[#6D5EF9]/[0.06]' : ''}`}>
+      <div className="flex flex-col gap-3 p-4 lg:hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <label className="flex cursor-pointer items-center justify-center mr-1">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={onToggleSelect}
-                className="h-4 w-4 cursor-pointer rounded border-white/20 bg-transparent accent-[#6D5EF9]"
-              />
-            </label>
             <Avatar initials={initials} theme={theme} />
             <div>
               <p className="text-[14px] font-semibold text-white">{lead.first_name || 'Unnamed'}</p>
@@ -1205,7 +909,7 @@ function LeadRow({
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <IntentPill meta={intentMeta} theme={theme} />
+          <HotScoreBadge lead={lead} />
           <ToneBadge tone={originTone} theme={theme}>{originLabel}</ToneBadge>
           <ToneBadge tone="accent" theme={theme}>{toolLabel(lead.source_tool)}</ToneBadge>
           {lead.pipeline_stage && (
@@ -1216,36 +920,29 @@ function LeadRow({
             </Link>
           )}
         </div>
+        {lead.recommended_response_time && (leadTier({ tier: lead.lead_tier, hotScore: lead.hot_lead_score, intentLevel: lead.intent_level }) === 'immediate' || leadTier({ tier: lead.lead_tier, hotScore: lead.hot_lead_score, intentLevel: lead.intent_level }) === 'hot') && (
+          <p className="text-[11px] font-semibold" style={{ color: '#EB4203' }}>Respond {lead.recommended_response_time.toLowerCase()}</p>
+        )}
         <div className="flex gap-4">
-          <MiniField label="Window" value={lead.timeline_to_start || 'Not set'} theme={theme} />
-          <MiniField label="Value"  value={lead.income_goal      || 'Unscored'} theme={theme} />
+          <MiniField label="When" value={lead.timeline_to_start || 'Not set'} theme={theme} />
+          <MiniField label="Their goal" value={lead.income_goal || 'Not set'} theme={theme} />
         </div>
         <div className="flex gap-2">
-          <StatusDot active={!!lead.ghl_contact_id} label={lead.ghl_contact_id ? 'CRM synced' : 'CRM pending'} activeColor="#34d399" theme={theme} />
-          <StatusDot active={lead.consented}         label={lead.consented ? 'Consent' : 'No consent'}      activeColor={theme.accent} theme={theme} />
+          <StatusDot active={!!lead.ghl_contact_id} label={lead.ghl_contact_id ? 'Sent to CRM' : 'Not sent'} activeColor="#34d399" theme={theme} />
+          <StatusDot active={lead.consented}         label={lead.consented ? 'Has permission' : 'No permission'} activeColor={theme.accent} theme={theme} />
         </div>
       </div>
 
       {/* Desktop (columns — matches header) */}
       <div
-        className={`hidden lg:grid items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02] ${isSelected ? 'bg-[#6D5EF9]/[0.06]' : ''}`}
-        style={{ gridTemplateColumns: '32px 140px minmax(0,1fr) 120px 110px 130px' }}
+        className="hidden lg:grid items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02]"
+        style={{ gridTemplateColumns: '140px minmax(0,1fr) 120px 110px 130px' }}
       >
-        {/* Checkbox */}
-        <label className="flex cursor-pointer items-center justify-center">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={onToggleSelect}
-            className="h-3.5 w-3.5 cursor-pointer rounded border-white/20 bg-transparent accent-[#6D5EF9]"
-          />
-        </label>
-
         {/* Contact */}
-        <div className="flex items-center gap-2.5 min-w-0 cursor-pointer" onClick={onOpenDrawer}>
+        <div className="flex items-center gap-2.5 min-w-0">
           <Avatar initials={initials} theme={theme} small />
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-semibold text-white leading-tight hover:underline">
+            <p className="truncate text-[13px] font-semibold text-white leading-tight">
               {lead.first_name || 'Unnamed'}
             </p>
             <p className="truncate text-[11px] text-white/40">{lead.email}</p>
@@ -1255,7 +952,7 @@ function LeadRow({
         {/* Source + badges */}
         <div className="min-w-0 flex flex-col gap-1.5">
           <div className="flex flex-wrap gap-1.5">
-            <IntentPill meta={intentMeta} theme={theme} />
+            <HotScoreBadge lead={lead} />
             <ToneBadge tone={originTone} theme={theme}>{originLabel}</ToneBadge>
             {lead.pipeline_stage && (
               <Link href="/admin/pipeline">
@@ -1267,27 +964,21 @@ function LeadRow({
           </div>
           <div className="flex flex-wrap gap-1.5">
             <ToneBadge tone="accent" theme={theme}>{toolLabel(lead.source_tool)}</ToneBadge>
-            <StatusDot active={!!lead.ghl_contact_id} label={lead.ghl_contact_id ? 'CRM' : 'No CRM'} activeColor="#34d399" theme={theme} />
-            <StatusDot active={lead.consented}         label={lead.consented ? 'Consent' : 'No consent'} activeColor={theme.accent} theme={theme} />
-            {tags.slice(0, 2).map((tag) => (
-              <span key={tag.id} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: tag.color + '20', color: tag.color }}>
-                {tag.name}
-              </span>
-            ))}
-            {tags.length > 2 && <span className="text-[10px] text-white/40">+{tags.length - 2}</span>}
+            <StatusDot active={!!lead.ghl_contact_id} label={lead.ghl_contact_id ? 'Sent' : 'Not sent'} activeColor="#34d399" theme={theme} />
+            <StatusDot active={lead.consented}         label={lead.consented ? 'Has permission' : 'No permission'} activeColor={theme.accent} theme={theme} />
           </div>
         </div>
 
-        {/* Buying window */}
+        {/* When they want to start */}
         <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-0.5" style={{ fontFamily: theme.fontMono }}>Window</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-0.5" style={{ fontFamily: theme.fontMono }}>When</p>
           <p className="text-sm font-medium text-white truncate">{lead.timeline_to_start || <span className="text-white/30 italic">Not set</span>}</p>
         </div>
 
-        {/* Pipeline value */}
+        {/* Their goal */}
         <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-0.5" style={{ fontFamily: theme.fontMono }}>Value</p>
-          <p className="text-sm font-medium text-white truncate">{lead.income_goal || <span className="text-white/30 italic">Unscored</span>}</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-0.5" style={{ fontFamily: theme.fontMono }}>Their goal</p>
+          <p className="text-sm font-medium text-white truncate">{lead.income_goal || <span className="text-white/30 italic">Not set</span>}</p>
         </div>
 
         {/* Action */}

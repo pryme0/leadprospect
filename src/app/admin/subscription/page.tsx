@@ -26,10 +26,10 @@ const NGN_RATE = Number(process.env.NEXT_PUBLIC_NGN_RATE) || 1372;
 
 const ALL_MODULES: ModuleId[] = ['leads', 'comms', 'email', 'routing'];
 const MODULE_LABEL: Record<ModuleId, string> = {
-  leads: 'Lead Intelligence',
-  comms: 'Pulse',
-  email: 'Email Desk',
-  routing: 'Routing Desk',
+  leads: 'Finding leads',
+  comms: 'Messages',
+  email: 'Emails',
+  routing: 'Suggested replies',
 };
 
 type Currency = 'USD' | 'NGN';
