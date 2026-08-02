@@ -98,6 +98,7 @@ function Kpi({ label, value, icon, accent, sub, subColor }: { label: string; val
 export default function PipelinePage() {
   const [items, setItems] = useState<PipelineItem[]>([]);
   const [stats, setStats] = useState<Stats>(emptyStats);
+  const [activity, setActivity] = useState<{ id: string; lead_id: string; lead_name: string; action: string; from_stage: string | null; to_stage: string | null; created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [wonModal, setWonModal] = useState<PipelineItem | null>(null);
@@ -111,12 +112,15 @@ export default function PipelinePage() {
 
   const load = useCallback(() => {
     setLoading(true);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
     Promise.all([
       pipelineApi.list({ q: search || undefined }).then((r) => r.data),
       pipelineApi.stats().then((r) => r.data),
-    ]).then(([listRes, statsRes]) => {
+      token ? fetch('/api/pipeline/activity', { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()) : Promise.resolve({ activity: [] }),
+    ]).then(([listRes, statsRes, activityRes]) => {
       setItems(listRes?.items ?? []);
       setStats(statsRes ?? emptyStats);
+      setActivity(activityRes?.activity ?? []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [search]);
 
@@ -188,15 +192,25 @@ export default function PipelinePage() {
           <h1 className="mt-1 text-2xl font-semibold" style={{ color: 'var(--a-text)' }}>Pipeline</h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--a-text-50)' }}>Every lead, tracked from new to closed.</p>
         </div>
-        <div className="relative">
-          <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px]" style={{ color: 'var(--a-text-40)' }}>search</span>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search leads…"
-            className="w-64 rounded-xl border py-2 pl-9 pr-3.5 text-sm outline-none"
-            style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
-          />
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px]" style={{ color: 'var(--a-text-40)' }}>search</span>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search leads…"
+              className="w-64 rounded-xl border py-2 pl-9 pr-3.5 text-sm outline-none"
+              style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
+            />
+          </div>
+          <a
+            href="/api/pipeline/export"
+            className="flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-medium transition-colors hover:opacity-80"
+            style={{ background: 'var(--a-card)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
+          >
+            <span className="material-symbols-outlined text-[16px]">download</span>
+            Export
+          </a>
         </div>
       </div>
 
@@ -288,6 +302,35 @@ export default function PipelinePage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Activity feed */}
+      {activity.length > 0 && (
+        <div className="mt-5 rounded-2xl border" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)' }}>
+          <div className="border-b px-4 py-3" style={{ borderColor: 'var(--a-border)' }}>
+            <h3 className="text-[13px] font-semibold" style={{ color: 'var(--a-text)' }}>Recent activity</h3>
+          </div>
+          <div className="divide-y" style={{ borderColor: 'var(--a-border)' }}>
+            {activity.slice(0, 10).map((a) => (
+              <div key={a.id} className="flex items-center gap-3 px-4 py-2.5">
+                <span
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px]"
+                  style={{ background: a.to_stage ? (STAGE_META[a.to_stage as Stage]?.color ?? VIOLET) + '20' : `${VIOLET}20`, color: a.to_stage ? (STAGE_META[a.to_stage as Stage]?.color ?? VIOLET) : VIOLET }}
+                >
+                  →
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12px]" style={{ color: 'var(--a-text)' }}>
+                    <strong>{a.lead_name}</strong> moved to <strong>{STAGE_META[a.to_stage as Stage]?.label ?? a.to_stage}</strong>
+                  </p>
+                  <p className="text-[10px]" style={{ color: 'var(--a-text-40)' }}>
+                    {new Date(a.created_at).toLocaleDateString()} · {new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

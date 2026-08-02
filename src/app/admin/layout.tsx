@@ -9,6 +9,7 @@ import { getSubscription, routeRequiresModule, FREE_ROUTES, type ModuleId } from
 import { workingDaysRemaining } from '@/lib/subscription/trial';
 import NotificationBell from '@/components/admin/NotificationBell';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import CommandPalette from '@/components/admin/CommandPalette';
 
 /* Inactivity auto-logout: sign the user out after this much idle time, showing a
    countdown warning modal for the final WARNING window so they can stay. */
@@ -19,7 +20,7 @@ const IDLE_WARNING_MS = 30 * 1000;     // warn (with countdown) for the last 30s
 
 const navGroups = [
   {
-    title: 'Workbench',
+    title: 'Funnel',
     items: [
       {
         href: '/admin',
@@ -31,41 +32,6 @@ const navGroups = [
           </svg>
         ),
       },
-      {
-        href: '/admin/pipeline',
-        label: 'Pipeline',
-        badge: 'Live',
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M3 3.5A1.5 1.5 0 014.5 2h2A1.5 1.5 0 018 3.5v11A1.5 1.5 0 016.5 16h-2A1.5 1.5 0 013 14.5v-11zM9 5.5A1.5 1.5 0 0110.5 4h2A1.5 1.5 0 0114 5.5v9a1.5 1.5 0 01-1.5 1.5h-2A1.5 1.5 0 019 14.5v-9zM15 8a1.5 1.5 0 011.5-1.5h1A1.5 1.5 0 0119 8v6.5A1.5 1.5 0 0117.5 16h-1A1.5 1.5 0 0115 14.5V8z" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/explore',
-        label: 'Explorer',
-        badge: undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
-          </svg>
-        ),
-      },
-      {
-        href: '/admin/signal-ops',
-        label: 'Signal Ops',
-        badge: undefined as string | undefined,
-        icon: (
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.591L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
-          </svg>
-        ),
-      },
-    ],
-  },
-  {
-    title: 'Intelligence',
-    items: [
       {
         href: '/admin/signals',
         label: 'Signals',
@@ -79,7 +45,7 @@ const navGroups = [
       },
       {
         href: '/admin/leads',
-        label: 'Lead Queue',
+        label: 'Leads',
         badge: undefined,
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
@@ -88,9 +54,35 @@ const navGroups = [
         ),
       },
       {
+        href: '/admin/pipeline',
+        label: 'Pipeline',
+        badge: 'Live',
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path d="M3 3.5A1.5 1.5 0 014.5 2h2A1.5 1.5 0 018 3.5v11A1.5 1.5 0 016.5 16h-2A1.5 1.5 0 013 14.5v-11zM9 5.5A1.5 1.5 0 0110.5 4h2A1.5 1.5 0 0114 5.5v9a1.5 1.5 0 01-1.5 1.5h-2A1.5 1.5 0 019 14.5v-9zM15 8a1.5 1.5 0 011.5-1.5h1A1.5 1.5 0 0119 8v6.5A1.5 1.5 0 0117.5 16h-1A1.5 1.5 0 0115 14.5V8z" />
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
+    title: 'Engage',
+    items: [
+      {
+        href: '/admin/comms',
+        label: 'Conversations',
+        badge: undefined as string | undefined,
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path d="M3.505 2.365A41.369 41.369 0 019 2c1.863 0 3.697.124 5.495.365 1.247.167 2.18 1.108 2.435 2.268a4.45 4.45 0 00-.577-.069 43.141 43.141 0 00-4.706 0C9.229 4.696 7.5 6.727 7.5 9.052V10.5c0 .848.223 1.664.626 2.372A41.369 41.369 0 019 13a41.369 41.369 0 01-5.495-.365c-1.247-.167-2.18-1.108-2.435-2.268A4.45 4.45 0 001.647 11H1.5A1.5 1.5 0 010 9.5V8.5A1.5 1.5 0 011.5 7h.147c.255-1.16 1.188-2.1 2.435-2.268A41.553 41.553 0 019 4.5c1.863 0 3.697.124 5.495.365" />
+            <path d="M7.5 9.052c0-2.006 1.608-3.657 3.684-3.79A43.141 43.141 0 0115.5 5c.223 0 .445.005.666.015C18.006 5.157 19.5 6.927 19.5 9.052V10.5A1.5 1.5 0 0118 12h-.147c-.268 1.16-1.2 2.1-2.435 2.268A41.369 41.369 0 0111 14.5c-1.863 0-3.697-.124-5.495-.365A43.14 43.14 0 015.5 14H5a.5.5 0 00-.354.146l-1.5 1.5A.5.5 0 012.5 16v-1.667c-.82-.186-1.5-.852-1.5-1.833V11a1.5 1.5 0 011.5-1.5h.147" />
+          </svg>
+        ),
+      },
+      {
         href: '/admin/outreach',
-        label: 'Routing Desk',
-        badge: 'New',
+        label: 'Outreach',
+        badge: undefined,
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
             <path d="M13 4.5a2.5 2.5 0 11.702 1.737L6.97 9.604a2.518 2.518 0 010 .792l6.733 3.367a2.5 2.5 0 11-.671 1.341l-6.733-3.367a2.5 2.5 0 110-3.475l6.733-3.366A2.52 2.52 0 0113 4.5z" />
@@ -99,7 +91,7 @@ const navGroups = [
       },
       {
         href: '/admin/email',
-        label: 'Email Desk',
+        label: 'Email',
         badge: undefined,
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
@@ -108,14 +100,28 @@ const navGroups = [
           </svg>
         ),
       },
+    ],
+  },
+  {
+    title: 'Operations',
+    items: [
       {
-        href: '/admin/comms',
-        label: 'Pulse',
-        badge: 'New' as string | undefined,
+        href: '/admin/signal-ops',
+        label: 'Signal Sources',
+        badge: undefined as string | undefined,
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M3.505 2.365A41.369 41.369 0 019 2c1.863 0 3.697.124 5.495.365 1.247.167 2.18 1.108 2.435 2.268a4.45 4.45 0 00-.577-.069 43.141 43.141 0 00-4.706 0C9.229 4.696 7.5 6.727 7.5 9.052V10.5c0 .848.223 1.664.626 2.372A41.369 41.369 0 019 13a41.369 41.369 0 01-5.495-.365c-1.247-.167-2.18-1.108-2.435-2.268A4.45 4.45 0 001.647 11H1.5A1.5 1.5 0 010 9.5V8.5A1.5 1.5 0 011.5 7h.147c.255-1.16 1.188-2.1 2.435-2.268A41.553 41.553 0 019 4.5c1.863 0 3.697.124 5.495.365" />
-            <path d="M7.5 9.052c0-2.006 1.608-3.657 3.684-3.79A43.141 43.141 0 0115.5 5c.223 0 .445.005.666.015C18.006 5.157 19.5 6.927 19.5 9.052V10.5A1.5 1.5 0 0118 12h-.147c-.268 1.16-1.2 2.1-2.435 2.268A41.369 41.369 0 0111 14.5c-1.863 0-3.697-.124-5.495-.365A43.14 43.14 0 015.5 14H5a.5.5 0 00-.354.146l-1.5 1.5A.5.5 0 012.5 16v-1.667c-.82-.186-1.5-.852-1.5-1.833V11a1.5 1.5 0 011.5-1.5h.147" />
+            <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.591L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
+        href: '/admin/explore',
+        label: 'Signal Explorer',
+        badge: undefined,
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
           </svg>
         ),
       },
@@ -182,19 +188,36 @@ const navGroups = [
 
 const PAGE_TITLES: Record<string, string> = {
   '/admin':             'Dashboard',
-  '/admin/pipeline':    'Pipeline',
-  '/admin/explore':     'Explorer',
-  '/admin/signal-ops':  'Signal Ops',
   '/admin/signals':     'Signals',
-  '/admin/leads':       'Lead Queue',
-  '/admin/outreach':    'Routing Desk',
-  '/admin/email':       'Email Desk',
-  '/admin/comms':       'Pulse',
+  '/admin/leads':       'Leads',
+  '/admin/pipeline':    'Pipeline',
+  '/admin/comms':       'Conversations',
+  '/admin/outreach':    'Outreach',
+  '/admin/email':       'Email',
+  '/admin/signal-ops':  'Signal Sources',
+  '/admin/explore':     'Signal Explorer',
   '/admin/users':       'Team',
   '/admin/integrations':'Integrations',
   '/admin/settings':    'Settings',
   '/admin/subscription':'Subscription',
   '/admin/referrals':   'Referrals',
+};
+
+const PAGE_GROUPS: Record<string, string> = {
+  '/admin':             'Funnel',
+  '/admin/signals':     'Funnel',
+  '/admin/leads':       'Funnel',
+  '/admin/pipeline':    'Funnel',
+  '/admin/comms':       'Engage',
+  '/admin/outreach':    'Engage',
+  '/admin/email':       'Engage',
+  '/admin/signal-ops':  'Operations',
+  '/admin/explore':     'Operations',
+  '/admin/users':       'Organization',
+  '/admin/integrations':'Organization',
+  '/admin/settings':    'Organization',
+  '/admin/subscription':'Organization',
+  '/admin/referrals':   'Organization',
 };
 
 interface AuthUser {
@@ -698,8 +721,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </svg>
           </button>
 
-          {/* Page title */}
-          <div className="min-w-0">
+          {/* Page title with breadcrumb */}
+          <div className="min-w-0 flex items-center gap-2">
+            {PAGE_GROUPS[pathname] && pathname !== '/admin' && (
+              <>
+                <span className="text-[12px] text-white/30">{PAGE_GROUPS[pathname]}</span>
+                <span className="text-white/20">/</span>
+              </>
+            )}
             <h1 className="truncate text-[14px] font-semibold text-white">{pageTitle}</h1>
           </div>
 
@@ -829,6 +858,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onConfirm={() => idleCtl.current.stay()}
         onCancel={() => idleCtl.current.logoutNow()}
       />
+
+      {/* Command palette (⌘K) */}
+      <CommandPalette />
     </div>
   );
 }

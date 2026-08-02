@@ -5,13 +5,22 @@ import { useRouter } from 'next/navigation';
 
 interface NotificationItem {
   id: string;
-  type: 'mention' | 'message';
+  type: 'mention' | 'message' | 'followup';
   title: string;
   body: string;
   platform: string;
   ts: number;
   time: string;
   href: string;
+}
+
+interface FollowUpReminder {
+  id: string;
+  lead_id: string;
+  name: string;
+  stage: string;
+  follow_up_at: string;
+  days_overdue: number;
 }
 
 const SEEN_KEY = 'synq_comms_notif_seen';
@@ -33,17 +42,44 @@ export default function NotificationBell() {
   // Hydrate the watermark on mount (localStorage is client-only).
   useEffect(() => { setLastSeen(getLastSeen()); }, []);
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
-    fetch('/api/comms/notifications', {
-      cache: 'no-store',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((r) => r.json())
-      .then((data: { notifications?: NotificationItem[] }) => {
-        if (Array.isArray(data.notifications)) setItems(data.notifications);
-      })
-      .catch(() => {});
+    if (!token) return;
+
+    const headers = { Authorization: `Bearer ${token}` };
+
+    try {
+      const [commsRes, remindersRes] = await Promise.all([
+        fetch('/api/comms/notifications', { cache: 'no-store', headers }),
+        fetch('/api/pipeline/reminders', { cache: 'no-store', headers }),
+      ]);
+
+      const commsData = await commsRes.json().catch(() => ({}));
+      const remindersData = await remindersRes.json().catch(() => ({}));
+
+      const commsItems: NotificationItem[] = Array.isArray(commsData.notifications)
+        ? commsData.notifications
+        : [];
+
+      const followUpItems: NotificationItem[] = Array.isArray(remindersData.reminders)
+        ? (remindersData.reminders as FollowUpReminder[]).map((r) => ({
+            id: `followup-${r.id}`,
+            type: 'followup' as const,
+            title: r.name,
+            body: r.days_overdue === 0
+              ? 'Follow-up due today'
+              : `Follow-up ${r.days_overdue}d overdue`,
+            platform: 'pipeline',
+            ts: new Date(r.follow_up_at).getTime(),
+            time: new Date(r.follow_up_at).toLocaleDateString(),
+            href: '/admin/pipeline',
+          }))
+        : [];
+
+      setItems([...followUpItems, ...commsItems]);
+    } catch {
+      // ignore
+    }
   }, []);
 
   useEffect(() => {
@@ -161,11 +197,17 @@ export default function NotificationBell() {
                         <span
                           className="rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wide"
                           style={{
-                            background: n.type === 'mention' ? 'rgba(109,94,249,0.15)' : 'rgba(33,242,166,0.14)',
-                            color: n.type === 'mention' ? '#8B7EF9' : '#21F2A6',
+                            background:
+                              n.type === 'followup' ? 'rgba(251,146,60,0.15)'
+                              : n.type === 'mention' ? 'rgba(109,94,249,0.15)'
+                              : 'rgba(33,242,166,0.14)',
+                            color:
+                              n.type === 'followup' ? '#fb923c'
+                              : n.type === 'mention' ? '#8B7EF9'
+                              : '#21F2A6',
                           }}
                         >
-                          {n.type}
+                          {n.type === 'followup' ? 'follow-up' : n.type}
                         </span>
                         <span className="truncate text-[12px] font-semibold text-white">{n.title}</span>
                       </span>

@@ -56,6 +56,22 @@ function ensureReady(): Promise<void> {
     await p.query(`CREATE INDEX IF NOT EXISTS ix_lead_pipeline_org_stage ON lead_pipeline(org_id, stage)`);
     await p.query(`CREATE INDEX IF NOT EXISTS ix_lead_pipeline_lead ON lead_pipeline(lead_id)`);
     await p.query(`CREATE INDEX IF NOT EXISTS ix_lead_pipeline_followup ON lead_pipeline(org_id, follow_up_at) WHERE follow_up_at IS NOT NULL`);
+    // Activity log for pipeline changes
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS pipeline_activity (
+        id         TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        org_id     TEXT NOT NULL,
+        lead_id    TEXT NOT NULL,
+        action     TEXT NOT NULL,
+        from_stage TEXT,
+        to_stage   TEXT,
+        user_id    TEXT,
+        note       TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `);
+    await p.query(`CREATE INDEX IF NOT EXISTS ix_pipeline_activity_org_lead ON pipeline_activity(org_id, lead_id)`);
+    await p.query(`CREATE INDEX IF NOT EXISTS ix_pipeline_activity_created ON pipeline_activity(org_id, created_at DESC)`);
   })().catch((err) => { ready = null; throw err; });
   return ready;
 }
@@ -160,9 +176,12 @@ export async function updatePipelineRow(orgId: string, leadId: string, input: Pi
   const params: unknown[] = [];
   const push = (col: string, value: unknown) => { params.push(value); sets.push(`${col} = $${params.length}`); };
 
+  let stageChanged = false;
+  let fromStage = existing.stage;
   if (input.stage && input.stage !== existing.stage) {
     push('stage', input.stage);
     sets.push('stage_changed_at = now()');
+    stageChanged = true;
   }
   if (input.value !== undefined) push('value', input.value);
   if (input.owner_user_id !== undefined) push('owner_user_id', input.owner_user_id);
@@ -175,6 +194,12 @@ export async function updatePipelineRow(orgId: string, leadId: string, input: Pi
     `UPDATE lead_pipeline SET ${sets.join(', ')} WHERE org_id = $${params.length - 1} AND lead_id = $${params.length}`,
     params,
   );
+
+  // Log activity for stage changes
+  if (stageChanged && input.stage) {
+    await logActivity(orgId, leadId, 'stage_change', fromStage, input.stage);
+  }
+
   return getPipelineRow(orgId, leadId);
 }
 
@@ -246,4 +271,53 @@ export async function getPipelineStats(orgId: string): Promise<PipelineStats> {
     avgCycleDays: Math.round((cycle.rows[0]?.avg_days ?? 0) * 10) / 10,
     overdueFollowups: a.overdue_followups ?? 0,
   };
+}
+
+/* ── Activity log ─────────────────────────────────────────────────────────────── */
+
+export interface ActivityRow {
+  id: string;
+  org_id: string;
+  lead_id: string;
+  action: string;
+  from_stage: string | null;
+  to_stage: string | null;
+  user_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export async function logActivity(
+  orgId: string,
+  leadId: string,
+  action: string,
+  fromStage?: string | null,
+  toStage?: string | null,
+  userId?: string | null,
+  note?: string | null,
+): Promise<void> {
+  await ensureReady();
+  await appPool().query(
+    `INSERT INTO pipeline_activity (org_id, lead_id, action, from_stage, to_stage, user_id, note)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [orgId, leadId, action, fromStage ?? null, toStage ?? null, userId ?? null, note ?? null],
+  );
+}
+
+export async function getActivityForLead(orgId: string, leadId: string, limit = 20): Promise<ActivityRow[]> {
+  await ensureReady();
+  const { rows } = await appPool().query(
+    `SELECT * FROM pipeline_activity WHERE org_id = $1 AND lead_id = $2 ORDER BY created_at DESC LIMIT $3`,
+    [orgId, leadId, limit],
+  );
+  return rows as ActivityRow[];
+}
+
+export async function getRecentActivity(orgId: string, limit = 50): Promise<ActivityRow[]> {
+  await ensureReady();
+  const { rows } = await appPool().query(
+    `SELECT * FROM pipeline_activity WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2`,
+    [orgId, limit],
+  );
+  return rows as ActivityRow[];
 }
