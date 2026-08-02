@@ -97,13 +97,13 @@ export default function ExplorePage() {
             className="mb-2 text-[9px] font-bold uppercase tracking-[0.3em]"
             style={{ color: theme.accent, fontFamily: theme.fontMono }}
           >
-            Buyer activity
+            Signal Explorer
           </p>
           <h1 className="text-[26px] font-black leading-tight tracking-tight" style={{ color: 'var(--t-fg-95)' }}>
-            Browse by type
+            Signal Explorer
           </h1>
           <p className="mt-1.5 max-w-xl text-sm leading-relaxed" style={{ color: 'var(--t-fg-60)' }}>
-            Explore buyer activity grouped by how interested people are and where they came from.
+            Drill into signal health, intent quality, source buckets, and routing readiness without leaving the admin workflow.
           </p>
         </div>
         <div className="grid grid-cols-3 gap-2">
