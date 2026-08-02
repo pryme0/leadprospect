@@ -332,6 +332,55 @@ export default function LeadsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportAllLeads = () => {
+    const csv = [
+      ['Name', 'Email', 'Phone', 'Source', 'Intent', 'Pipeline Stage', 'Created'].join(','),
+      ...leads.map((l) =>
+        [
+          l.first_name || '',
+          l.email || '',
+          l.phone_number || '',
+          l.source_tool || '',
+          l.intent_level || '',
+          l.pipeline_stage || '',
+          l.created_at?.slice(0, 10) || '',
+        ].map((v) => `"${v.replace(/"/g, '""')}"`).join(',')
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads-all-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const token = localStorage.getItem('synq_admin_token');
+    if (!token) return;
+    const text = await file.text();
+    try {
+      const res = await fetch('/api/leads/import', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv: text }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Imported ${data.imported ?? 0} leads, skipped ${data.skipped ?? 0} duplicates`);
+        fetchLeads();
+      } else {
+        alert(data.error || 'Import failed');
+      }
+    } catch {
+      alert('Import failed');
+    }
+    e.target.value = '';
+  };
+
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
@@ -553,6 +602,26 @@ export default function LeadsPage() {
               </>
             )}
           </button>
+          <button
+            onClick={exportAllLeads}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition hover:bg-white/10"
+            style={{ background: 'var(--t-fg-06)', color: 'var(--t-fg-70)' }}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+              <path strokeLinecap="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" />
+            </svg>
+            Export
+          </button>
+          <label
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition hover:bg-white/10"
+            style={{ background: 'var(--t-fg-06)', color: 'var(--t-fg-70)' }}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+              <path strokeLinecap="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 20V8m0 0l4 4m-4-4l-4 4" />
+            </svg>
+            Import
+            <input type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
+          </label>
         </div>
       </header>
 
