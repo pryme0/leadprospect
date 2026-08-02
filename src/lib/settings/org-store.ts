@@ -54,6 +54,8 @@ export interface WebsiteAnalysis {
   keywords_instagram?: string[];
   /** Short, conversational keyword phrases for Threads text search. */
   keywords_threads?: string[];
+  /** Short, conversational keyword phrases for X (Twitter) text search. */
+  keywords_x?: string[];
 }
 
 /** Brand-monitoring terms derived from the company profile/website. */
