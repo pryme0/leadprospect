@@ -71,8 +71,8 @@ export async function provisionAndCrawl(input: {
   companyName: string;
   /** LinkedIn/text-search terms — also used for the optional "crawl now" trigger. */
   keywords: string[];
-  /** Optional short per-platform social terms (TikTok/Instagram/Threads). */
-  socialKeywords?: Pick<PlatformKeywords, 'tiktok' | 'instagram' | 'threads'>;
+  /** Optional short per-platform social terms (TikTok/Instagram/Threads/X). */
+  socialKeywords?: Pick<PlatformKeywords, 'tiktok' | 'instagram' | 'threads' | 'x'>;
   context?: SbuContext;
   startCrawl?: boolean;
   maxCrawls?: number;
@@ -96,7 +96,7 @@ export async function provisionAndCrawl(input: {
     const db = await provisionSbuInDb(
       sbuId,
       input.companyName || sbuId,
-      { linkedin: input.keywords, tiktok: input.socialKeywords?.tiktok, instagram: input.socialKeywords?.instagram, threads: input.socialKeywords?.threads },
+      { linkedin: input.keywords, tiktok: input.socialKeywords?.tiktok, instagram: input.socialKeywords?.instagram, threads: input.socialKeywords?.threads, x: input.socialKeywords?.x },
       input.context,
       { deactivateMissing: input.deactivateMissing },
     );

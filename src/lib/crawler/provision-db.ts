@@ -31,6 +31,7 @@ export interface PlatformKeywords {
   tiktok?: string[];
   instagram?: string[];
   threads?: string[];
+  x?: string[];
 }
 
 /**
@@ -70,7 +71,7 @@ export async function provisionSbuInDb(
   const buckets: PlatformKeywords = Array.isArray(keywords) ? { linkedin: keywords } : keywords;
   const pairs: { keyword: string; platform: string }[] = [];
   const seen = new Set<string>();
-  for (const platform of ['linkedin', 'tiktok', 'instagram', 'threads'] as const) {
+  for (const platform of ['linkedin', 'tiktok', 'instagram', 'threads', 'x'] as const) {
     for (const raw of buckets[platform] ?? []) {
       const keyword = (raw ?? '').trim();
       if (!keyword) continue;
