@@ -290,7 +290,7 @@ export default function UsersPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5 lg:px-6"
         style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', boxShadow: 'var(--t-card-shadow)' }}>
         <div>
-          <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.3em]" style={{ color: VIOLET, fontFamily: 'var(--t-mono-font)' }}>06 · Team access</p>
+          <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.3em]" style={{ color: VIOLET, fontFamily: 'var(--t-mono-font)' }}>Team</p>
           <h1 className="text-[22px] font-black tracking-tight" style={{ color: 'var(--t-fg-95)' }}>Team</h1>
           <p className="mt-0.5 text-sm" style={{ color: 'var(--t-fg-40)' }}>Invite teammates and manage their access to this workspace</p>
         </div>

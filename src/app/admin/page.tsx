@@ -2,20 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
-import {
-  Radar, UserPlus, MessagesSquare, TrendingUp, Flame, RefreshCw, Rocket,
-  ArrowRight, Send, CheckCircle2, BellRing, Store, Users2,
-} from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { adminApi, SignalStats } from '@/lib/api';
-import { useWorkspaceTheme } from '@/lib/workspace-theme';
-import { intentInfo, channelLabel } from '@/lib/labels';
 import {
-  PageHeader, StatCard, SectionCard, Card, Button, EmptyState,
-  InsightCard, QuickAction, IntentBadge, greeting,
-} from '@/components/admin/ui';
+  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell, PieChart, Pie, Legend,
+} from 'recharts';
+import { useWorkspaceTheme, WorkspacePalette } from '@/lib/workspace-theme';
 
 /* ── Types ──────────────────────────────────────────────────────────────────── */
 
@@ -46,79 +40,186 @@ interface DashboardMetrics {
   daily?: { today: DailyBucket; yesterday: DailyBucket };
 }
 
+interface SourceConversion {
+  source: string;
+  total: number;
+  won: number;
+  lost: number;
+  conversion_rate: number;
+  total_value: number;
+}
+
 function pctDelta(a: number, b: number): number {
   if (b === 0) return a > 0 ? 100 : 0;
   return Math.round(((a - b) / b) * 100);
 }
 
-/* ── Friendly chart tooltip ─────────────────────────────────────────────────── */
+function prettifyIntentLevel(v: string | null): string {
+  if (!v) return 'Unclassified';
+  return v.replace(/_INTENT$/i, '').charAt(0).toUpperCase() +
+    v.replace(/_INTENT$/i, '').slice(1).toLowerCase();
+}
 
-const ChartTip = ({ active, payload, label }: any) => {
+function prettifySnake(v: string | null, fallback = 'Uncategorized'): string {
+  if (!v) return fallback;
+  return v.split('_').map((w) => (w.length <= 3 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
+}
+
+function buildSignalsHref(params: Record<string, string>): string {
+  const qs = new URLSearchParams(params).toString();
+  return qs ? `/admin/signals?${qs}` : '/admin/signals';
+}
+
+/* ── Custom tooltip ─────────────────────────────────────────────────────────── */
+
+const Tooltip_ = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border px-3.5 py-2.5" style={{ background: 'var(--a-card)', borderColor: 'var(--a-border2)', boxShadow: 'var(--a-card-shadow)' }}>
-      {label && <p className="mb-1 text-[12px] font-semibold" style={{ color: 'var(--a-text-60)' }}>{label}</p>}
+    <div className="rounded-xl border border-white/[0.08] bg-[#0F1929] px-3.5 py-2.5 shadow-2xl backdrop-blur-md">
+      {label && <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">{label}</p>}
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full" style={{ background: p.color || p.fill }} />
-          <span className="text-[13px]" style={{ color: 'var(--a-text-60)' }}>{p.name}</span>
-          <span className="ml-auto text-[13px] font-bold tabular-nums" style={{ color: 'var(--a-text)' }}>{p.value?.toLocaleString()}</span>
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.color || p.fill }} />
+          <span className="text-xs text-white/50">{p.name}</span>
+          <span className="ml-auto text-xs font-semibold tabular-nums text-white">{p.value?.toLocaleString()}</span>
         </div>
       ))}
     </div>
   );
 };
 
-/* ── Loading ────────────────────────────────────────────────────────────────── */
+/* ── KPI Card ───────────────────────────────────────────────────────────────── */
 
-function DashboardSkeleton() {
-  return (
-    <div className="space-y-6 animate-pulse">
-      <div className="h-8 w-64 rounded-lg" style={{ background: 'var(--a-card2)' }} />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => <div key={i} className="h-28 rounded-2xl" style={{ background: 'var(--a-card2)' }} />)}
+function KpiCard({
+  label, value, sub, trend, accentColor, sparkData, href,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  trend?: number;
+  accentColor: string;
+  sparkData?: { count: number }[];
+  href?: string;
+}) {
+  const inner = (
+    <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0F1929] p-5 transition-all duration-200 hover:border-white/[0.10] hover:bg-[#111929]">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[12px] font-medium text-white/45">{label}</p>
+        {trend !== undefined && (
+          <span
+            className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+              trend >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+            }`}
+          >
+            {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%
+          </span>
+        )}
       </div>
-      <div className="h-40 rounded-2xl" style={{ background: 'var(--a-card2)' }} />
+      <div className="mt-3">
+        <p className="text-[32px] font-bold leading-none tracking-tight tabular-nums" style={{ color: accentColor }}>
+          {value}
+        </p>
+        {sub && <p className="mt-1.5 text-[11px] text-white/30">{sub}</p>}
+      </div>
+      {sparkData && sparkData.length > 1 && (
+        <div className="mt-4 h-10 -mx-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={sparkData}>
+              <Line type="monotone" dataKey="count" stroke={accentColor} strokeWidth={1.5} dot={false} strokeOpacity={0.7} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      {href && (
+        <span className="absolute bottom-4 right-4 text-white/15 transition-colors group-hover:text-white/40 text-sm">→</span>
+      )}
+    </div>
+  );
+
+  if (href) {
+    return <Link href={href} className="block h-full focus:outline-none">{inner}</Link>;
+  }
+  return inner;
+}
+
+/* ── Chart Card ─────────────────────────────────────────────────────────────── */
+
+function ChartCard({ title, sub, children, className = '' }: { title: string; sub?: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-2xl border border-white/[0.06] bg-[#0F1929] p-5 ${className}`}>
+      <div className="mb-4 flex items-start justify-between">
+        <div>
+          <p className="text-[14px] font-semibold text-white">{title}</p>
+          {sub && <p className="mt-0.5 text-[11px] text-white/35">{sub}</p>}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* ── Loading / Error ────────────────────────────────────────────────────────── */
+
+function Spinner({ theme }: { theme: WorkspacePalette }) {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="text-center space-y-4">
+        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-white/[0.06]" style={{ borderTopColor: theme.accent }} />
+        <p className="text-xs uppercase tracking-[0.24em] text-white/30">Loading dashboard…</p>
+      </div>
     </div>
   );
 }
 
 /* ── Main ───────────────────────────────────────────────────────────────────── */
 
-export default function AdminHomePage() {
+export default function AdminDashboardPage() {
   const theme = useWorkspaceTheme();
+  const router = useRouter();
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [stats,   setStats]   = useState<SignalStats | null>(null);
+  const [sourceConversions, setSourceConversions] = useState<SourceConversion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
-  const [orgName, setOrgName] = useState<string | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [adSpend, setAdSpend] = useState<string>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('synq_ad_spend') || '' : ''
+  );
   const [profileIncomplete, setProfileIncomplete] = useState(false);
 
-  /* Company name (greeting) + whether the profile still needs finishing. */
+  /* Prompt the org to finish their company profile so crawling can begin. */
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
     if (!token) return;
     fetch('/api/settings/org', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { profile?: { company_name?: string; website?: string; about?: string; services?: string } | null } | null) => {
+      .then((data: { profile?: { website?: string; about?: string; services?: string } | null } | null) => {
         const p = data?.profile;
-        setOrgName(p?.company_name?.trim() || null);
-        setProfileIncomplete(!p || !p.website?.trim() || !p.about?.trim() || !p.services?.trim());
+        const incomplete = !p || !p.website?.trim() || !p.about?.trim() || !p.services?.trim();
+        setProfileIncomplete(incomplete);
       })
       .catch(() => {});
   }, []);
 
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
     try {
-      const [metricsRes, statsRes] = await Promise.allSettled([
+      const [metricsRes, statsRes, analyticsRes] = await Promise.allSettled([
         adminApi.getDashboardMetrics(),
         adminApi.getSignalStats(),
+        token
+          ? fetch('/api/pipeline/analytics', { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json())
+          : Promise.resolve({ sources: [] }),
       ]);
       if (metricsRes.status === 'fulfilled') setMetrics(metricsRes.value.data);
-      else setError('We couldn’t load your numbers. Please try again.');
+      else setError('Failed to load dashboard metrics.');
       if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
+      if (analyticsRes.status === 'fulfilled' && Array.isArray(analyticsRes.value.sources)) {
+        setSourceConversions(analyticsRes.value.sources);
+      }
+      setLastRefresh(new Date());
     } finally {
       setLoading(false);
     }
@@ -130,258 +231,555 @@ export default function AdminHomePage() {
     return () => clearInterval(id);
   }, [fetchMetrics]);
 
-  if (loading && !metrics) return <DashboardSkeleton />;
+  if (loading && !metrics) return <Spinner theme={theme} />;
 
-  if (error && !metrics) {
+  if (error) {
     return (
-      <Card className="mx-auto max-w-md mt-10">
-        <EmptyState
-          icon={RefreshCw}
-          title="We hit a snag"
-          message={error}
-          action={<Button icon={RefreshCw} onClick={fetchMetrics}>Try again</Button>}
-        />
-      </Card>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center space-y-5">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 text-red-400 text-lg">!</div>
+          <p className="text-sm text-white/40">{error}</p>
+          <button
+            onClick={fetchMetrics}
+            className="rounded-full border border-[#6D5EF9]/40 px-5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#6D5EF9] transition hover:bg-[#6D5EF9]/10"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
     );
   }
+
   if (!metrics) return null;
 
-  /* ── Derived, plain-language data ── */
+  /* ── Derived data ── */
+
   const today = metrics.daily?.today ?? { linkedin_signals: 0, linkedin_high_intent: 0, leads_captured: 0, conversion_rate: 0, avg_urgency: 0 };
   const yest  = metrics.daily?.yesterday ?? { linkedin_signals: 0, linkedin_high_intent: 0, leads_captured: 0, conversion_rate: 0, avg_urgency: 0 };
 
-  const fmtDate = (d: string) => {
+  const formatDate = (d: string) => {
     try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
     catch { return d; }
   };
-  const activityByDay = (metrics.signals_by_day || []).map((d) => ({ ...d, date: fmtDate(d.date) }));
-  const leadsByDay    = (metrics.leads_by_day || []).map((d) => ({ ...d, date: fmtDate(d.date) }));
 
-  const channels = (metrics.signals_by_platform || [])
-    .map((p, i) => ({ name: channelLabel(p.platform), count: p.count, color: theme.platform[p.platform] || theme.chart[i % theme.chart.length] }))
-    .sort((a, b) => b.count - a.count);
-  const topChannel = channels[0];
-  const channelTotal = channels.reduce((s, c) => s + c.count, 0) || 1;
+  const signalsByDay = (metrics.signals_by_day || []).map((d) => ({ ...d, date: formatDate(d.date) }));
+  const leadsByDay   = (metrics.leads_by_day || []).map((d) => ({ ...d, date: formatDate(d.date) }));
 
-  // Interest breakdown → Hot / Warm / Cool.
-  const interest = (stats?.byIntentLevel || []).reduce(
-    (acc, r) => {
-      const t = intentInfo(r.intent_level).tone;
-      if (t === 'hot') acc.hot += r.count;
-      else if (t === 'warm') acc.warm += r.count;
-      else if (t === 'cool') acc.cool += r.count;
-      return acc;
-    },
-    { hot: 0, warm: 0, cool: 0 },
-  );
+  const platformData = (metrics.signals_by_platform || []).map((p, i) => ({
+    ...p,
+    color: theme.platform[p.platform] || theme.chart[i % theme.chart.length],
+  }));
 
-  const pendingToCrm = metrics.ghl_unsynced || 0;
-  const sentToCrm    = metrics.ghl_synced || 0;
-  const hotDelta     = pctDelta(today.linkedin_high_intent, yest.linkedin_high_intent);
+  const shortenTool = (t: string) =>
+    t.replace('google-ads', 'Google Ads')
+     .replace('meta-ads', 'Meta Ads')
+     .replace('crm-import', 'CRM Import')
+     .replace('source-routing', 'Source Routing')
+     .replace('dedupe-preview', 'Dedupe')
+     .replace('account-expansion', 'Expansion');
+  const toolData = (metrics.leads_by_tool || []).map((t) => ({ ...t, tool: shortenTool(t.tool) }));
 
-  /* ── Conversational insights (pick the meaningful ones) ── */
-  type Insight = { icon: any; text: React.ReactNode; tone: 'good' | 'attention' | 'warning' | 'neutral'; href?: string; cta?: string };
-  const insights: Insight[] = [];
-  if (metrics.total_signals === 0) {
-    insights.push({ icon: Rocket, tone: 'neutral', href: '/admin/settings', cta: 'Finish setup',
-      text: 'Your finder hasn’t started yet — add your website and a short description in Settings and we’ll start finding buyers for you.' });
-  } else {
-    if (today.linkedin_high_intent > 0) {
-      insights.push({ icon: Flame, tone: 'good', href: '/admin/leads', cta: 'See hot leads',
-        text: <>You found <b>{today.linkedin_high_intent}</b> hot {today.linkedin_high_intent === 1 ? 'lead' : 'leads'} today{hotDelta !== 0 && <> — that’s <b>{Math.abs(hotDelta)}% {hotDelta > 0 ? 'more' : 'fewer'}</b> than yesterday</>}.</> });
-    }
-    if (pendingToCrm > 0) {
-      insights.push({ icon: Send, tone: 'attention', href: '/admin/leads', cta: 'Review leads',
-        text: <><b>{pendingToCrm}</b> {pendingToCrm === 1 ? 'lead is' : 'leads are'} ready but not yet sent to your CRM.</> });
-    }
-    if (topChannel) {
-      insights.push({ icon: Store, tone: 'neutral',
-        text: <>Most of your buyers are coming from <b>{topChannel.name}</b> right now.</> });
-    }
-    if (today.leads_captured > 0) {
-      insights.push({ icon: CheckCircle2, tone: 'good',
-        text: <>You captured <b>{today.leads_captured}</b> new {today.leads_captured === 1 ? 'lead' : 'leads'} today.</> });
-    }
-  }
+  const intentLevelData = (stats?.byIntentLevel || []).map((r) => ({
+    name: prettifyIntentLevel(r.intent_level),
+    value: r.count,
+  }));
+  const intentCategoryData = (stats?.byIntentCategory || []).map((r) => ({
+    name: r.intent_category || 'Unclassified',
+    raw: r.intent_category,
+    count: r.count,
+  }));
+  const ingestionCategoryData = (stats?.byIngestionCategory || []).map((r) => ({
+    name: prettifySnake(r.ingestion_category),
+    raw: r.ingestion_category,
+    count: r.count,
+  }));
 
-  const hour = new Date().getHours();
+  const intentColor = (name: string) =>
+    name === 'High' ? theme.intent.high
+    : name === 'Medium' ? theme.intent.medium
+    : name === 'Low' ? theme.intent.low
+    : theme.intent.none;
+
+  const crmRate     = Math.round((metrics.ghl_sync_rate || 0) * 100);
+  const spend       = Number(adSpend || 0);
+  const costPerLead = spend > 0 && metrics.leads_captured > 0
+    ? `$${Math.round(spend / metrics.leads_captured)}`
+    : '—';
+
+  const highIntentCount = (metrics as any).high_intent_signals || metrics.high_intent_count || 0;
+  const highIntentPct   = metrics.total_signals > 0 ? Math.round((highIntentCount / metrics.total_signals) * 100) : 0;
+  const todayCount      = signalsByDay[signalsByDay.length - 1]?.count ?? 0;
 
   return (
-    <div className="space-y-7 pb-10">
+    <div className="space-y-6 pb-10">
 
-      {/* ── Greeting ── */}
-      <PageHeader
-        title={`${greeting(hour)}${orgName ? `, ${orgName}` : ''} 👋`}
-        description="Here’s how your business is doing today."
-        action={
-          <Button variant="secondary" size="sm" icon={RefreshCw} loading={loading} onClick={fetchMetrics}>
-            Refresh
-          </Button>
-        }
-      />
-
-      {/* ── Setup nudge ── */}
+      {/* ── Setup banner: prompt for company profile so crawling can begin ── */}
       {profileIncomplete && (
-        <Card className="p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-              style={{ background: 'var(--t-accent-soft, rgba(109,94,249,0.08))', borderColor: 'var(--t-accent, #6D5EF9)' }}>
+        <div
+          className="flex flex-col gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between"
+          style={{
+            background: 'linear-gradient(135deg, rgba(109,94,249,0.14), rgba(24,216,255,0.08))',
+            borderColor: 'rgba(109,94,249,0.35)',
+          }}
+        >
           <div className="flex items-start gap-3.5">
-            <span className="grid place-items-center h-11 w-11 rounded-xl shrink-0" style={{ background: 'var(--t-accent, #6D5EF9)', color: '#fff' }}>
-              <Rocket size={20} aria-hidden />
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#6D5EF9]/20 text-[#6D5EF9]">
+              <span className="material-symbols-outlined">rocket_launch</span>
             </span>
             <div>
-              <p className="text-[15px] font-bold" style={{ color: 'var(--a-text)' }}>Finish setup to start finding customers</p>
-              <p className="mt-1 max-w-2xl text-[13.5px] leading-relaxed" style={{ color: 'var(--a-text-60)' }}>
-                Add your website and a short description of what you do in Settings. We read your site to learn who your
-                buyers are, then start finding them for you.
+              <p className="text-[15px] font-bold text-white">Finish setting up to start finding leads</p>
+              <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-white/60">
+                Add your <span className="font-semibold text-white/85">website</span>, a short{' '}
+                <span className="font-semibold text-white/85">about</span>, and{' '}
+                <span className="font-semibold text-white/85">what your company does</span> in Settings.
+                SYNQ analyzes your site to build your keywords and starts crawling for buyers right away.
               </p>
             </div>
           </div>
-          <Button icon={ArrowRight} onClick={() => { window.location.href = '/admin/settings'; }} className="shrink-0">
+          <Link
+            href="/admin/settings"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(109,94,249,0.4)] transition-all hover:brightness-110"
+            style={{ background: 'linear-gradient(135deg, #6D5EF9, #5B4FE8)' }}
+          >
             Complete your profile
-          </Button>
-        </Card>
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </Link>
+        </div>
       )}
 
-      {/* ── Today's numbers ── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="New buyer activity today" value={today.linkedin_signals.toLocaleString()} icon={Radar}
-          trend={{ value: pctDelta(today.linkedin_signals, yest.linkedin_signals) }} hint={`Yesterday: ${yest.linkedin_signals.toLocaleString()}`} />
-        <StatCard label="Hot leads today" value={today.linkedin_high_intent.toLocaleString()} icon={Flame} accent="var(--t-coral, #dc2626)"
-          trend={{ value: hotDelta }} hint={`Yesterday: ${yest.linkedin_high_intent.toLocaleString()}`} />
-        <StatCard label="New leads today" value={today.leads_captured.toLocaleString()} icon={UserPlus} accent="var(--t-green, #16a34a)"
-          trend={{ value: pctDelta(today.leads_captured, yest.leads_captured) }} hint={`Yesterday: ${yest.leads_captured.toLocaleString()}`} />
-        <StatCard label="Turned into leads" value={`${today.conversion_rate.toFixed(1)}%`} icon={TrendingUp}
-          trend={{ value: pctDelta(today.conversion_rate, yest.conversion_rate) }} hint="Share of activity that became a lead" />
-      </div>
-
-      {/* ── What's happening (insights) ── */}
-      {insights.length > 0 && (
+      {/* ── Welcome header ── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold" style={{ color: 'var(--a-text)' }}>
-            <BellRing size={17} style={{ color: 'var(--t-accent, #6D5EF9)' }} aria-hidden /> What needs your attention
-          </h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            {insights.slice(0, 4).map((ins, i) => (
-              <InsightCard key={i} icon={ins.icon} text={ins.text} tone={ins.tone} href={ins.href} cta={ins.cta} />
-            ))}
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/25">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          </p>
+          <h1 className="mt-2 text-[26px] font-bold tracking-tight text-white sm:text-3xl">
+            Revenue operations
+          </h1>
+          <p className="mt-1.5 text-[13px] text-white/40">
+            Updated {lastRefresh.toLocaleTimeString()} · auto-refresh every 60s
+          </p>
+        </div>
+        <button
+          onClick={fetchMetrics}
+          disabled={loading}
+          className="flex w-fit items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[12px] font-semibold text-white/50 transition hover:bg-white/[0.07] hover:text-white/80 disabled:opacity-40"
+        >
+          <svg className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path strokeLinecap="round" d="M4 4v5h.582m15.356 2A8 8 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8 8 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh
+        </button>
+      </div>
+
+      {/* ── KPI row ── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-stagger>
+        <KpiCard
+          label="Signals today"
+          value={today.linkedin_signals.toLocaleString()}
+          sub={`Yesterday: ${yest.linkedin_signals.toLocaleString()}`}
+          trend={pctDelta(today.linkedin_signals, yest.linkedin_signals)}
+          accentColor={theme.chart[1]}
+          sparkData={signalsByDay.slice(-14)}
+        />
+        <KpiCard
+          label="High intent today"
+          value={today.linkedin_high_intent.toLocaleString()}
+          sub={`Yesterday: ${yest.linkedin_high_intent.toLocaleString()}`}
+          trend={pctDelta(today.linkedin_high_intent, yest.linkedin_high_intent)}
+          accentColor={theme.intent.high}
+          sparkData={signalsByDay.slice(-14)}
+        />
+        <KpiCard
+          label="Leads captured"
+          value={today.leads_captured.toLocaleString()}
+          sub={`Yesterday: ${yest.leads_captured.toLocaleString()}`}
+          trend={pctDelta(today.leads_captured, yest.leads_captured)}
+          accentColor={theme.accent}
+          sparkData={leadsByDay.slice(-14)}
+        />
+        <KpiCard
+          label="Conversion rate"
+          value={`${today.conversion_rate.toFixed(1)}%`}
+          sub={`Yesterday: ${yest.conversion_rate.toFixed(1)}%`}
+          trend={pctDelta(today.conversion_rate, yest.conversion_rate)}
+          accentColor={theme.chart[2]}
+        />
+      </div>
+
+      {/* ── Pipeline summary cards ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" data-stagger>
+        {[
+          { label: 'Total signals',   value: metrics.total_signals.toLocaleString(), color: theme.chart[1], href: buildSignalsHref({}) },
+          { label: 'Processed',       value: stats?.processed.toLocaleString() ?? '—', color: theme.accent, href: buildSignalsHref({ processed: 'true' }) },
+          { label: 'Pending',         value: stats?.pending.toLocaleString() ?? '—', color: theme.intent.medium, href: buildSignalsHref({ processed: 'false' }) },
+          { label: 'With email',      value: stats?.withEmail.toLocaleString() ?? '—', color: theme.chart[2], href: buildSignalsHref({ has_email: 'true' }) },
+          { label: 'Routed today',    value: stats?.automationSentToday?.toLocaleString() ?? '—', color: '#22C55E', href: buildSignalsHref({ automation_sent: 'true' }) },
+          { label: 'Route pending',   value: stats?.automationPending.toLocaleString() ?? '—', color: theme.intent.high, href: buildSignalsHref({ automation_sent: 'false' }) },
+        ].map((item) => (
+          <Link
+            key={item.label}
+            href={item.href}
+            className="group rounded-xl border border-white/[0.06] bg-[#0F1929] px-4 py-4 transition-all hover:border-white/[0.10] hover:bg-[#111929]"
+          >
+            <p className="text-[11px] font-medium text-white/35">{item.label}</p>
+            <p className="mt-2 text-[22px] font-bold tabular-nums tracking-tight" style={{ color: item.color }}>
+              {item.value}
+            </p>
+          </Link>
+        ))}
+      </div>
+
+      {/* ── Trend charts ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartCard title="Signals over time" sub="Daily source volume">
+          <div className="h-52">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={signalsByDay} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradSignals" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={theme.chart[1]} stopOpacity={0.25} />
+                    <stop offset="100%" stopColor={theme.chart[1]} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 5" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: theme.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fill: theme.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
+                <Tooltip content={<Tooltip_ />} cursor={{ stroke: theme.chart[1], strokeWidth: 1, strokeDasharray: '4 2' }} />
+                <Area type="monotone" dataKey="count" name="Signals" stroke={theme.chart[1]} strokeWidth={2} fill="url(#gradSignals)" dot={false} activeDot={{ r: 4, fill: theme.chart[1], strokeWidth: 2, stroke: '#0F1929' }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+
+        <ChartCard title="Leads captured" sub="Daily qualified leads">
+          <div className="h-52">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={leadsByDay} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradLeads" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={theme.accent} stopOpacity={0.25} />
+                    <stop offset="100%" stopColor={theme.accent} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 5" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: theme.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fill: theme.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
+                <Tooltip content={<Tooltip_ />} cursor={{ stroke: theme.accent, strokeWidth: 1, strokeDasharray: '4 2' }} />
+                <Area type="monotone" dataKey="count" name="Leads" stroke={theme.accent} strokeWidth={2} fill="url(#gradLeads)" dot={false} activeDot={{ r: 4, fill: theme.accent, strokeWidth: 2, stroke: '#0F1929' }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      </div>
+
+      {/* ── Intent + Category charts ── */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ChartCard title="Intent level" sub="Scored by buying intent">
+          {intentLevelData.length > 0 ? (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={intentLevelData} dataKey="value" nameKey="name"
+                    cx="50%" cy="50%" innerRadius={52} outerRadius={80}
+                    paddingAngle={3} stroke="transparent"
+                    onClick={(d: any) => router.push(buildSignalsHref(
+                      d.name === 'Unclassified' ? { processed: 'false' } : { intent_level: `${d.name.toUpperCase()}_INTENT` }
+                    ))}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {intentLevelData.map((entry, i) => (
+                      <Cell key={i} fill={intentColor(entry.name)} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<Tooltip_ />} />
+                  <Legend
+                    verticalAlign="bottom" iconType="circle" iconSize={6}
+                    wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', textTransform: 'capitalize', letterSpacing: '0.05em' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <EmptySlot />}
+        </ChartCard>
+
+        <ChartCard title="Intent category" sub="Account fit and buying stage">
+          {intentCategoryData.length > 0 ? (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={intentCategoryData} layout="vertical" margin={{ top: 0, right: 8, left: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.04)" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: theme.axis, fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 10 }} width={130} axisLine={false} tickLine={false} />
+                  <Tooltip content={<Tooltip_ />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
+                  <Bar
+                    dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={12}
+                    onClick={(d: any) => router.push(buildSignalsHref({ intent_category: d.name === 'Unclassified' ? '__null__' : d.name }))}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {intentCategoryData.map((_, i) => (
+                      <Cell key={i} fill={theme.chart[i % theme.chart.length]} fillOpacity={0.88} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <EmptySlot />}
+        </ChartCard>
+
+        <ChartCard title="Ingestion category" sub="Source bucket at capture">
+          {ingestionCategoryData.length > 0 ? (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={ingestionCategoryData} layout="vertical" margin={{ top: 0, right: 8, left: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.04)" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: theme.axis, fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 10 }} width={130} axisLine={false} tickLine={false} />
+                  <Tooltip content={<Tooltip_ />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
+                  <Bar
+                    dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={12}
+                    onClick={(d: any) => router.push(buildSignalsHref({ ingestion_category: d.raw == null ? '__null__' : d.raw }))}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {ingestionCategoryData.map((_, i) => (
+                      <Cell key={i} fill={theme.chart[(i + 3) % theme.chart.length]} fillOpacity={0.88} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <EmptySlot />}
+        </ChartCard>
+      </div>
+
+      {/* ── Source mix ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartCard title="Signals by platform" sub="Channel quality mix">
+          {platformData.length > 0 ? (
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={platformData} dataKey="count" nameKey="platform"
+                    cx="40%" cy="50%" innerRadius={52} outerRadius={80}
+                    paddingAngle={3} stroke="transparent">
+                    {platformData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} fillOpacity={0.90} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<Tooltip_ />} />
+                  <Legend layout="vertical" align="right" verticalAlign="middle" iconType="circle" iconSize={6}
+                    formatter={(value) => (
+                      <span style={{ color: 'rgba(255,255,255,0.50)', fontSize: 11, textTransform: 'capitalize', letterSpacing: '0.04em' }}>
+                        {value}
+                      </span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <EmptySlot />}
+        </ChartCard>
+
+        <ChartCard title="Leads by source" sub="Which source drives qualified businesses">
+          {toolData.length > 0 ? (
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={toolData} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.04)" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: theme.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="tool" tick={{ fill: 'rgba(255,255,255,0.50)', fontSize: 11 }} tickLine={false} axisLine={false} width={90} />
+                  <Tooltip content={<Tooltip_ />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
+                  <Bar dataKey="count" name="Leads" radius={[0, 5, 5, 0]} maxBarSize={16}>
+                    {toolData.map((_, i) => (
+                      <Cell key={i} fill={theme.chart[i % theme.chart.length]} fillOpacity={0.90} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <EmptySlot />}
+        </ChartCard>
+      </div>
+
+      {/* ── Health row ── */}
+      <div className="grid gap-4 lg:grid-cols-3">
+
+        {/* CRM routing */}
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0F1929] p-5">
+          <p className="text-[14px] font-semibold text-white">CRM routing</p>
+          <p className="mt-0.5 text-[11px] text-white/35">Routing and CRM delivery health</p>
+          <div className="mt-4 flex items-baseline gap-1.5">
+            <span className="text-[38px] font-bold tabular-nums leading-none tracking-tight text-white">{crmRate}</span>
+            <span className="text-lg font-semibold text-white/40">%</span>
+          </div>
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${crmRate}%`,
+                background: crmRate >= 90 ? '#22C55E' : crmRate >= 70 ? theme.intent.medium : theme.intent.high,
+              }}
+            />
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/30">Synced</p>
+              <p className="mt-1.5 text-xl font-bold tabular-nums text-emerald-400">{(metrics.ghl_synced || 0).toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/30">Pending</p>
+              <p className="mt-1.5 text-xl font-bold tabular-nums text-amber-400">{(metrics.ghl_unsynced || 0).toLocaleString()}</p>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* ── Quick actions ── */}
-      <div>
-        <h2 className="mb-3 text-[15px] font-semibold" style={{ color: 'var(--a-text)' }}>What would you like to do?</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <QuickAction icon={Radar} label="See buyer activity" hint="People showing interest" href="/admin/signals" />
-          <QuickAction icon={UserPlus} label="View your leads" hint="People you can contact" href="/admin/leads" />
-          <QuickAction icon={MessagesSquare} label="Send messages" hint="AI-drafted replies" href="/admin/comms" />
-          <QuickAction icon={TrendingUp} label="Your deals" hint="Close more sales" href="/admin/pipeline" />
+        {/* Urgency distribution */}
+        <ChartCard title="Urgency distribution" sub="Score buckets across classified signals">
+          {(metrics.urgency_distribution || []).length > 0 ? (
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={metrics.urgency_distribution} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <XAxis dataKey="bucket" tick={{ fill: theme.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: theme.axis, fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<Tooltip_ />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
+                  <Bar dataKey="count" name="Signals" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                    {(metrics.urgency_distribution || []).map((_, i) => (
+                      <Cell key={i} fill={i === 0 ? theme.intent.high : i === 1 ? theme.intent.medium : theme.intent.low} fillOpacity={0.90} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <EmptySlot />}
+        </ChartCard>
+
+        {/* Cost per lead */}
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0F1929] p-5 flex flex-col gap-4">
+          <div>
+            <p className="text-[14px] font-semibold text-white">Cost per lead</p>
+            <p className="mt-0.5 text-[11px] text-white/35">Monthly ad spend · stored locally</p>
+          </div>
+          <input
+            type="number"
+            min="0"
+            placeholder="Ad spend this month ($)"
+            value={adSpend}
+            onChange={(e) => {
+              setAdSpend(e.target.value);
+              localStorage.setItem('synq_ad_spend', e.target.value);
+            }}
+            className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-white/20 transition-colors focus:border-[#6D5EF9]/50 focus:ring-2 focus:ring-[#6D5EF9]/10"
+          />
+          <div className="flex-1 flex flex-col justify-end">
+            {adSpend && parseFloat(adSpend) > 0 && metrics.leads_captured > 0 ? (
+              <div>
+                <p className="text-[34px] font-bold tabular-nums leading-none tracking-tight" style={{ color: theme.accent }}>
+                  ${(parseFloat(adSpend) / metrics.leads_captured).toFixed(2)}
+                </p>
+                <p className="mt-2 text-[11px] text-white/30">
+                  ${parseFloat(adSpend).toLocaleString()} ÷ {metrics.leads_captured.toLocaleString()} leads
+                </p>
+              </div>
+            ) : (
+              <p className="text-[13px] text-white/25">Enter your monthly ad spend above</p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ── Trends (two friendly charts) ── */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SectionCard title="Buyer activity over time" subtitle="How many people showed interest each day" icon={Radar} bodyClassName="px-3 pt-2 pb-4">
-          {activityByDay.length > 1 ? (
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={activityByDay} margin={{ top: 8, right: 8, left: -14, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gActivity" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={theme.chart[1]} stopOpacity={0.28} />
-                      <stop offset="100%" stopColor={theme.chart[1]} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 5" stroke="var(--t-grid-color, rgba(0,0,0,0.05))" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: theme.axis, fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: theme.axis, fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip content={<ChartTip />} cursor={{ stroke: theme.chart[1], strokeWidth: 1, strokeDasharray: '4 2' }} />
-                  <Area type="monotone" dataKey="count" name="Buyer activity" stroke={theme.chart[1]} strokeWidth={2.5} fill="url(#gActivity)" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          ) : <EmptyState icon={Radar} title="No activity yet" message="Once your finder is running, you’ll see interest build up here." />}
-        </SectionCard>
-
-        <SectionCard title="New leads over time" subtitle="People you can reach out to, day by day" icon={UserPlus} bodyClassName="px-3 pt-2 pb-4">
-          {leadsByDay.length > 1 ? (
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={leadsByDay} margin={{ top: 8, right: 8, left: -14, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gLeads" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={theme.accent} stopOpacity={0.28} />
-                      <stop offset="100%" stopColor={theme.accent} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 5" stroke="var(--t-grid-color, rgba(0,0,0,0.05))" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: theme.axis, fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: theme.axis, fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip content={<ChartTip />} cursor={{ stroke: theme.accent, strokeWidth: 1, strokeDasharray: '4 2' }} />
-                  <Area type="monotone" dataKey="count" name="New leads" stroke={theme.accent} strokeWidth={2.5} fill="url(#gLeads)" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          ) : <EmptyState icon={UserPlus} title="No leads yet" message="Your first leads will appear here as buyers are found." />}
-        </SectionCard>
+      {/* ── At a glance ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: 'Signals today',  value: todayCount.toLocaleString(), color: theme.chart[1] },
+          { label: 'High intent %',  value: `${highIntentPct}%`, color: theme.intent.high },
+          { label: 'Top platform',   value: platformData.sort((a, b) => b.count - a.count)[0]?.platform ?? '—', color: theme.intent.medium },
+          { label: 'Top source',     value: toolData.sort((a, b) => b.count - a.count)[0]?.tool ?? '—', color: theme.accent },
+        ].map((item, i) => (
+          <div
+            key={i}
+            className="rounded-2xl border border-white/[0.06] bg-[#0F1929] px-5 py-4"
+          >
+            <p className="text-[11px] font-medium text-white/35">{item.label}</p>
+            <p className="mt-2 text-[18px] font-bold capitalize tracking-tight tabular-nums" style={{ color: item.color }}>
+              {item.value}
+            </p>
+          </div>
+        ))}
       </div>
 
-      {/* ── Interest breakdown + where buyers come from ── */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SectionCard title="How interested are they?" subtitle="Everyone we’ve found, sorted by how ready they are to buy" icon={Flame}>
-          {(interest.hot + interest.warm + interest.cool) > 0 ? (
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { key: 'hot',  label: 'Hot',  value: interest.hot,  q: 'HIGH_INTENT' },
-                { key: 'warm', label: 'Warm', value: interest.warm, q: 'MEDIUM_INTENT' },
-                { key: 'cool', label: 'Cool', value: interest.cool, q: 'LOW_INTENT' },
-              ].map((b) => (
-                <Link key={b.key} href={`/admin/signals?intent_level=${b.q}`}
-                      className="rounded-xl border p-4 text-center transition-transform hover:-translate-y-0.5"
-                      style={{ borderColor: 'var(--a-border)', background: 'var(--a-card2)' }}>
-                  <div className="flex justify-center mb-2"><IntentBadge value={b.q} /></div>
-                  <div className="text-[26px] font-bold tabular-nums" style={{ color: 'var(--a-text)' }}>{b.value.toLocaleString()}</div>
-                </Link>
-              ))}
-            </div>
-          ) : <EmptyState icon={Flame} title="Nothing to sort yet" message="As buyers are found, we’ll group them into Hot, Warm and Cool for you." />}
-        </SectionCard>
-
-        <SectionCard title="Where your buyers come from" subtitle="The channels bringing you the most interest" icon={Users2}>
-          {channels.length > 0 ? (
-            <div className="space-y-3">
-              {channels.slice(0, 5).map((c) => {
-                const pct = Math.round((c.count / channelTotal) * 100);
-                return (
-                  <div key={c.name} className="flex items-center gap-3">
-                    <span className="w-24 shrink-0 text-[13.5px] font-medium truncate" style={{ color: 'var(--a-text-80)' }}>{c.name}</span>
-                    <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--a-card2)' }}>
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c.color }} />
-                    </div>
-                    <span className="w-10 shrink-0 text-right text-[13px] font-semibold tabular-nums" style={{ color: 'var(--a-text-60)' }}>{pct}%</span>
+      {/* ── Source conversion ── */}
+      {sourceConversions.length > 0 && (
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0F1929]">
+          <div className="border-b border-white/[0.05] px-5 py-4">
+            <p className="text-[14px] font-semibold text-white">Source conversion</p>
+            <p className="mt-0.5 text-[11px] text-white/35">Pipeline conversion rates by signal source</p>
+          </div>
+          <div className="divide-y divide-white/[0.04]">
+            {sourceConversions.slice(0, 6).map((src, i) => {
+              const color = theme.chart[i % theme.chart.length];
+              return (
+                <div key={src.source} className="grid grid-cols-[1fr,80px,80px,80px] items-center gap-2 px-5 py-3.5 hover:bg-white/[0.02]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+                    <span className="truncate text-[13px] font-medium capitalize text-white/80">{src.source}</span>
                   </div>
-                );
-              })}
-            </div>
-          ) : <EmptyState icon={Users2} title="No channels yet" message="Connect a channel to start finding buyers." action={<Button size="sm" onClick={() => { window.location.href = '/admin/integrations'; }}>Connect an app</Button>} />}
-        </SectionCard>
-      </div>
-
-      {/* ── CRM handoff (plain) ── */}
-      {(sentToCrm + pendingToCrm) > 0 && (
-        <SectionCard title="Sent to your CRM" subtitle="Leads we’ve passed on to your sales system" icon={Send}>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border p-4" style={{ borderColor: 'var(--a-border)', background: 'var(--a-card2)' }}>
-              <p className="text-[13px] font-medium" style={{ color: 'var(--a-text-50)' }}>Sent</p>
-              <p className="mt-1 text-[24px] font-bold tabular-nums" style={{ color: 'var(--t-green, #16a34a)' }}>{sentToCrm.toLocaleString()}</p>
-            </div>
-            <div className="rounded-xl border p-4" style={{ borderColor: 'var(--a-border)', background: 'var(--a-card2)' }}>
-              <p className="text-[13px] font-medium" style={{ color: 'var(--a-text-50)' }}>Waiting to send</p>
-              <p className="mt-1 text-[24px] font-bold tabular-nums" style={{ color: 'var(--t-amber, #d97706)' }}>{pendingToCrm.toLocaleString()}</p>
-            </div>
+                  <span className="text-right text-[12px] tabular-nums text-white/40">{src.total} leads</span>
+                  <span className="text-right text-[12px] tabular-nums font-semibold" style={{ color: src.conversion_rate > 50 ? '#34d399' : src.conversion_rate > 25 ? '#fbbf24' : 'var(--t-fg-40)' }}>
+                    {src.conversion_rate}% won
+                  </span>
+                  <span className="text-right text-[12px] tabular-nums text-white/40">
+                    {src.total_value > 0 ? `$${src.total_value.toLocaleString()}` : '—'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-        </SectionCard>
+        </div>
       )}
+
+      {/* ── Pain points ── */}
+      {(metrics.top_pain_points || []).length > 0 && (
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0F1929]">
+          <div className="border-b border-white/[0.05] px-5 py-4">
+            <p className="text-[14px] font-semibold text-white">Top routing blockers</p>
+            <p className="mt-0.5 text-[11px] text-white/35">Operational blockers across sourced leads</p>
+          </div>
+          <ol className="divide-y divide-white/[0.04]">
+            {metrics.top_pain_points.slice(0, 8).map((item, i) => {
+              const max = metrics.top_pain_points[0]?.count || 1;
+              const pct = Math.round((item.count / max) * 100);
+              const color = theme.chart[i % theme.chart.length];
+              return (
+                <li key={i} className="grid grid-cols-[44px,1fr,auto] items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02]">
+                  <span className="text-[20px] font-bold tabular-nums leading-none" style={{ color, fontFamily: 'var(--t-mono-font)' }}>
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] leading-snug text-white/80">{item.point}</p>
+                    <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-white/[0.05]">
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
+                    </div>
+                  </div>
+                  <span className="text-[12px] tabular-nums text-white/40">{item.count.toLocaleString()}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptySlot() {
+  return (
+    <div className="flex h-48 flex-col items-center justify-center gap-2">
+      <div className="h-px w-12 bg-white/[0.08]" />
+      <span className="text-[10px] uppercase tracking-[0.24em] text-white/20">No data yet</span>
     </div>
   );
 }

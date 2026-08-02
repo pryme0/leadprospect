@@ -437,7 +437,12 @@ export default function CommHubPage() {
   const theme = useWorkspaceTheme();
 
   /* inbox state */
-  const [pageTab,        setPageTab]        = useState<PageTab>('inbox');
+  const [pageTab,        setPageTab]        = useState<PageTab>(() => {
+    if (typeof window === 'undefined') return 'inbox';
+    const saved = localStorage.getItem('synq_comms_tab');
+    if (saved === 'inbox' || saved === 'mentions' || saved === 'channels') return saved;
+    return 'inbox';
+  });
   const [selectedId,     setSelectedId]     = useState<string>('');
   const [conversations,  setConversations]  = useState<Conversation[]>([]);
   const [loadingConvos,  setLoadingConvos]  = useState(true);
@@ -664,6 +669,11 @@ export default function CommHubPage() {
     fetch('/api/comms/mentions', { method: 'POST', headers: authHeaders(true), body: JSON.stringify({ action: 'seen' }) }).catch(() => {});
     setMentions((prev) => prev.map((m) => ({ ...m, seen: true })));
   }, [pageTab, mentions]);
+
+  /* Persist active tab to localStorage. */
+  useEffect(() => {
+    localStorage.setItem('synq_comms_tab', pageTab);
+  }, [pageTab]);
 
   /* ── Load conversation detail on selection ── */
   useEffect(() => {

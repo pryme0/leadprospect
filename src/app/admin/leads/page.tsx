@@ -131,6 +131,13 @@ export default function LeadsPage() {
   const [syncState,   setSyncState]   = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
   const [syncResult,  setSyncResult]  = useState<{ queued: number } | null>(null);
 
+  // Bulk selection state.
+  const [selected,    setSelected]    = useState<Set<string>>(new Set());
+  const [bulkAction,  setBulkAction]  = useState<'idle' | 'working'>('idle');
+
+  // Duplicate detection.
+  const [dupeCount,   setDupeCount]   = useState(0);
+
   // Outreach / Pulse state.
   const [hasPulse,    setHasPulse]    = useState(false);
   const [connected,   setConnected]   = useState<Set<string>>(new Set());
@@ -219,6 +226,160 @@ export default function LeadsPage() {
       .then((d) => setLeadTags(d.tags ?? {}))
       .catch(() => {});
   }, [leads]);
+
+  // Check for duplicates on mount.
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+    if (!token) return;
+    fetch('/api/leads/duplicates', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((d) => setDupeCount(d.total ?? 0))
+      .catch(() => {});
+  }, []);
+
+  // Clear selection when page/filters change.
+  useEffect(() => { setSelected(new Set()); }, [page, filters]);
+
+  // Visible leads (after client-side outreach + tag filter).
+  const visibleLeads = leads.filter((l) => {
+    if (filters.outreach && (outreach[l.id]?.status ?? 'not_contacted') !== filters.outreach) return false;
+    if (tagFilter && !(leadTags[l.id] ?? []).some((t) => t.id === tagFilter)) return false;
+    return true;
+  });
+
+  const allSelected = visibleLeads.length > 0 && visibleLeads.every((l) => selected.has(l.id));
+  const someSelected = selected.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(visibleLeads.map((l) => l.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkMoveToPipeline = async (stage: 'new' | 'contacted' | 'qualified') => {
+    const token = localStorage.getItem('synq_admin_token');
+    if (!token || selected.size === 0) return;
+    setBulkAction('working');
+    try {
+      const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+      await Promise.all(
+        Array.from(selected).map(async (leadId) => {
+          await fetch('/api/pipeline', { method: 'POST', headers, body: JSON.stringify({ leadId }) });
+          if (stage !== 'new') {
+            await fetch(`/api/pipeline/${leadId}`, { method: 'PATCH', headers, body: JSON.stringify({ stage }) });
+          }
+        })
+      );
+      setSelected(new Set());
+      fetchLeads();
+    } finally {
+      setBulkAction('idle');
+    }
+  };
+
+  const bulkAssignTag = async (tagId: string) => {
+    const token = localStorage.getItem('synq_admin_token');
+    if (!token || selected.size === 0) return;
+    setBulkAction('working');
+    try {
+      const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+      await Promise.all(
+        Array.from(selected).map((leadId) =>
+          fetch('/api/leads/tags', { method: 'POST', headers, body: JSON.stringify({ action: 'assign', leadId, tagId }) })
+        )
+      );
+      const leadIds = leads.map((l) => l.id);
+      const r = await fetch(`/api/leads/tags/batch?leadIds=${encodeURIComponent(leadIds.join(','))}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setLeadTags((await r.json()).tags ?? {});
+    } finally {
+      setBulkAction('idle');
+    }
+  };
+
+  const bulkExport = () => {
+    const selectedLeads = leads.filter((l) => selected.has(l.id));
+    const csv = [
+      ['Name', 'Email', 'Phone', 'Source', 'Intent', 'Pipeline Stage', 'Created'].join(','),
+      ...selectedLeads.map((l) =>
+        [
+          l.first_name || '',
+          l.email || '',
+          l.phone_number || '',
+          l.source_tool || '',
+          l.intent_level || '',
+          l.pipeline_stage || '',
+          l.created_at?.slice(0, 10) || '',
+        ].map((v) => `"${v.replace(/"/g, '""')}"`).join(',')
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportAllLeads = () => {
+    const csv = [
+      ['Name', 'Email', 'Phone', 'Source', 'Intent', 'Pipeline Stage', 'Created'].join(','),
+      ...leads.map((l) =>
+        [
+          l.first_name || '',
+          l.email || '',
+          l.phone_number || '',
+          l.source_tool || '',
+          l.intent_level || '',
+          l.pipeline_stage || '',
+          l.created_at?.slice(0, 10) || '',
+        ].map((v) => `"${v.replace(/"/g, '""')}"`).join(',')
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads-all-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const token = localStorage.getItem('synq_admin_token');
+    if (!token) return;
+    const text = await file.text();
+    try {
+      const res = await fetch('/api/leads/import', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv: text }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Imported ${data.imported ?? 0} leads, skipped ${data.skipped ?? 0} duplicates`);
+        fetchLeads();
+      } else {
+        alert(data.error || 'Import failed');
+      }
+    } catch {
+      alert('Import failed');
+    }
+    e.target.value = '';
+  };
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -441,6 +602,26 @@ export default function LeadsPage() {
               </>
             )}
           </button>
+          <button
+            onClick={exportAllLeads}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition hover:bg-white/10"
+            style={{ background: 'var(--t-fg-06)', color: 'var(--t-fg-70)' }}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+              <path strokeLinecap="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" />
+            </svg>
+            Export
+          </button>
+          <label
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition hover:bg-white/10"
+            style={{ background: 'var(--t-fg-06)', color: 'var(--t-fg-70)' }}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+              <path strokeLinecap="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 20V8m0 0l4 4m-4-4l-4 4" />
+            </svg>
+            Import
+            <input type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
+          </label>
         </div>
       </header>
 
@@ -548,6 +729,95 @@ export default function LeadsPage() {
         )}
       </div>
 
+      {/* ── Duplicate warning ── */}
+      {dupeCount > 0 && (
+        <div
+          className="flex items-center gap-3 rounded-lg px-4 py-2.5"
+          style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)' }}
+        >
+          <span className="text-sm" style={{ color: '#fbbf24' }}>
+            ⚠️ {dupeCount} potential duplicate{dupeCount > 1 ? 's' : ''} detected
+          </span>
+          <button
+            onClick={() => window.open('/admin/leads/duplicates', '_blank')}
+            className="ml-auto text-xs font-medium"
+            style={{ color: '#fbbf24' }}
+          >
+            Review →
+          </button>
+        </div>
+      )}
+
+      {/* ── Bulk action bar ── */}
+      {someSelected && (
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-lg px-4 py-3"
+          style={{ background: 'var(--t-accent-soft)', border: `1px solid ${theme.accent}40` }}
+        >
+          <span className="text-sm font-medium" style={{ color: theme.accent }}>
+            {selected.size} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-white/40">Move to:</span>
+            <button
+              onClick={() => bulkMoveToPipeline('new')}
+              disabled={bulkAction === 'working'}
+              className="rounded px-2 py-1 text-xs font-medium text-white/80 transition hover:bg-white/10"
+              style={{ background: 'var(--t-fg-08)' }}
+            >
+              New
+            </button>
+            <button
+              onClick={() => bulkMoveToPipeline('contacted')}
+              disabled={bulkAction === 'working'}
+              className="rounded px-2 py-1 text-xs font-medium text-white/80 transition hover:bg-white/10"
+              style={{ background: 'var(--t-fg-08)' }}
+            >
+              Contacted
+            </button>
+            <button
+              onClick={() => bulkMoveToPipeline('qualified')}
+              disabled={bulkAction === 'working'}
+              className="rounded px-2 py-1 text-xs font-medium text-white/80 transition hover:bg-white/10"
+              style={{ background: 'var(--t-fg-08)' }}
+            >
+              Qualified
+            </button>
+          </div>
+          {allTags.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider text-white/40">Tag:</span>
+              <select
+                onChange={(e) => { if (e.target.value) bulkAssignTag(e.target.value); e.target.value = ''; }}
+                disabled={bulkAction === 'working'}
+                className="cursor-pointer rounded bg-[var(--t-fg-08)] px-2 py-1 text-xs text-white/80"
+              >
+                <option value="">assign...</option>
+                {allTags.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={bulkExport}
+              disabled={bulkAction === 'working'}
+              className="rounded px-3 py-1.5 text-xs font-medium transition hover:bg-white/10"
+              style={{ background: 'var(--t-fg-08)', color: 'var(--t-fg-80)' }}
+            >
+              Export Selected
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="text-xs text-white/40 hover:text-white/60"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Body ── */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr),300px]">
 
@@ -564,12 +834,20 @@ export default function LeadsPage() {
           <div
             className="hidden lg:grid px-5 py-2.5 text-[9px] font-bold uppercase tracking-[0.26em] text-white/30"
             style={{
-              gridTemplateColumns: '140px minmax(0,1fr) 120px 110px 130px',
+              gridTemplateColumns: '32px 140px minmax(0,1fr) 120px 110px 130px',
               borderBottom: '1px solid var(--a-border)',
               background: 'var(--t-fg-03)',
               fontFamily: theme.fontMono,
             }}
           >
+            <span className="flex items-center">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className="h-3.5 w-3.5 cursor-pointer rounded border-white/20 bg-transparent accent-[var(--t-accent)]"
+              />
+            </span>
             <span>Contact</span>
             <span>Where from</span>
             <span>When</span>
@@ -623,6 +901,8 @@ export default function LeadsPage() {
                   onReply={openReply}
                   onOpenDrawer={() => setDrawerLead(lead)}
                   tags={leadTags[lead.id] ?? []}
+                  isSelected={selected.has(lead.id)}
+                  onToggleSelect={() => toggleSelect(lead.id)}
                 />
               ));
             })()
@@ -931,7 +1211,7 @@ function ReplyDrawer({
 // ── LeadRow ───────────────────────────────────────────────────────────────────
 
 function LeadRow({
-  lead, theme, isLast, hasPulse, connected, outreach, onReply, onOpenDrawer, tags,
+  lead, theme, isLast, hasPulse, connected, outreach, onReply, onOpenDrawer, tags, isSelected, onToggleSelect,
 }: {
   lead: Lead;
   theme: ReturnType<typeof useWorkspaceTheme>;
@@ -942,6 +1222,8 @@ function LeadRow({
   onReply: (lead: Lead) => void;
   onOpenDrawer: () => void;
   tags: { id: string; name: string; color: string }[];
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const intentMeta = INTENT_META[lead.intent_level] ?? { label: 'N/A', color: 'var(--t-fg-30)', dimBg: 'var(--t-fg-05)' };
   const action     = getAction(lead);
@@ -969,6 +1251,14 @@ function LeadRow({
       <div className="flex flex-col gap-3 p-4 lg:hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
+            {onToggleSelect && (
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={onToggleSelect}
+                className="h-4 w-4 cursor-pointer rounded border-white/20 bg-transparent accent-[var(--t-accent)]"
+              />
+            )}
             <Avatar initials={initials} theme={theme} />
             <div>
               <p className="text-[14px] font-semibold text-white">{lead.first_name || 'Unnamed'}</p>
@@ -1008,8 +1298,19 @@ function LeadRow({
       {/* Desktop (columns — matches header) */}
       <div
         className="hidden lg:grid items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02]"
-        style={{ gridTemplateColumns: '140px minmax(0,1fr) 120px 110px 130px' }}
+        style={{ gridTemplateColumns: '32px 140px minmax(0,1fr) 120px 110px 130px' }}
       >
+        {/* Checkbox */}
+        <div className="flex items-center">
+          {onToggleSelect && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onToggleSelect}
+              className="h-3.5 w-3.5 cursor-pointer rounded border-white/20 bg-transparent accent-[var(--t-accent)]"
+            />
+          )}
+        </div>
         {/* Contact */}
         <div className="flex items-center gap-2.5 min-w-0 cursor-pointer" onClick={onOpenDrawer}>
           <Avatar initials={initials} theme={theme} small />

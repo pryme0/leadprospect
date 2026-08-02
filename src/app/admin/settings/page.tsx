@@ -816,7 +816,7 @@ export default function SettingsPage() {
         }}
       >
         <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.3em]" style={{ color: 'var(--t-accent)', fontFamily: 'var(--t-mono-font)' }}>
-          07 · Workspace controls
+          Settings
         </p>
         <h1 className="text-[22px] font-black tracking-tight" style={{ color: 'var(--t-fg-95)' }}>Settings</h1>
         <p className="mt-0.5 text-sm" style={{ color: 'var(--t-fg-40)' }}>Manage organization details, ad sources, CRM routes, and account preferences</p>
@@ -838,6 +838,27 @@ export default function SettingsPage() {
             <span className="text-base leading-none">{t.icon}</span>
             {t.label}
           </button>
+        ))}
+      </div>
+
+      {/* Quick links to sub-settings */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { href: '/admin/settings/templates', label: 'Message Templates', icon: '✉️' },
+          { href: '/admin/settings/team', label: 'Team Assignments', icon: '👥' },
+          { href: '/admin/settings/automation', label: 'Automation Rules', icon: '⚡' },
+          { href: '/admin/settings/webhooks', label: 'Webhooks', icon: '🔗' },
+        ].map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition hover:bg-white/[0.02]"
+            style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', color: 'var(--t-fg-70)' }}
+          >
+            <span>{link.icon}</span>
+            {link.label}
+            <span className="text-white/30">→</span>
+          </Link>
         ))}
       </div>
 

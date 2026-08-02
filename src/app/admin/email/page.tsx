@@ -123,13 +123,13 @@ export default function EmailDeskPage() {
       >
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: theme.accent, fontFamily: theme.fontMono }}>
-            Emails
+            Email
           </p>
           <h1 className="mt-2 text-3xl font-black tracking-tight" style={{ color: 'var(--t-fg-95)' }}>
-            Send emails to your leads
+            Email
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: 'var(--t-fg-60)' }}>
-            Write a follow-up to a lead, send a test to yourself, or schedule messages to go out later.
+            Compose lead follow-ups from scored signals, test delivery, schedule nurture, or simulate live sends with dummy data.
           </p>
         </div>
         <div className="grid grid-cols-3 gap-2">
