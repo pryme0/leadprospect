@@ -137,6 +137,14 @@ export default function LeadsPage() {
   const [outreach,    setOutreach]    = useState<Record<string, OutreachRec>>({});
   const [replyLead,   setReplyLead]   = useState<Lead | null>(null);
 
+  // Lead detail drawer.
+  const [drawerLead,  setDrawerLead]  = useState<Lead | null>(null);
+
+  // Tags state.
+  const [allTags,     setAllTags]     = useState<{ id: string; name: string; color: string }[]>([]);
+  const [leadTags,    setLeadTags]    = useState<Record<string, { id: string; name: string; color: string }[]>>({});
+  const [tagFilter,   setTagFilter]   = useState<string>('');
+
   // Pulse subscription (client) + connected social channels.
   useEffect(() => {
     const loadSub = () => setHasPulse((getSubscription()?.modules ?? []).includes('comms'));
@@ -189,6 +197,28 @@ export default function LeadsPage() {
     } catch { /* ignore */ }
   }, [leads]);
   useEffect(() => { loadOutreach(); }, [loadOutreach]);
+
+  // Load tags.
+  const loadTags = useCallback(async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+    if (!token) return;
+    try {
+      const r = await fetch('/api/leads/tags', { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setAllTags((await r.json()).tags ?? []);
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => { loadTags(); }, [loadTags]);
+
+  // Load tags for current leads.
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+    if (!token || leads.length === 0) return;
+    const leadIds = leads.map((l) => l.id);
+    fetch(`/api/leads/tags/batch?leadIds=${encodeURIComponent(leadIds.join(','))}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((d) => setLeadTags(d.tags ?? {}))
+      .catch(() => {});
+  }, [leads]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -478,9 +508,38 @@ export default function LeadsPage() {
           );
         })}
 
-        {(hasActiveFilters || filters.outreach) && (
+        {/* Tag filter */}
+        {allTags.length > 0 && (
+          <label
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all"
+            style={{
+              background: tagFilter ? 'var(--t-accent-soft)' : 'var(--t-fg-04)',
+              border: `1px solid ${tagFilter ? theme.accent + '50' : 'var(--a-border)'}`,
+            }}
+          >
+            <span
+              className="text-[9px] font-bold uppercase tracking-[0.28em]"
+              style={{ fontFamily: theme.fontMono, color: tagFilter ? theme.accent : 'var(--t-fg-40)' }}
+            >
+              Tag
+            </span>
+            <span style={{ color: 'var(--t-fg-15)', fontSize: 10, userSelect: 'none' }}>·</span>
+            <select
+              value={tagFilter}
+              onChange={(e) => { setTagFilter(e.target.value); setPage(1); }}
+              className="cursor-pointer bg-transparent text-[12px] font-medium capitalize text-white/80 focus:outline-none"
+            >
+              <option value="" className="bg-[#112126]">All</option>
+              {allTags.map((t) => (
+                <option key={t.id} value={t.id} className="bg-[#112126]">{t.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {(hasActiveFilters || filters.outreach || tagFilter) && (
           <button
-            onClick={() => { setFilters({ source_tool: '', intent_level: '', outreach: '' }); setPage(1); }}
+            onClick={() => { setFilters({ source_tool: '', intent_level: '', outreach: '' }); setTagFilter(''); setPage(1); }}
             className="ml-auto text-[11px] text-white/30 transition-colors hover:text-white/60"
             style={{ fontFamily: theme.fontMono }}
           >
@@ -544,9 +603,11 @@ export default function LeadsPage() {
             </div>
           ) : (
             (() => {
-              const visible = filters.outreach
-                ? leads.filter((l) => (outreach[l.id]?.status ?? 'not_contacted') === filters.outreach)
-                : leads;
+              const visible = leads.filter((l) => {
+                if (filters.outreach && (outreach[l.id]?.status ?? 'not_contacted') !== filters.outreach) return false;
+                if (tagFilter && !(leadTags[l.id] ?? []).some((t) => t.id === tagFilter)) return false;
+                return true;
+              });
               if (visible.length === 0) {
                 return <div className="px-5 py-16 text-center text-sm text-white/30">No leads match these filters</div>;
               }
@@ -560,6 +621,8 @@ export default function LeadsPage() {
                   connected={connected}
                   outreach={outreach[lead.id]}
                   onReply={openReply}
+                  onOpenDrawer={() => setDrawerLead(lead)}
+                  tags={leadTags[lead.id] ?? []}
                 />
               ));
             })()
@@ -683,6 +746,13 @@ export default function LeadsPage() {
           onSent={(status) => { onSent(replyLead.id, status, (replyLead.source || '').toLowerCase()); }}
         />
       )}
+
+      {/* ── Lead detail drawer ── */}
+      <LeadDrawer
+        lead={drawerLead}
+        onClose={() => setDrawerLead(null)}
+        token={() => localStorage.getItem('synq_admin_token') ?? ''}
+      />
     </div>
   );
 }
@@ -861,7 +931,7 @@ function ReplyDrawer({
 // ── LeadRow ───────────────────────────────────────────────────────────────────
 
 function LeadRow({
-  lead, theme, isLast, hasPulse, connected, outreach, onReply,
+  lead, theme, isLast, hasPulse, connected, outreach, onReply, onOpenDrawer, tags,
 }: {
   lead: Lead;
   theme: ReturnType<typeof useWorkspaceTheme>;
@@ -870,6 +940,8 @@ function LeadRow({
   connected: Set<string>;
   outreach?: OutreachRec;
   onReply: (lead: Lead) => void;
+  onOpenDrawer: () => void;
+  tags: { id: string; name: string; color: string }[];
 }) {
   const intentMeta = INTENT_META[lead.intent_level] ?? { label: 'N/A', color: 'var(--t-fg-30)', dimBg: 'var(--t-fg-05)' };
   const action     = getAction(lead);
@@ -939,10 +1011,10 @@ function LeadRow({
         style={{ gridTemplateColumns: '140px minmax(0,1fr) 120px 110px 130px' }}
       >
         {/* Contact */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 cursor-pointer" onClick={onOpenDrawer}>
           <Avatar initials={initials} theme={theme} small />
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-semibold text-white leading-tight">
+            <p className="truncate text-[13px] font-semibold text-white leading-tight hover:underline">
               {lead.first_name || 'Unnamed'}
             </p>
             <p className="truncate text-[11px] text-white/40">{lead.email}</p>
@@ -966,6 +1038,12 @@ function LeadRow({
             <ToneBadge tone="accent" theme={theme}>{toolLabel(lead.source_tool)}</ToneBadge>
             <StatusDot active={!!lead.ghl_contact_id} label={lead.ghl_contact_id ? 'Sent' : 'Not sent'} activeColor="#34d399" theme={theme} />
             <StatusDot active={lead.consented}         label={lead.consented ? 'Has permission' : 'No permission'} activeColor={theme.accent} theme={theme} />
+            {tags.slice(0, 2).map((tag) => (
+              <span key={tag.id} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: tag.color + '20', color: tag.color }}>
+                {tag.name}
+              </span>
+            ))}
+            {tags.length > 2 && <span className="text-[10px] text-white/40">+{tags.length - 2}</span>}
           </div>
         </div>
 
