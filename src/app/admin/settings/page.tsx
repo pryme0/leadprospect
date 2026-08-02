@@ -841,6 +841,27 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {/* Quick links to sub-settings */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { href: '/admin/settings/templates', label: 'Message Templates', icon: '✉️' },
+          { href: '/admin/settings/team', label: 'Team Assignments', icon: '👥' },
+          { href: '/admin/settings/automation', label: 'Automation Rules', icon: '⚡' },
+          { href: '/admin/settings/webhooks', label: 'Webhooks', icon: '🔗' },
+        ].map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition hover:bg-white/[0.02]"
+            style={{ background: 'var(--a-card)', borderColor: 'var(--a-border)', color: 'var(--t-fg-70)' }}
+          >
+            <span>{link.icon}</span>
+            {link.label}
+            <span className="text-white/30">→</span>
+          </Link>
+        ))}
+      </div>
+
       {/* ── ORGANIZATION PROFILE TAB ── */}
       {tab === 'profile' && (
         <div className="space-y-4">
