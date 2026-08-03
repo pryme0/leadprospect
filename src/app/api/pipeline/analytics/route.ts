@@ -17,6 +17,7 @@ interface SourceStats {
   lost: number;
   conversion_rate: number;
   total_value: number;
+  avg_cycle_days: number;
 }
 
 /**
@@ -43,6 +44,8 @@ export async function GET(req: NextRequest) {
     const bySource: Record<string, {
       stages: Record<PipelineStage, number>;
       value: number;
+      cycleDaysSum: number;
+      cycleDaysCount: number;
     }> = {};
 
     for (const row of rows) {
@@ -53,12 +56,21 @@ export async function GET(req: NextRequest) {
         bySource[source] = {
           stages: { new: 0, contacted: 0, qualified: 0, won: 0, lost: 0 },
           value: 0,
+          cycleDaysSum: 0,
+          cycleDaysCount: 0,
         };
       }
 
       bySource[source].stages[row.stage as PipelineStage]++;
       if (row.stage === 'won' && row.value) {
         bySource[source].value += Number(row.value) || 0;
+      }
+      if (row.stage === 'won') {
+        const days = (new Date(row.stage_changed_at).getTime() - new Date(row.created_at).getTime()) / 86_400_000;
+        if (Number.isFinite(days) && days >= 0) {
+          bySource[source].cycleDaysSum += days;
+          bySource[source].cycleDaysCount += 1;
+        }
       }
     }
 
@@ -77,6 +89,7 @@ export async function GET(req: NextRequest) {
           lost: data.stages.lost,
           conversion_rate: closed > 0 ? Math.round((won / closed) * 100) : 0,
           total_value: data.value,
+          avg_cycle_days: data.cycleDaysCount > 0 ? Math.round((data.cycleDaysSum / data.cycleDaysCount) * 10) / 10 : 0,
         };
       })
       .sort((a, b) => b.total - a.total);

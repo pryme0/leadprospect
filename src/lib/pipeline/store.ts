@@ -9,6 +9,23 @@
  * hard FK would be unsafe. Scoping/joins happen at the query layer instead.
  */
 import { appPool, ensureAppSchema } from '@/lib/app-pg';
+import { fireStageChangedEvent, fireNewLeadEvent } from '@/lib/leads/lead-events';
+import { getSignalsByIds } from '@/lib/crawler/signals-db';
+
+/** A signal older than this is treated as historical backfill, not a fresh
+ *  "new lead" event — prevents a first-time sync of a large existing backlog
+ *  from firing a burst of Slack/Zapier/webhook calls all at once. */
+const NEW_LEAD_EVENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/** Fire new-lead events one at a time with a small gap, instead of all at
+ *  once — keeps us well under Slack's per-app rate limit even when a
+ *  legitimately large batch of fresh leads lands in a single sync. */
+async function fireNewLeadEventsThrottled(orgId: string, leadIds: string[]): Promise<void> {
+  for (const leadId of leadIds) {
+    await fireNewLeadEvent(orgId, leadId).catch((err) => console.error('[pipeline] new-lead event dispatch failed', err));
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  }
+}
 
 export type PipelineStage = 'new' | 'contacted' | 'qualified' | 'won' | 'lost';
 export const PIPELINE_STAGES: PipelineStage[] = ['new', 'contacted', 'qualified', 'won', 'lost'];
@@ -87,7 +104,18 @@ export async function syncPipelineForOrg(orgId: string, sbu: string): Promise<vo
   await ensureReady();
   // signals.id is uuid; lead_pipeline.lead_id is text (no FK — see file header),
   // so cast s.id::text on both the inserted value and the NOT EXISTS comparison.
-  await appPool().query(
+  // ON CONFLICT DO NOTHING means any row RETURNING gives back is guaranteed a
+  // genuinely new insert (a conflicting row returns nothing) — the one place in
+  // this app that can detect "a new crawler lead just showed up" and fire
+  // lead.created side effects (webhooks/Slack/Zapier/automation). Runs on every
+  // Leads/Pipeline page load, so latency is bounded by how often those are open,
+  // not real-time — acceptable given the crawler itself is a separate service.
+  // A "new" row here just means "not tracked in lead_pipeline yet" — for an org
+  // with a pre-existing backlog of signals, the first sync could return a large
+  // batch at once. Below: only fire events for signals actually created
+  // recently (not old backfill), and throttle the fan-out so a real burst of
+  // fresh leads can't hammer Slack/Zapier/webhooks past their rate limits.
+  const { rows } = await appPool().query(
     `INSERT INTO lead_pipeline (org_id, lead_id, stage)
      SELECT $1, s.id::text, 'new'
      FROM signals s
@@ -97,9 +125,25 @@ export async function syncPipelineForOrg(orgId: string, sbu: string): Promise<vo
        AND NOT EXISTS (
          SELECT 1 FROM lead_pipeline lp WHERE lp.org_id = $1 AND lp.lead_id = s.id::text
        )
-     ON CONFLICT (org_id, lead_id) DO NOTHING`,
+     ON CONFLICT (org_id, lead_id) DO NOTHING
+     RETURNING lead_id`,
     [orgId, sbu],
   );
+  const newLeadIds = (rows as { lead_id: string }[]).map((r) => r.lead_id);
+  if (newLeadIds.length === 0) return;
+
+  // Never block the caller (a Leads/Pipeline page read) on notification fan-out.
+  (async () => {
+    const signals = await getSignalsByIds(newLeadIds).catch(() => []);
+    const cutoff = Date.now() - NEW_LEAD_EVENT_MAX_AGE_MS;
+    const freshIds = signals
+      .filter((s) => {
+        const created = s.created_at ? new Date(s.created_at as unknown as string).getTime() : 0;
+        return created >= cutoff;
+      })
+      .map((s) => s.id);
+    if (freshIds.length > 0) await fireNewLeadEventsThrottled(orgId, freshIds);
+  })().catch((err) => console.error('[pipeline] new-lead event batch failed', err));
 }
 
 export interface PipelineListFilter {
@@ -198,6 +242,10 @@ export async function updatePipelineRow(orgId: string, leadId: string, input: Pi
   // Log activity for stage changes
   if (stageChanged && input.stage) {
     await logActivity(orgId, leadId, 'stage_change', fromStage, input.stage);
+    // Fire-and-forget: webhooks/Slack/Zapier must never block or fail this update.
+    const effectiveValue = input.value !== undefined ? input.value : existing.value;
+    fireStageChangedEvent(orgId, leadId, fromStage, input.stage, effectiveValue)
+      .catch((err) => console.error('[pipeline] stage-changed event dispatch failed', err));
   }
 
   return getPipelineRow(orgId, leadId);

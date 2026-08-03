@@ -81,6 +81,21 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProvider> = {
     urls: () => ({ authorize: 'https://www.facebook.com/v19.0/dialog/oauth', token: 'https://graph.facebook.com/v19.0/oauth/access_token' }),
     fields: CLIENT_FIELDS,
   },
+  pipedrive: {
+    scopes: ['base'],
+    clientIdEnv: 'PIPEDRIVE_CLIENT_ID',
+    clientSecretEnv: 'PIPEDRIVE_CLIENT_SECRET',
+    urls: () => ({ authorize: 'https://oauth.pipedrive.com/oauth/authorize', token: 'https://oauth.pipedrive.com/oauth/token' }),
+    fields: CLIENT_FIELDS,
+  },
+  'google-sheets': {
+    scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive.readonly'],
+    extraAuthParams: { access_type: 'offline', prompt: 'consent' },
+    clientIdEnv: 'GOOGLE_CLIENT_ID',
+    clientSecretEnv: 'GOOGLE_CLIENT_SECRET',
+    urls: () => ({ authorize: 'https://accounts.google.com/o/oauth2/v2/auth', token: 'https://oauth2.googleapis.com/token' }),
+    fields: CLIENT_FIELDS,
+  },
 };
 
 export function oauthProvider(integrationId: string): OAuthProvider | null {

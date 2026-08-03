@@ -45,7 +45,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       instance_url: t.instance_url ?? null,
       account_label,
       scopes: typeof t.scope === 'string' ? t.scope : null,
-      extra: t.id ? { identity_url: t.id } : {},
+      extra: {
+        ...(t.id ? { identity_url: t.id } : {}),
+        ...(typeof t.api_domain === 'string' ? { api_domain: t.api_domain } : {}),
+      },
     });
 
     return back(`connected=${encodeURIComponent(id)}`);

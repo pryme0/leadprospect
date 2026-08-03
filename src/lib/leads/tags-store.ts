@@ -62,6 +62,15 @@ export async function createTag(orgId: string, name: string, color?: string): Pr
   return rows[0] as LeadTag;
 }
 
+export async function getTagById(orgId: string, tagId: string): Promise<LeadTag | null> {
+  await ensureReady();
+  const { rows } = await appPool().query(
+    `SELECT * FROM lead_tags WHERE org_id = $1 AND id = $2`,
+    [orgId, tagId],
+  );
+  return (rows[0] as LeadTag) ?? null;
+}
+
 export async function listTags(orgId: string): Promise<LeadTag[]> {
   await ensureReady();
   const { rows } = await appPool().query(

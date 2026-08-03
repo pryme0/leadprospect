@@ -36,6 +36,13 @@ interface Activity {
   created_at: string;
 }
 
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  is_active: boolean;
+}
+
 interface Props {
   lead: Lead | null;
   onClose: () => void;
@@ -58,20 +65,27 @@ export default function LeadDrawer({ lead, onClose, token }: Props) {
   const [newNote, setNewNote] = useState('');
   const [newTag, setNewTag] = useState('');
   const [saving, setSaving] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [assignedUserId, setAssignedUserId] = useState<string>('');
+  const [assigning, setAssigning] = useState(false);
 
   const load = useCallback(async () => {
     if (!lead) return;
     const headers = { Authorization: `Bearer ${token()}` };
-    const [notesRes, tagsRes, allTagsRes, activityRes] = await Promise.all([
+    const [notesRes, tagsRes, allTagsRes, activityRes, usersRes, assignRes] = await Promise.all([
       fetch(`/api/leads/${lead.id}/notes`, { headers }).then((r) => r.json()),
       fetch(`/api/leads/${lead.id}/tags`, { headers }).then((r) => r.json()).catch(() => ({ tags: [] })),
       fetch('/api/leads/tags', { headers }).then((r) => r.json()),
       fetch(`/api/pipeline/activity?leadId=${lead.id}`, { headers }).then((r) => r.json()),
+      fetch('/api/users', { headers }).then((r) => r.json()).catch(() => ({ users: [] })),
+      fetch(`/api/leads/assign?leadIds=${lead.id}`, { headers }).then((r) => r.json()).catch(() => ({ assignments: {} })),
     ]);
     setNotes(notesRes.notes ?? []);
     setTags(tagsRes.tags ?? []);
     setAllTags(allTagsRes.tags ?? []);
     setActivity(activityRes.activity ?? []);
+    setTeamMembers((usersRes.users ?? []).filter((u: TeamMember) => u.is_active !== false));
+    setAssignedUserId(assignRes.assignments?.[lead.id]?.user_id ?? '');
   }, [lead, token]);
 
   useEffect(() => { load(); }, [load]);
@@ -108,6 +122,29 @@ export default function LeadDrawer({ lead, onClose, token }: Props) {
     setNewTag('');
     setSaving(false);
     load();
+  };
+
+  const setAssignee = async (userId: string) => {
+    if (!lead) return;
+    setAssigning(true);
+    setAssignedUserId(userId);
+    try {
+      if (!userId) {
+        await fetch('/api/leads/assign', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ leadId: lead.id, action: 'unassign' }),
+        });
+      } else {
+        await fetch('/api/leads/assign', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ leadId: lead.id, userId }),
+        });
+      }
+    } finally {
+      setAssigning(false);
+    }
   };
 
   const toggleTag = async (tag: Tag) => {
@@ -165,6 +202,23 @@ export default function LeadDrawer({ lead, onClose, token }: Props) {
                 {lead.summary}
               </p>
             )}
+          </section>
+
+          {/* Assigned to */}
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--a-text-40)' }}>Assigned to</h3>
+            <select
+              value={assignedUserId}
+              disabled={assigning}
+              onChange={(e) => setAssignee(e.target.value)}
+              className="w-full rounded-lg border px-2 py-1.5 text-xs disabled:opacity-50"
+              style={{ background: 'var(--a-input-bg)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
+            >
+              <option value="">Unassigned</option>
+              {teamMembers.map((m) => (
+                <option key={m.id} value={m.id}>{m.name || m.email}</option>
+              ))}
+            </select>
           </section>
 
           {/* Tags */}

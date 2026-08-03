@@ -186,6 +186,34 @@ export function signPayload(payload: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(payload).digest('hex');
 }
 
+/** Deliver an event to every enabled webhook subscribed to it — HMAC-signed, logged. */
+export async function deliverWebhookEvent(orgId: string, event: string, payload: Record<string, unknown>): Promise<void> {
+  const webhooks = await getEnabledWebhooksForEvent(orgId, event);
+  if (webhooks.length === 0) return;
+  const body = JSON.stringify({ event, timestamp: new Date().toISOString(), data: payload });
+
+  await Promise.all(webhooks.map(async (wh) => {
+    let status: number | null = null;
+    let responseText: string | null = null;
+    try {
+      const res = await fetch(wh.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Event': event,
+          'X-Signature': `sha256=${signPayload(body, wh.secret)}`,
+        },
+        body,
+      });
+      status = res.status;
+      responseText = (await res.text().catch(() => '')).slice(0, 500);
+    } catch (err) {
+      responseText = String(err).slice(0, 500);
+    }
+    await logWebhookCall(wh.id, event, payload, status, responseText).catch(() => {});
+  }));
+}
+
 export const WEBHOOK_EVENTS = [
   'lead.created',
   'lead.updated',

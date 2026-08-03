@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth/session';
 import { getConnection } from '@/lib/integrations/store';
 import { fetchSalesforceRecords } from '@/lib/integrations/salesforce';
+import { fetchPipedriveRecords } from '@/lib/integrations/pipedrive';
+import { fetchGoogleSheetsRecords } from '@/lib/integrations/google-sheets';
 import { hasModule } from '@/lib/subscription/server-store';
 
 export const dynamic = 'force-dynamic';
@@ -22,13 +24,21 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({ message: 'Not connected.' }, { status: 409 });
   }
 
-  if (id === 'salesforce') {
-    try {
+  try {
+    if (id === 'salesforce') {
       const records = await fetchSalesforceRecords(user.org, 25);
       return NextResponse.json({ records, count: records.length });
-    } catch (err) {
-      return NextResponse.json({ message: err instanceof Error ? err.message : 'Sync failed.' }, { status: 400 });
     }
+    if (id === 'pipedrive') {
+      const records = await fetchPipedriveRecords(user.org, 25);
+      return NextResponse.json({ records, count: records.length });
+    }
+    if (id === 'google-sheets') {
+      const records = await fetchGoogleSheetsRecords(user.org, 25);
+      return NextResponse.json({ records, count: records.length });
+    }
+  } catch (err) {
+    return NextResponse.json({ message: err instanceof Error ? err.message : 'Sync failed.' }, { status: 400 });
   }
 
   return NextResponse.json({ message: 'Live sync for this integration is coming soon.', records: [], count: 0 }, { status: 501 });

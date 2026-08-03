@@ -109,6 +109,8 @@ export default function PipelinePage() {
   const [editValue, setEditValue] = useState('');
   const [editFollowUp, setEditFollowUp] = useState('');
   const [saving, setSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkMoving, setBulkMoving] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -162,6 +164,26 @@ export default function PipelinePage() {
     setLostModal(null);
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkMove = async (stage: Stage) => {
+    if (selectedIds.size === 0 || stage === 'won' || stage === 'lost') return;
+    setBulkMoving(true);
+    try {
+      await Promise.all(Array.from(selectedIds).map((id) => pipelineApi.update(id, { stage })));
+      setSelectedIds(new Set());
+      load();
+    } finally {
+      setBulkMoving(false);
+    }
+  };
+
   const openEdit = (item: PipelineItem) => {
     setEditItem(item);
     setEditNotes(item.notes ?? '');
@@ -193,6 +215,24 @@ export default function PipelinePage() {
           <p className="mt-1 text-sm" style={{ color: 'var(--a-text-50)' }}>Every lead, from first contact to closed sale.</p>
         </div>
         <div className="flex items-center gap-3">
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 rounded-xl border px-3 py-1.5" style={{ background: `${VIOLET}14`, borderColor: `${VIOLET}50` }}>
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--a-text)' }}>{selectedIds.size} selected</span>
+              <select
+                disabled={bulkMoving}
+                defaultValue=""
+                onChange={(e) => { if (e.target.value) bulkMove(e.target.value as Stage); e.target.value = ''; }}
+                className="rounded-lg border px-2 py-1 text-[11px] outline-none disabled:opacity-40"
+                style={{ background: 'var(--a-card)', borderColor: 'var(--a-border2)', color: 'var(--a-text)' }}
+              >
+                <option value="" disabled>Move to…</option>
+                <option value="new">New</option>
+                <option value="contacted">Contacted</option>
+                <option value="qualified">Qualified</option>
+              </select>
+              <button onClick={() => setSelectedIds(new Set())} className="text-[11px]" style={{ color: 'var(--a-text-40)' }}>Clear</button>
+            </div>
+          )}
           <div className="relative">
             <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px]" style={{ color: 'var(--a-text-40)' }}>search</span>
             <input
@@ -275,6 +315,15 @@ export default function PipelinePage() {
                       className="cursor-pointer rounded-xl border p-3 transition-colors hover:border-[var(--a-border2)]"
                       style={{ background: 'var(--a-input-bg)', borderColor: overdue ? RED : 'var(--a-border)' }}
                     >
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(item.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleSelect(item.id)}
+                          className="h-3.5 w-3.5 cursor-pointer"
+                        />
+                      </div>
                       <p className="truncate text-[13px] font-medium" style={{ color: 'var(--a-text)' }}>{item.first_name || 'Unnamed lead'}</p>
                       <p className="mt-0.5 truncate text-[11px]" style={{ color: 'var(--a-text-50)' }}>{item.income_goal || item.summary || item.source_tool}</p>
                       <div className="mt-2 flex items-center justify-between">

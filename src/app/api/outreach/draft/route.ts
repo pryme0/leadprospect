@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Replying to leads requires an active Pulse subscription.' }, { status: 403 });
   }
   if (!llmConfigured()) {
-    return NextResponse.json({ message: 'AI is not configured (set OPENAI_API_KEY or GEMINI_API_KEY).' }, { status: 503 });
+    return NextResponse.json({ message: 'AI is not configured (set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY).' }, { status: 503 });
   }
 
   let leadId = '';

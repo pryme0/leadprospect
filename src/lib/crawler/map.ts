@@ -4,6 +4,7 @@
  * every field is now backed by a real crawler record.
  */
 import type { SignalRow, SignalStats } from './signals-db';
+import type { ImportedLeadRow } from '@/lib/leads/imported-store';
 
 function toIso(v: unknown): string | null {
   if (!v) return null;
@@ -101,6 +102,39 @@ export function toUiLead(r: SignalRow) {
     post_content: r.content ?? null,
     summary: r.summary ?? null,
     ...hotScoreFields(r),
+  };
+}
+
+/** CSV-imported lead → the admin Lead Queue shape, so imports show up in the same list. */
+export function toUiLeadFromImported(r: ImportedLeadRow) {
+  return {
+    id: r.id,
+    first_name: firstName(r.name),
+    email: r.email ?? '',
+    phone_number: r.phone ?? '',
+    timeline_to_start: '',
+    income_goal: r.company ?? '',
+    source_tool: 'crm-import',
+    intent_level: 'MEDIUM_INTENT',
+    consented: true,
+    ghl_contact_id: null,
+    lead_source: 'import',
+    created_at: toIso(r.created_at) ?? '',
+    source: r.source ?? 'import',
+    username: null,
+    profile_url: null,
+    post_url: null,
+    url: null,
+    post_content: null,
+    summary: r.notes ?? null,
+    hot_lead_score: null,
+    lead_tier: null,
+    detected_intent: null,
+    score_reason: null,
+    recommended_response_time: null,
+    recommended_outreach: null,
+    score_breakdown: null,
+    score_confidence: null,
   };
 }
 

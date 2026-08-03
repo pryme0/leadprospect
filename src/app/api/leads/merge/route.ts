@@ -4,6 +4,7 @@ import { hasModule } from '@/lib/subscription/server-store';
 import { getPipelineRow, updatePipelineRow } from '@/lib/pipeline/store';
 import { getNotesForLead, addNote } from '@/lib/leads/notes-store';
 import { getTagsForLead, assignTag } from '@/lib/leads/tags-store';
+import { recordMerge } from '@/lib/leads/merges-store';
 import { appPool } from '@/lib/app-pg';
 
 export const dynamic = 'force-dynamic';
@@ -87,6 +88,13 @@ export async function POST(req: NextRequest) {
       `DELETE FROM lead_tag_assignments WHERE org_id = $1 AND lead_id = ANY($2)`,
       [user.org, allMergeIds],
     );
+
+    // Suppress the merged leads from future lists/exports — `signals` is owned
+    // by the external crawler service and can't be deleted, so we track the
+    // merge here instead.
+    for (const mergeId of allMergeIds) {
+      await recordMerge(user.org, mergeId, primaryId);
+    }
 
     return NextResponse.json({
       success: true,

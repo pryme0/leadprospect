@@ -303,6 +303,68 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     actions: ['Connect Salesforce', 'Validate custom fields', 'Preview dedupe run'],
   },
   {
+    id: 'pipedrive',
+    label: 'Pipedrive',
+    key: 'PIPEDRIVE_CLIENT_ID',
+    description: 'Read and write Pipedrive persons and deals as leads move through your funnel.',
+    icon: 'P',
+    category: 'crm',
+    accent: '#00b289',
+    docsUrl: 'https://developers.pipedrive.com/docs/api/v1',
+    summary: 'Uses the Pipedrive REST API to match persons by email, read/write deals, and keep pipeline stage in sync with your Pipedrive account.',
+    apiNotes: [
+      'Persons and deals are read/written through Pipedrive REST v1 endpoints, scoped to the connected account.',
+      'Matching is by email address; unmatched leads can create a new person on qualification.',
+      'Deal stage updates should map your pipeline stages to the org\'s configured Pipedrive pipeline.',
+    ],
+    pulls: [
+      { name: 'Persons', fields: ['id', 'name', 'email', 'org_id', 'add_time'], cadence: 'On demand' },
+      { name: 'Deals', fields: ['id', 'title', 'value', 'status', 'stage_id', 'add_time'], cadence: 'On demand' },
+    ],
+    sends: [
+      { name: 'Person create/update', fields: ['name', 'email', 'phone'], cadence: 'On qualified lead' },
+    ],
+    metrics: [
+      { label: 'Connection', value: 'Draft', detail: 'OAuth not configured' },
+    ],
+    mappings: [
+      { source: 'lead.email', destination: 'person.email', rule: 'Primary match and dedupe key' },
+      { source: 'pipeline_stage', destination: 'deal.stage_id', rule: 'Keeps deal stage in sync' },
+    ],
+    records: [],
+    actions: ['Connect Pipedrive', 'Sync persons and deals'],
+  },
+  {
+    id: 'google-sheets',
+    label: 'Google Sheets',
+    key: 'GOOGLE_SHEETS_SPREADSHEET_ID',
+    description: 'List spreadsheets, read rows, and write qualified leads to a sheet.',
+    icon: 'GS',
+    category: 'crm',
+    accent: '#0f9d58',
+    docsUrl: 'https://developers.google.com/sheets/api',
+    summary: 'Uses the Google Sheets and Drive APIs to list the connected account\'s spreadsheets and read/write rows — a lightweight destination for teams that track leads in a sheet.',
+    apiNotes: [
+      'Spreadsheets are listed via the Drive API, filtered to spreadsheet mime type.',
+      'Rows are read/appended via the Sheets API values endpoints for a chosen spreadsheet + range.',
+    ],
+    pulls: [
+      { name: 'Spreadsheets', fields: ['id', 'name', 'createdTime'], cadence: 'On demand' },
+      { name: 'Sheet rows', fields: ['range', 'values'], cadence: 'On demand' },
+    ],
+    sends: [
+      { name: 'Append row', fields: ['name', 'email', 'phone', 'stage'], cadence: 'On qualified lead' },
+    ],
+    metrics: [
+      { label: 'Connection', value: 'Draft', detail: 'OAuth not configured' },
+    ],
+    mappings: [
+      { source: 'lead', destination: 'sheet row', rule: 'Appended to the configured range' },
+    ],
+    records: [],
+    actions: ['Connect Google', 'List spreadsheets'],
+  },
+  {
     id: 'website-forms',
     label: 'Website Forms',
     key: 'WEB_FORM_SIGNING_SECRET',

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { adminApi } from '@/lib/api';
+import { adminApi, pipelineApi } from '@/lib/api';
 import { useWorkspaceTheme } from '@/lib/workspace-theme';
 import { getSubscription } from '@/lib/subscription-store';
 import { tierInfo, leadTier } from '@/lib/labels';
@@ -71,6 +71,7 @@ function sourceLabel(s: string | null | undefined): { label: string; tone: 'gold
     case 'crawler':  return { label: 'Found by SYNQ', tone: 'gold' };
     case 'so':
     case 'social':   return { label: 'Social media',  tone: 'blue' };
+    case 'import':   return { label: 'Imported',      tone: 'blue' };
     default:         return { label: 'Your website',  tone: 'green' };
   }
 }
@@ -145,6 +146,26 @@ export default function LeadsPage() {
   const [leadTags,    setLeadTags]    = useState<Record<string, { id: string; name: string; color: string }[]>>({});
   const [tagFilter,   setTagFilter]   = useState<string>('');
 
+  // Bulk selection + actions.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy,     setBulkBusy]   = useState(false);
+  const [bulkTagId,    setBulkTagId]  = useState('');
+  const [bulkAssignee, setBulkAssignee] = useState('');
+  const [teamMembers,  setTeamMembers]  = useState<{ id: string; name: string; email: string; is_active?: boolean }[]>([]);
+
+  // Duplicate detection.
+  const [duplicates,     setDuplicates]     = useState<{ key: string; type: string; leads: { id: string; name: string | null; email: string | null; username: string | null; source: string; created_at: string }[] }[]>([]);
+  const [dupTotal,       setDupTotal]       = useState(0);
+  const [showDupModal,   setShowDupModal]   = useState(false);
+  const [dupBannerDismissed, setDupBannerDismissed] = useState(false);
+  const [mergingKey,     setMergingKey]     = useState<string | null>(null);
+
+  // CSV import.
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile,      setImportFile]      = useState<File | null>(null);
+  const [importBusy,      setImportBusy]      = useState(false);
+  const [importResult,    setImportResult]    = useState<string | null>(null);
+
   // Pulse subscription (client) + connected social channels.
   useEffect(() => {
     const loadSub = () => setHasPulse((getSubscription()?.modules ?? []).includes('comms'));
@@ -209,16 +230,33 @@ export default function LeadsPage() {
   }, []);
   useEffect(() => { loadTags(); }, [loadTags]);
 
-  // Load tags for current leads.
+  // Load team members for the "Assign to" bulk action.
   useEffect(() => {
+    adminApi.getUsers().then((r) => setTeamMembers((r.data.users ?? []).filter((u: { is_active?: boolean }) => u.is_active !== false))).catch(() => {});
+  }, []);
+
+  // Load tags for current leads.
+  const reloadLeadTags = useCallback(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
-    if (!token || leads.length === 0) return;
+    if (!token || leads.length === 0) return Promise.resolve();
     const leadIds = leads.map((l) => l.id);
-    fetch(`/api/leads/tags/batch?leadIds=${encodeURIComponent(leadIds.join(','))}`, { headers: { Authorization: `Bearer ${token}` } })
+    return fetch(`/api/leads/tags/batch?leadIds=${encodeURIComponent(leadIds.join(','))}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((d) => setLeadTags(d.tags ?? {}))
       .catch(() => {});
   }, [leads]);
+  useEffect(() => { reloadLeadTags(); }, [reloadLeadTags]);
+
+  // Duplicate detection.
+  const loadDuplicates = useCallback(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+    if (!token) return;
+    fetch('/api/leads/duplicates', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) { setDuplicates(d.duplicates ?? []); setDupTotal(d.total ?? 0); } })
+      .catch(() => {});
+  }, []);
+  useEffect(() => { loadDuplicates(); }, [loadDuplicates]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -268,6 +306,109 @@ export default function LeadsPage() {
   const openReply = (lead: Lead) => setReplyLead(lead);
   const onSent = (leadId: string, status: OutreachStatus, platform: string) => {
     setOutreach((prev) => ({ ...prev, [leadId]: { status, platform } }));
+  };
+
+  const visibleLeads = useMemo(() => leads.filter((l) => {
+    if (filters.outreach && (outreach[l.id]?.status ?? 'not_contacted') !== filters.outreach) return false;
+    if (tagFilter && !(leadTags[l.id] ?? []).some((t) => t.id === tagFilter)) return false;
+    return true;
+  }), [leads, filters.outreach, tagFilter, outreach, leadTags]);
+
+  const authHeader = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+    return { Authorization: `Bearer ${token}` };
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      if (visibleLeads.every((l) => prev.has(l.id)) && visibleLeads.length > 0) return new Set();
+      return new Set(visibleLeads.map((l) => l.id));
+    });
+  };
+
+  const applyBulkTag = async (tagId: string) => {
+    if (!tagId || selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      await fetch('/api/leads/tags/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ leadIds: Array.from(selectedIds), tagId }),
+      });
+      setBulkTagId('');
+      setSelectedIds(new Set());
+      await reloadLeadTags();
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const applyBulkStage = async (stage: 'new' | 'contacted' | 'qualified') => {
+    if (selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      await Promise.all(Array.from(selectedIds).map((id) => pipelineApi.update(id, { stage })));
+      setSelectedIds(new Set());
+      await fetchLeads();
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const applyBulkAssign = async (userId: string) => {
+    if (!userId || selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      await fetch('/api/leads/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ leadIds: Array.from(selectedIds), userId }),
+      });
+      setBulkAssignee('');
+      setSelectedIds(new Set());
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const mergeGroup = async (groupKey: string, primaryId: string, mergeIds: string[]) => {
+    setMergingKey(groupKey);
+    try {
+      await fetch('/api/leads/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ primaryId, mergeIds }),
+      });
+      await Promise.all([fetchLeads(), loadDuplicates()]);
+    } finally {
+      setMergingKey(null);
+    }
+  };
+
+  const handleImportSubmit = async () => {
+    if (!importFile) return;
+    setImportBusy(true);
+    setImportResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', importFile);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('synq_admin_token') : null;
+      const r = await fetch('/api/leads/import', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
+      const d = await r.json();
+      setImportResult(d.message || (r.ok ? 'Import complete.' : 'Import failed.'));
+      if (r.ok) { setImportFile(null); await fetchLeads(); }
+    } catch {
+      setImportResult('Network error.');
+    } finally {
+      setImportBusy(false);
+    }
   };
 
   return (
@@ -393,6 +534,24 @@ export default function LeadsPage() {
               {unsyncedCount ? `${unsyncedCount} leads not sent to your CRM yet` : 'All leads here are sent to your CRM'}
             </span>
           </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold text-white/70 transition-colors hover:text-white"
+              style={{ borderColor: 'var(--a-border)' }}
+            >
+              <span className="material-symbols-outlined text-[15px]">upload</span>
+              Import CSV
+            </button>
+            <a
+              href="/api/leads/export"
+              className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold text-white/70 transition-colors hover:text-white"
+              style={{ borderColor: 'var(--a-border)' }}
+            >
+              <span className="material-symbols-outlined text-[15px]">download</span>
+              Export CSV
+            </a>
+          </div>
           <button
             onClick={handleGhlSync}
             disabled={syncState === 'syncing'}
@@ -548,6 +707,83 @@ export default function LeadsPage() {
         )}
       </div>
 
+      {/* ── Duplicate banner ── */}
+      {!dupBannerDismissed && dupTotal > 0 && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-3.5"
+          style={{ background: 'rgba(255,181,71,0.08)', borderColor: 'rgba(255,181,71,0.30)' }}
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="material-symbols-outlined" style={{ color: '#FFB547' }}>content_copy</span>
+            <p className="text-[13px] text-white/80">
+              <span className="font-bold text-white">{dupTotal} potential duplicate{dupTotal === 1 ? '' : 's'}</span> found (same email or username).
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowDupModal(true)} className="text-[12px] font-semibold underline" style={{ color: '#FFB547' }}>
+              Review duplicates →
+            </button>
+            <button onClick={() => setDupBannerDismissed(true)} className="text-white/30 hover:text-white/60">
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk action bar ── */}
+      {selectedIds.size > 0 && (
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-3"
+          style={{ background: 'var(--t-accent-soft)', borderColor: theme.accent + '50' }}
+        >
+          <span className="text-[13px] font-bold text-white">{selectedIds.size} selected</span>
+          <span className="h-4 w-px" style={{ background: 'var(--a-border)' }} />
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-white/50">Move to:</span>
+            {(['new', 'contacted', 'qualified'] as const).map((s) => (
+              <button
+                key={s}
+                disabled={bulkBusy}
+                onClick={() => applyBulkStage(s)}
+                className="rounded-full px-3 py-1 text-[11px] font-semibold capitalize transition-colors hover:brightness-110 disabled:opacity-40"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--a-border)', color: 'white' }}
+              >
+                → {s}
+              </button>
+            ))}
+          </div>
+          <span className="h-4 w-px" style={{ background: 'var(--a-border)' }} />
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-white/50">Tag:</span>
+            <select
+              value={bulkTagId}
+              disabled={bulkBusy}
+              onChange={(e) => applyBulkTag(e.target.value)}
+              className="rounded-lg bg-white/5 px-2 py-1 text-[12px] text-white outline-none"
+            >
+              <option value="" className="bg-[#112126]">Choose a tag…</option>
+              {allTags.map((t) => <option key={t.id} value={t.id} className="bg-[#112126]">{t.name}</option>)}
+            </select>
+          </div>
+          <span className="h-4 w-px" style={{ background: 'var(--a-border)' }} />
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-white/50">Assign to:</span>
+            <select
+              value={bulkAssignee}
+              disabled={bulkBusy}
+              onChange={(e) => applyBulkAssign(e.target.value)}
+              className="rounded-lg bg-white/5 px-2 py-1 text-[12px] text-white outline-none"
+            >
+              <option value="" className="bg-[#112126]">Choose a person…</option>
+              {teamMembers.map((m) => <option key={m.id} value={m.id} className="bg-[#112126]">{m.name || m.email}</option>)}
+            </select>
+          </div>
+          <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-[11px] text-white/40 hover:text-white/70">
+            Clear selection
+          </button>
+        </div>
+      )}
+
       {/* ── Body ── */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr),300px]">
 
@@ -562,14 +798,20 @@ export default function LeadsPage() {
         >
           {/* Column headers */}
           <div
-            className="hidden lg:grid px-5 py-2.5 text-[9px] font-bold uppercase tracking-[0.26em] text-white/30"
+            className="hidden lg:grid items-center px-5 py-2.5 text-[9px] font-bold uppercase tracking-[0.26em] text-white/30"
             style={{
-              gridTemplateColumns: '140px minmax(0,1fr) 120px 110px 130px',
+              gridTemplateColumns: '22px 140px minmax(0,1fr) 120px 110px 130px',
               borderBottom: '1px solid var(--a-border)',
               background: 'var(--t-fg-03)',
               fontFamily: theme.fontMono,
             }}
           >
+            <input
+              type="checkbox"
+              checked={visibleLeads.length > 0 && visibleLeads.every((l) => selectedIds.has(l.id))}
+              onChange={toggleSelectAllVisible}
+              className="h-3.5 w-3.5 cursor-pointer"
+            />
             <span>Contact</span>
             <span>Where from</span>
             <span>When</span>
@@ -601,31 +843,25 @@ export default function LeadsPage() {
                 Adjust filters above
               </p>
             </div>
+          ) : visibleLeads.length === 0 ? (
+            <div className="px-5 py-16 text-center text-sm text-white/30">No leads match these filters</div>
           ) : (
-            (() => {
-              const visible = leads.filter((l) => {
-                if (filters.outreach && (outreach[l.id]?.status ?? 'not_contacted') !== filters.outreach) return false;
-                if (tagFilter && !(leadTags[l.id] ?? []).some((t) => t.id === tagFilter)) return false;
-                return true;
-              });
-              if (visible.length === 0) {
-                return <div className="px-5 py-16 text-center text-sm text-white/30">No leads match these filters</div>;
-              }
-              return visible.map((lead, i) => (
-                <LeadRow
-                  key={lead.id}
-                  lead={lead}
-                  theme={theme}
-                  isLast={i === visible.length - 1}
-                  hasPulse={hasPulse}
-                  connected={connected}
-                  outreach={outreach[lead.id]}
-                  onReply={openReply}
-                  onOpenDrawer={() => setDrawerLead(lead)}
-                  tags={leadTags[lead.id] ?? []}
-                />
-              ));
-            })()
+            visibleLeads.map((lead, i) => (
+              <LeadRow
+                key={lead.id}
+                lead={lead}
+                theme={theme}
+                isLast={i === visibleLeads.length - 1}
+                hasPulse={hasPulse}
+                connected={connected}
+                outreach={outreach[lead.id]}
+                onReply={openReply}
+                onOpenDrawer={() => setDrawerLead(lead)}
+                tags={leadTags[lead.id] ?? []}
+                selected={selectedIds.has(lead.id)}
+                onToggleSelect={() => toggleSelect(lead.id)}
+              />
+            ))
           )}
 
           {/* Pagination */}
@@ -753,6 +989,77 @@ export default function LeadsPage() {
         onClose={() => setDrawerLead(null)}
         token={() => localStorage.getItem('synq_admin_token') ?? ''}
       />
+
+      {/* ── Duplicate review modal ── */}
+      {showDupModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(3,8,15,0.6)' }} onClick={(e) => { if (e.target === e.currentTarget) setShowDupModal(false); }}>
+          <div className="max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-2xl p-6" style={{ background: 'var(--a-bg)', border: '1px solid var(--a-border)' }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-[16px] font-bold text-white">Potential duplicates ({dupTotal})</h2>
+              <button onClick={() => setShowDupModal(false)} className="text-white/40 hover:text-white/80"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            {duplicates.length === 0 ? (
+              <p className="text-sm text-white/50">No duplicates found.</p>
+            ) : (
+              <div className="space-y-4">
+                {duplicates.map((group) => (
+                  <div key={group.key} className="rounded-xl p-3.5" style={{ background: 'var(--a-card)', border: '1px solid var(--a-border)' }}>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/40">{group.type} · {group.key}</p>
+                    <div className="space-y-1.5">
+                      {group.leads.map((l) => (
+                        <div key={l.id} className="flex items-center justify-between text-[13px] text-white/80">
+                          <span>{l.name || l.username || l.email || l.id} <span className="text-white/30">· {l.source}</span></span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      disabled={mergingKey === group.key}
+                      onClick={() => {
+                        const [primary, ...rest] = group.leads;
+                        mergeGroup(group.key, primary.id, rest.map((r) => r.id));
+                      }}
+                      className="mt-3 rounded-full px-4 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+                      style={{ background: theme.accent }}
+                    >
+                      {mergingKey === group.key ? 'Merging…' : `Merge into "${group.leads[0]?.name || group.leads[0]?.username || 'first'}"`}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── CSV import modal ── */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(3,8,15,0.6)' }} onClick={(e) => { if (e.target === e.currentTarget) setShowImportModal(false); }}>
+          <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: 'var(--a-bg)', border: '1px solid var(--a-border)' }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-[16px] font-bold text-white">Import leads from CSV</h2>
+              <button onClick={() => { setShowImportModal(false); setImportResult(null); }} className="text-white/40 hover:text-white/80"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <p className="mb-3 text-[12px] leading-relaxed text-white/50">
+              Columns recognized: name, email, phone, company, source, notes. Leads with an email already imported are skipped.
+            </p>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+              className="w-full text-[12px] text-white/70"
+            />
+            {importResult && <p className="mt-3 text-[12px] text-white/70">{importResult}</p>}
+            <button
+              onClick={handleImportSubmit}
+              disabled={!importFile || importBusy}
+              className="mt-4 w-full rounded-full py-2.5 text-[13px] font-semibold text-white disabled:opacity-40"
+              style={{ background: theme.accent }}
+            >
+              {importBusy ? 'Importing…' : 'Import'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -931,7 +1238,7 @@ function ReplyDrawer({
 // ── LeadRow ───────────────────────────────────────────────────────────────────
 
 function LeadRow({
-  lead, theme, isLast, hasPulse, connected, outreach, onReply, onOpenDrawer, tags,
+  lead, theme, isLast, hasPulse, connected, outreach, onReply, onOpenDrawer, tags, selected, onToggleSelect,
 }: {
   lead: Lead;
   theme: ReturnType<typeof useWorkspaceTheme>;
@@ -942,6 +1249,8 @@ function LeadRow({
   onReply: (lead: Lead) => void;
   onOpenDrawer: () => void;
   tags: { id: string; name: string; color: string }[];
+  selected: boolean;
+  onToggleSelect: () => void;
 }) {
   const intentMeta = INTENT_META[lead.intent_level] ?? { label: 'N/A', color: 'var(--t-fg-30)', dimBg: 'var(--t-fg-05)' };
   const action     = getAction(lead);
@@ -969,6 +1278,13 @@ function LeadRow({
       <div className="flex flex-col gap-3 p-4 lg:hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelect}
+              onClick={(e) => e.stopPropagation()}
+              className="h-3.5 w-3.5 shrink-0 cursor-pointer"
+            />
             <Avatar initials={initials} theme={theme} />
             <div>
               <p className="text-[14px] font-semibold text-white">{lead.first_name || 'Unnamed'}</p>
@@ -1008,8 +1324,14 @@ function LeadRow({
       {/* Desktop (columns — matches header) */}
       <div
         className="hidden lg:grid items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02]"
-        style={{ gridTemplateColumns: '140px minmax(0,1fr) 120px 110px 130px' }}
+        style={{ gridTemplateColumns: '22px 140px minmax(0,1fr) 120px 110px 130px' }}
       >
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggleSelect}
+          className="h-3.5 w-3.5 cursor-pointer"
+        />
         {/* Contact */}
         <div className="flex items-center gap-2.5 min-w-0 cursor-pointer" onClick={onOpenDrawer}>
           <Avatar initials={initials} theme={theme} small />

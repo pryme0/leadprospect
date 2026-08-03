@@ -34,7 +34,7 @@ export function clearSubscription(): void {
 /* Routes that each module unlocks. CRM/integrations are gated under 'email'
  * (same tier boundary — both unlock at Pro) rather than adding a 5th ModuleId. */
 export const MODULE_ROUTES: Record<ModuleId, string[]> = {
-  leads:   ['/admin/leads', '/admin/explore', '/admin/pipeline', '/admin/signals', '/admin/signal-ops'],
+  leads:   ['/admin/leads', '/admin/explore', '/admin/pipeline', '/admin/signals', '/admin/signal-ops', '/admin/automations'],
   comms:   ['/admin/comms'],
   email:   ['/admin/email', '/admin/integrations'],
   routing: ['/admin/outreach'],

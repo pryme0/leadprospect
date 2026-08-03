@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
   if (!analysisConfigured()) {
     return NextResponse.json(
-      { message: 'Auto-fill is not configured (set OPENAI_API_KEY or GEMINI_API_KEY).' },
+      { message: 'Auto-fill is not configured (set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY).' },
       { status: 503 },
     );
   }

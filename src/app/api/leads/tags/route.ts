@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth/session';
 import { hasModule } from '@/lib/subscription/server-store';
-import { createTag, listTags, deleteTag, assignTag, unassignTag } from '@/lib/leads/tags-store';
+import { createTag, listTags, deleteTag, assignTag, unassignTag, getTagById } from '@/lib/leads/tags-store';
+import { fireTagAssignedEvent } from '@/lib/leads/lead-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,8 @@ export async function POST(req: NextRequest) {
       const { leadId, tagId } = body;
       if (!leadId || !tagId) return NextResponse.json({ message: 'leadId and tagId are required.' }, { status: 400 });
       await assignTag(user.org, leadId, tagId);
+      const tag = await getTagById(user.org, tagId);
+      if (tag) fireTagAssignedEvent(user.org, leadId, tag.name).catch((err) => console.error('[tags] tag-assigned event dispatch failed', err));
       return NextResponse.json({ success: true });
     }
 

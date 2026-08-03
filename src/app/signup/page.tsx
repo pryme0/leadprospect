@@ -18,6 +18,7 @@ export default function SignupPage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refCode, setRefCode] = useState<string | null>(null);
+  const [site, setSite] = useState<string | null>(null);
 
   // Capture a referral code from ?ref= (or a previously-stored one) so a referred
   // signup can be attributed when the super admin later creates the org.
@@ -29,6 +30,12 @@ export default function SignupPage() {
     } catch { /* ignore */ }
   }, []);
 
+  // Homepage hero ("yourbusiness.com" input) hands off the typed site via ?site=.
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get('site');
+    if (fromUrl?.trim()) setSite(fromUrl.trim());
+  }, []);
+
   const update = (key: keyof typeof form, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -36,6 +43,10 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
     try {
+      const messageParts = [
+        form.role ? `Role: ${form.role}` : null,
+        site ? `Website: ${site}` : null,
+      ].filter(Boolean);
       const res = await fetch('/api/access-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -43,7 +54,7 @@ export default function SignupPage() {
           name: form.name,
           email: form.email,
           company: form.organization,
-          message: form.role ? `Role: ${form.role}` : undefined,
+          message: messageParts.length ? messageParts.join(' · ') : undefined,
           ref: refCode || undefined,
         }),
       });
@@ -185,6 +196,12 @@ export default function SignupPage() {
                 ? 'Thanks — we’ve got your details.'
                 : 'Tell us about your business and we’ll get you set up.'}
             </p>
+            {!submitted && site && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5" style={{ backgroundColor: 'rgba(22,163,74,0.10)' }}>
+                <span className="material-symbols-outlined text-[16px]" style={{ color: GREEN }}>language</span>
+                <span className="text-xs font-medium" style={{ color: GREEN, fontFamily: 'var(--font-jetbrains)' }}>We&rsquo;ll look at {site}</span>
+              </div>
+            )}
           </header>
 
           {submitted ? (

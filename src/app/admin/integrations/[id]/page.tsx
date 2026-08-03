@@ -169,6 +169,18 @@ export default function IntegrationDetailPage() {
       .finally(() => setBusy(false));
   }, [integration, loadStatus]);
 
+  const testConnection = useCallback(() => {
+    if (!integration) return;
+    setBusy(true); setNotice(null);
+    fetch(`/api/integrations/${integration.id}/sync`, { headers: authHeaders() })
+      .then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => ({})) }))
+      .then(({ ok, body }) => {
+        setNotice(ok ? { kind: 'ok', text: 'Connection is working.' } : { kind: 'err', text: body.message || 'Connection test failed.' });
+      })
+      .catch(() => setNotice({ kind: 'err', text: 'Connection test failed.' }))
+      .finally(() => setBusy(false));
+  }, [integration]);
+
   const syncNow = useCallback(() => {
     if (!integration) return;
     setSyncing(true); setNotice(null);
@@ -621,6 +633,16 @@ export default function IntegrationDetailPage() {
             >
               {syncing ? 'Syncing…' : connected && meta?.oauth ? 'Sync now' : 'Recheck configuration'}
             </button>
+            {connected && meta?.oauth && (
+              <button
+                onClick={testConnection}
+                disabled={syncing || busy}
+                className="mt-2 min-h-11 w-full rounded-lg border px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ borderColor: 'var(--a-border)', color: 'var(--t-fg-70)' }}
+              >
+                {busy ? 'Testing…' : 'Test connection'}
+              </button>
+            )}
           </Panel>
         </aside>
       </div>

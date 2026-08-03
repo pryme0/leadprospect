@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth/session';
 import { hasModule } from '@/lib/subscription/server-store';
-import { appPool, ensureAppSchema } from '@/lib/app-pg';
+import { importedLeadEmailExists, insertImportedLead, listImportedLeads } from '@/lib/leads/imported-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,26 +12,6 @@ interface ImportedLead {
   company?: string;
   source?: string;
   notes?: string;
-}
-
-async function ensureImportedLeadsTable() {
-  await ensureAppSchema();
-  await appPool().query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
-  await appPool().query(`
-    CREATE TABLE IF NOT EXISTS imported_leads (
-      id         TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-      org_id     TEXT NOT NULL,
-      name       TEXT,
-      email      TEXT,
-      phone      TEXT,
-      company    TEXT,
-      source     TEXT DEFAULT 'import',
-      notes      TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-  `);
-  await appPool().query(`CREATE INDEX IF NOT EXISTS ix_imported_leads_org ON imported_leads(org_id)`);
-  await appPool().query(`CREATE INDEX IF NOT EXISTS ix_imported_leads_email ON imported_leads(org_id, email)`);
 }
 
 function parseCSV(text: string): ImportedLead[] {
@@ -115,29 +95,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'No valid leads found in CSV.' }, { status: 400 });
     }
 
-    await ensureImportedLeadsTable();
-
     let imported = 0;
     let skipped = 0;
 
     for (const lead of leads) {
       // Skip if email already exists for this org
-      if (lead.email) {
-        const { rows } = await appPool().query(
-          `SELECT 1 FROM imported_leads WHERE org_id = $1 AND email = $2 LIMIT 1`,
-          [user.org, lead.email],
-        );
-        if (rows.length > 0) {
-          skipped++;
-          continue;
-        }
+      if (lead.email && (await importedLeadEmailExists(user.org, lead.email))) {
+        skipped++;
+        continue;
       }
 
-      await appPool().query(
-        `INSERT INTO imported_leads (org_id, name, email, phone, company, source, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [user.org, lead.name ?? null, lead.email ?? null, lead.phone ?? null, lead.company ?? null, lead.source ?? 'import', lead.notes ?? null],
-      );
+      await insertImportedLead(user.org, lead);
       imported++;
     }
 
@@ -159,11 +127,7 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
   try {
-    await ensureImportedLeadsTable();
-    const { rows } = await appPool().query(
-      `SELECT * FROM imported_leads WHERE org_id = $1 ORDER BY created_at DESC LIMIT 500`,
-      [user.org],
-    );
+    const rows = await listImportedLeads(user.org);
     return NextResponse.json({ leads: rows });
   } catch (err) {
     console.error('[GET /api/leads/import]', err);

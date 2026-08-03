@@ -13,7 +13,7 @@ import CommandPalette from '@/components/admin/CommandPalette';
 import {
   Home, Radar, UserPlus, TrendingUp, MessagesSquare,
   Users, Blocks, CreditCard, Gift, Settings as SettingsIcon,
-  Building2, UsersRound, Receipt, Inbox,
+  Building2, UsersRound, Receipt, Inbox, Zap,
 } from 'lucide-react';
 
 const ICON = { size: 17, strokeWidth: 2 } as const;
@@ -44,6 +44,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
         match: ['/admin/signals', '/admin/explore', '/admin/signal-ops'] },
       { href: '/admin/leads',    label: 'Leads',          icon: <UserPlus {...ICON} /> },
       { href: '/admin/pipeline', label: 'Deals',          icon: <TrendingUp {...ICON} /> },
+      { href: '/admin/automations', label: 'Automations', icon: <Zap {...ICON} /> },
       // Messages absorbs the old Pulse / Routing Desk / Email Desk pages.
       { href: '/admin/comms',    label: 'Messages',       icon: <MessagesSquare {...ICON} />,
         match: ['/admin/comms', '/admin/outreach', '/admin/email'] },
@@ -68,9 +69,11 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/signal-ops':  'Buyer activity',
   '/admin/signals':     'Buyer activity',
   '/admin/leads':       'Leads',
+  '/admin/automations': 'Automations',
   '/admin/outreach':    'Messages',
   '/admin/email':       'Messages',
   '/admin/comms':       'Messages',
+  '/admin/comms/templates': 'Messages',
   '/admin/users':       'Team',
   '/admin/integrations':'Connected apps',
   '/admin/settings':    'Settings',
@@ -90,11 +93,12 @@ const HUB_TABS: { match: string[]; tabs: { href: string; label: string }[] }[] =
     ],
   },
   {
-    match: ['/admin/comms', '/admin/outreach', '/admin/email'],
+    match: ['/admin/comms', '/admin/outreach', '/admin/email', '/admin/comms/templates'],
     tabs: [
-      { href: '/admin/comms',    label: 'Inbox' },
-      { href: '/admin/outreach', label: 'Suggested replies' },
-      { href: '/admin/email',    label: 'Emails' },
+      { href: '/admin/comms',           label: 'Inbox' },
+      { href: '/admin/outreach',        label: 'Suggested replies' },
+      { href: '/admin/email',           label: 'Emails' },
+      { href: '/admin/comms/templates', label: 'Templates' },
     ],
   },
 ];

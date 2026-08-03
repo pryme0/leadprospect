@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
 
   if (!analysisConfigured()) {
-    return NextResponse.json({ message: 'Analysis is not configured (set OPENAI_API_KEY or GEMINI_API_KEY).' }, { status: 503 });
+    return NextResponse.json({ message: 'Analysis is not configured (set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY).' }, { status: 503 });
   }
 
   const profile = await getOrgProfile(user.org);

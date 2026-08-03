@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listSignals } from '@/lib/crawler/signals-db';
-import { toUiLead } from '@/lib/crawler/map';
+import { toUiLead, toUiLeadFromImported } from '@/lib/crawler/map';
 import { getUserFromRequest } from '@/lib/auth/session';
 import { resolveUserSbu } from '@/lib/crawler/user-sbu';
 import { getUserTier } from '@/lib/subscription/server-store';
@@ -8,6 +8,8 @@ import { TIER_LIMITS } from '@/lib/subscription/tiers';
 import { getActiveBonusLeadsPerDay } from '@/lib/referrals/store';
 import { getOrgProfile } from '@/lib/settings/org-store';
 import { syncPipelineForOrg, getPipelineStagesByLeadIds } from '@/lib/pipeline/store';
+import { getMergedLeadIds } from '@/lib/leads/merges-store';
+import { listImportedLeads } from '@/lib/leads/imported-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,6 +96,30 @@ export async function GET(req: Request) {
     });
 
     let data = signals.map(toUiLead);
+    let mergedTotal = total;
+
+    // Fold in CSV-imported leads (a separate, org-owned table — see
+    // src/lib/leads/imported-store.ts) so they actually show up here instead of
+    // being stranded. Only added on page 1: they're a small supplementary source,
+    // not paginated in lockstep with the (much larger) crawler signals.
+    if (user && page === 1) {
+      const imported = await listImportedLeads(user.org).catch(() => []);
+      if (imported.length > 0) {
+        data = [...imported.map(toUiLeadFromImported), ...data];
+        mergedTotal += imported.length;
+      }
+    }
+
+    // Merged-away duplicates (see /api/leads/merge) are suppressed everywhere.
+    if (user) {
+      const merged = await getMergedLeadIds(user.org).catch(() => new Set<string>());
+      if (merged.size > 0) {
+        const before = data.length;
+        data = data.filter((l) => !merged.has(l.id));
+        mergedTotal -= (before - data.length);
+      }
+    }
+
     // source_tool filter maps to the mapped ingestion_category/source label.
     const sourceTool = sp.get('source_tool');
     if (sourceTool) data = data.filter((l) => l.source_tool === sourceTool);
@@ -111,14 +137,14 @@ export async function GET(req: Request) {
       }));
     }
 
-    const total_pages = Math.max(1, Math.ceil(total / limit));
+    const total_pages = Math.max(1, Math.ceil(mergedTotal / limit));
     return NextResponse.json({
       leads: data,
       data,
-      total,
+      total: mergedTotal,
       total_pages,
       totalPages: total_pages,
-      pagination: { total, total_pages },
+      pagination: { total: mergedTotal, total_pages },
     });
   } catch (err) {
     console.error('[GET /api/crawler/leads]', err);
