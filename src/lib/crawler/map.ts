@@ -99,7 +99,7 @@ export function toUiLead(r: SignalRow) {
     // Direct link to the exact signal — the comment permalink for comment leads,
     // the post permalink for post leads (used as the outreach "reference" link).
     url: r.url ?? r.post_url ?? r.profile_url ?? null,
-    post_content: r.content ?? null,
+    post_content: (r.content ?? null) as string | null,
     summary: r.summary ?? null,
     ...hotScoreFields(r),
   };

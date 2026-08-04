@@ -14,10 +14,13 @@ export default function WordmarkDivider() {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced) { setFill(1); return; }
 
+    // Progress is driven purely by how far the mark's own top edge has moved
+    // up the viewport — not by scrolling it fully past — so it still reaches
+    // 100% even when it's the last thing on the page (nothing to scroll past).
     const onScroll = () => {
       const rect = el.getBoundingClientRect();
       const vh = window.innerHeight;
-      const progress = (vh - rect.top) / (vh + rect.height);
+      const progress = (vh - rect.top) / (vh * 0.7);
       setFill(Math.min(1, Math.max(0, progress)));
     };
     onScroll();

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const WORDS = ['more customers', 'ready buyers', 'new leads', 'real sales'];
 
@@ -14,7 +14,6 @@ export default function HomeHero() {
   const router = useRouter();
   const [wordIndex, setWordIndex] = useState(0);
   const [site, setSite] = useState('');
-  const longest = useMemo(() => Math.max(...WORDS.map((w) => w.length)), []);
 
   useEffect(() => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -43,11 +42,8 @@ export default function HomeHero() {
           Get found online.
           <br />
           Get{' '}
-          <span
-            className="relative inline-block overflow-hidden align-bottom text-primary"
-            style={{ minWidth: `${longest}ch` }}
-          >
-            <span key={wordIndex} className="home-word block">
+          <span className="relative inline-block overflow-hidden align-bottom text-primary">
+            <span key={wordIndex} className="home-word block whitespace-nowrap">
               {WORDS[wordIndex]}
             </span>
           </span>
